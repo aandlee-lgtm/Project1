@@ -61,9 +61,16 @@ def pick(entries, ext, makes, count):
     return chosen
 
 
-def discover():
+def discover(out=None):
     """Print the archive's link structure so the download scheme can be confirmed from CI logs."""
     import re
+    import builtins
+    log = open(out, 'w') if out else None
+
+    def print(*a):  # noqa: A001 - also copy discovery lines to a file
+        builtins.print(*a)
+        if log:
+            builtins.print(*a, file=log, flush=True)
     for url in ('https://raw.pixls.us/', 'https://raw.pixls.us/data/', 'https://raw.pixls.us/data-unique/'):
         try:
             r = get(url, timeout=60)
@@ -91,7 +98,7 @@ def main():
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     manifest = []
-    discover()
+    discover(out / 'discovery.txt')
     try:
         listing = get(BASE + 'filelist.sha1').read().decode('utf-8', 'replace').splitlines()
         entries = []

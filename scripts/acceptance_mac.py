@@ -173,7 +173,9 @@ class App:
 
     def _wait_exit(self, t, timeout):
         while time.time() - t < timeout:
-            if not alive(self.pid):
+            if self.proc is not None and self.proc.poll() is not None:   # reap our own child (no zombie)
+                return True
+            if self.proc is None and not alive(self.pid):
                 return True
             time.sleep(.2)
         return False
@@ -536,7 +538,7 @@ def main():
                 record('Quit via Apple Event (⌘Q path)', 'NOT TESTED', f'refused on this runner: {detail}')
                 check('SIGTERM closes the window and exits cleanly', method == 'SIGTERM', f'{method}, {q and round(q, 1)} s')
             time.sleep(1)
-            check('no PhotoSelect processes remain after quitting', not photoselect_processes() and not alive(pid),
+            check('no PhotoSelect processes remain after quitting', not photoselect_processes() and app.proc.poll() is not None,
                   photoselect_processes())
             check('local server port closed after quitting', not port_open(port))
 

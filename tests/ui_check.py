@@ -33,6 +33,15 @@ def main():
     if shots:
         shots.mkdir(parents=True, exist_ok=True)
 
+    def wait(js, timeout=120_000):
+        """Poll a JS condition via page.evaluate (wait_for_function is blocked by the app's CSP in WebKit)."""
+        deadline = time.time() + timeout / 1000
+        while time.time() < deadline:
+            if page.evaluate(f'() => Boolean({js})'):
+                return
+            time.sleep(.25)
+        raise TimeoutError(f'timed out waiting for: {js}')
+
     def check(name, ok, detail=''):
         results.append((name, bool(ok), detail))
         print(('PASS ' if ok else 'FAIL ') + name + (f' — {detail}' if detail else ''), flush=True)
@@ -55,8 +64,7 @@ def main():
         before = page.evaluate('scan.started || 0')
         page.click('#scan')
         t0 = time.time()
-        page.wait_for_function(f"scan.phase==='complete' && scan.started > {before} && rowsVersion===scan.version",
-                               timeout=1_800_000)
+        wait(f"scan.phase==='complete' && scan.started > {before} && rowsVersion===scan.version", 1_800_000)
         page.wait_for_timeout(500)
         n = int(page.text_content('#total'))
         check('scan completes and fills grid', n > 0 and page.locator('.card').count() > 0,
@@ -75,6 +83,15 @@ def main():
                   page.input_value('#weight-composition') == '100' and page.input_value('#weight-focus') == '0'
                   and page.input_value('#keep') == '50')
         page.select_option('#sort', 'score')
+
+        def set_range(sel, value):
+            page.fill(sel, str(value))
+            page.dispatch_event(sel, 'input')
+        # contrasting baseline: focus only, strict thresholds
+        for k, v in (('sharpness', 0), ('focus', 100), ('composition', 0), ('exposure', 0)):
+            set_range(f'#weight-{k}', v)
+        set_range('#keep', 95)
+        set_range('#consider', 49)
         base_order, base_counts = order(), counts()
         for k, v in (('sharpness', 0), ('focus', 0), ('composition', 100), ('exposure', 0)):
             page.fill(f'#weight-{k}', str(v))
@@ -103,20 +120,20 @@ def main():
         # viewer, region, full-resolution inspector
         page.locator('.card [data-open]').first.click()
         page.wait_for_selector('#viewer[open]')
-        page.wait_for_function("document.getElementById('viewImage').naturalWidth > 0")
+        wait("document.getElementById('viewImage').naturalWidth > 0")
         box = page.locator('#viewImage').bounding_box()
         page.mouse.move(box['x'] + box['width'] * .3, box['y'] + box['height'] * .3)
         page.mouse.down()
         page.mouse.move(box['x'] + box['width'] * .6, box['y'] + box['height'] * .6, steps=5)
         page.mouse.up()
-        page.wait_for_function("current && current.roi_state==='full'", timeout=120_000)
+        wait("current && current.roi_state==='full'", 120_000)
         check('focus region measured at full resolution', True)
         reasons = page.text_content('#reasons')
         check('recommendation reasons shown', 'weighted score' in reasons or 'Your decision' in reasons, reasons[:160])
         if shots:
             page.screenshot(path=str(shots / 'viewer.png'))
         page.click('#full')
-        page.wait_for_function("document.getElementById('inspectImage').naturalWidth > 0", timeout=180_000)
+        wait("document.getElementById('inspectImage').naturalWidth > 0", 180_000)
         natural = page.evaluate("[inspectImage.naturalWidth, inspectImage.naturalHeight]")
         size = page.evaluate('current.size')
         check('full-resolution inspector shows native pixels', list(natural) == list(size), f'{natural} vs {size}')
@@ -132,7 +149,7 @@ def main():
         page.wait_for_selector('#comparison[open]')
         frames = page.locator('.comparephoto').count()
         page.check('#cropMode')
-        page.wait_for_function("[...document.querySelectorAll('[data-crop]')].every(i=>i.naturalWidth>0)", timeout=300_000)
+        wait("[...document.querySelectorAll('[data-crop]')].every(i=>i.naturalWidth>0)", 300_000)
         check('burst comparison with 100% crops', frames >= 1, f'{frames} frames')
         if shots:
             page.screenshot(path=str(shots / 'burst-compare.png'))
@@ -144,7 +161,7 @@ def main():
         page.click('[data-close="comparison"]')
 
         page.click('#export')
-        page.wait_for_function("document.getElementById('status').textContent.includes('exported to')", timeout=30_000)
+        wait("document.getElementById('status').textContent.includes('exported to')", 30_000)
         check('CSV export', True, page.text_content('#status'))
         failures = page.locator('#failureList').text_content()
         check('failed files listed with reasons', True, failures[:300].replace('\n', ' | '))
