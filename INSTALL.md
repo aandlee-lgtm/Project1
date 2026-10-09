@@ -1,7 +1,10 @@
 # Installing PhotoSelect
 
-**Requirements:** a Mac with Apple silicon (M1, M2, M3, M4 or later) running macOS __MINOS__ or
-newer. Intel Macs are not supported. Nothing else is needed: no Python, Terminal, Homebrew or
+**Requirements:** a Mac with Apple silicon (M1, M2, M3, M4 or later). The app declares
+**macOS 11.0** as its minimum, because that is the highest minimum required by any binary
+inside it (measured at build time). It has been **tested on macOS 14.8 (Sonoma) and 15.7
+(Sequoia)**. macOS 11–13 and 26 have not been tested. The interface needs the system WebKit
+from Safari 15.4 or later, which current macOS versions include. Intel Macs are not supported. Nothing else is needed: no Python, Terminal, Homebrew or
 downloads after installation, and it works offline.
 
 ## Install
