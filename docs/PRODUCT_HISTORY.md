@@ -346,8 +346,15 @@ Built when the owner sent **build_new** after items 13 and 14 were discussed (be
       Confirm (Keep, weakest first) and Decide (Consider, best first) passes. Keys 3 / 2 / 1 match
       Lightroom's stars and advance automatically. Progress is shown and remembered, and everything
       is sent to Lightroom once at the end.
+    - **Withdrawn the same day.** The owner pointed out that final decisions depend on editing in
+      Lightroom (e.g. lifting shadows to recover detail), which PhotoSelect's viewer cannot do, and
+      prefers PhotoSelect clean and simple. Agreed: PhotoSelect does the fast first pass and the
+      hand-off, and Lightroom is where final calls are made. Replaced by item 18.
 17. **Lightroom changes flow back.** Star changes made in Lightroom on PhotoSelect-rated photos update
     PhotoSelect's decisions, are not undone by the next send, and count as decisions for learning.
+18. **Review passes in Lightroom.** The plug-in creates Smart Collections for the owner's passes: 1 Rescue
+    (1★), 2 Confirm (3★), 3 Decide (2★) and Liked (5★). Photos close to a threshold get a Borderline
+    keyword. Nothing is added to PhotoSelect, and all groups are sent once.
 
 ---
 
@@ -381,6 +388,7 @@ Built when the owner sent **build_new** after items 13 and 14 were discussed (be
 | **Send to Lightroom…** | Opens the Lightroom window: the plug-in status, the star groups to import, **Open in Lightroom Import** and **Only save selections**. Selections are saved in ~/Library/Application Support/PhotoSelect/Lightroom (never in the photo folders). |
 | **Open in Lightroom Import** | Starts Lightroom Classic and opens its Import window with only the photos in the ticked star groups; you choose Add or Copy and click Import. |
 | **Automatic star rating** | The plug-in adds the stars and keywords by itself a few seconds after photos with PhotoSelect selections are in the catalog, however they were imported (within 14 days of Send to Lightroom; 3 hours for Open in Lightroom Import). Each photo is rated once; stars already set in Lightroom are kept. |
+| **Borderline** *(planned)* | A PhotoSelect keyword in Lightroom for photos within a few points of the Keep or Consider threshold: the close calls worth a second look. |
 | **Plug-in status** | The top line of PhotoSelect's Lightroom window: whether the plug-in is running in Lightroom, its version, and when it last rated photos. |
 | **Analysis decode** | How PhotoSelect decodes RAW for scoring: half size for 33 MP+ photos, a fast demosaic for smaller ones. Inspection always uses the full-quality decode. |
 | **Sony ARW** | Sony's RAW format; A7 and A9 bodies are checked against the public sample archive in every build. |
