@@ -61,7 +61,7 @@ a{color:var(--mint)}kbd{border:1px solid var(--line);border-radius:4px;padding:0
 <p class="muted" style="margin:0">Import a folder, tune the criteria, and review the strongest shot in each burst.</p>
 <div class="import"><input id="folder" type="text" placeholder="Full folder path, e.g. /Volumes/Card/DCIM/100NIKON" aria-label="Photo folder path"><button id="browse">Choose folder</button><button id="scan" class="primary">Analyse photos</button><button id="cancel" hidden>Cancel</button></div>
 <label class="hint"><input id="recursive" type="checkbox"> Include subfolders</label><span class="hint"> · Nikon NEF / NRW · Olympus &amp; OM System ORF · other RAW · JPEG / PNG / TIFF</span>
-<div id="status">Ready when you are. Start with one small shoot to tune your preferences.</div><div class="progress"><i id="progress"></i></div><div id="error" role="alert"></div>
+<div id="status">Ready when you are. Start with one small shoot to tune your preferences.</div><div class="progress"><i id="progress"></i></div><div id="error" role="alert"></div><div id="notice" class="hint" role="status"></div>
 <div class="summary"><div class="stat"><strong id="total">0</strong><span>Photos analysed</span></div><div class="stat"><strong id="kept" style="color:var(--mint)">0</strong><span>Keep</span></div><div class="stat"><strong id="considered" style="color:var(--amber)">0</strong><span>Consider</span></div><div class="stat"><strong id="skipped">0</strong><span>Skip suggestion</span></div></div>
 <div class="toolbar">
 <select id="filter" aria-label="Filter photos"><option value="all">All photos</option><option>Keep</option><option>Consider</option><option>Skip</option><option value="liked">Liked photos</option><option value="manual">Decided manually</option><option value="close">Close burst contenders</option><option value="pending">Not yet analysed</option></select>
@@ -192,8 +192,8 @@ async function poll(){try{scan=await api('state');const run=scan.running;
   }catch(e){showError(e)}setTimeout(poll,scan.running?700:1500)}
 
 // ---------- actions ----------
-$('browse').onclick=async()=>{try{showError();$('status').textContent='Choose a folder in the system dialog…';const r=await api('pick',{});if(r.folder)$('folder').value=r.folder;$('status').textContent=r.folder?'Folder selected. Click Analyse photos.':'No folder chosen.'}catch(e){showError(e)}};
-$('scan').onclick=async()=>{try{showError();prefs.recursive=$('recursive').checked;await api('scan',{folder:$('folder').value,recursive:$('recursive').checked});page=0;rowsVersion=-1;lastRowsFetch=0}catch(e){showError(e)}};
+$('browse').onclick=async()=>{try{showError();$('notice').textContent='Choose a folder in the system dialog…';const r=await api('pick',{});if(r.folder)$('folder').value=r.folder;$('notice').textContent=r.folder?'Folder selected. Click Analyse photos.':'No folder chosen.'}catch(e){showError(e)}};
+$('scan').onclick=async()=>{try{showError();$('notice').textContent='';prefs.recursive=$('recursive').checked;await api('scan',{folder:$('folder').value,recursive:$('recursive').checked});page=0;rowsVersion=-1;lastRowsFetch=0}catch(e){showError(e)}};
 $('cancel').onclick=()=>api('cancel',{}).catch(showError);
 for(const id of ['keep','consider'])$(id).oninput=()=>{prefs[id]=+$(id).value;$(id+'Value').textContent=$(id).value;savePrefs();render()};
 for(const id of ['filter','formatFilter','sort','winners'])$(id).onchange=()=>{page=0;render()};
@@ -263,7 +263,7 @@ $('export').onclick=async()=>{if(!rows.length){showError('Analyse a folder befor
   for(const e of errors)data.push([e.name,e.path,'','','failed: '+e.error,'','','','','','','','','','','','','','','','','','','','','','','','']);
   try{const r=await api('export',{rows:data});
     if(r.csv!==undefined){const blob=new Blob(['﻿'+r.csv],{type:'text/csv'}),a=document.createElement('a'),u=URL.createObjectURL(blob);a.href=u;a.download='PhotoSelect-decisions.csv';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}
-    else if(r.saved)$('status').textContent='Decisions exported to '+r.saved;}catch(e){showError(e)}};
+    else if(r.saved)$('notice').textContent='Decisions exported to '+r.saved;}catch(e){showError(e)}};
 
 // ---------- about ----------
 async function openAbout(){try{const a=await api('about');$('aboutText').textContent=`PhotoSelect ${a.version}\nLibRaw ${a.libraw} (rawpy ${a.rawpy}) · NumPy ${a.numpy} · Pillow ${a.pillow} · Python ${a.python} (bundled)\nAnalysis workers: ${a.workers}\n\nDecisions, likes, regions and preferences: ${a.support}\nThumbnails and previews cache: ${a.cache} (${(a.cache_bytes/1048576).toFixed(1)} MB)\nLogs: ${a.logs}\n\nAll processing happens on this Mac. Original photos are opened read-only.`;$('aboutMessage').textContent='';$('about').showModal()}catch(e){showError(e)}}

@@ -161,8 +161,8 @@ def main():
         page.click('[data-close="comparison"]')
 
         page.click('#export')
-        wait("document.getElementById('status').textContent.includes('exported to')", 30_000)
-        check('CSV export', True, page.text_content('#status'))
+        wait("document.getElementById('notice').textContent.includes('exported to')", 30_000)
+        check('CSV export', True, page.text_content('#notice'))
         failures = page.locator('#failureList').text_content()
         check('failed files listed with reasons', True, failures[:300].replace('\n', ' | '))
         check('no JavaScript errors', not errors, '; '.join(errors[:3]))
