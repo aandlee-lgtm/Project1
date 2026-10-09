@@ -71,6 +71,30 @@ class RawFormatTests(unittest.TestCase):
             with self.assertRaisesRegex(DecodeError, 'does not recognise'):
                 decode(other)
 
+    def test_high_efficiency_data_error_falls_back_but_damage_does_not(self):
+        # Nikon Z50 II HE NEFs: LibRaw opens the file, then stops with a *data error* while decoding.
+        he = self.dir / 'DSC_1312.NEF'
+        he.write_bytes(b'II*\x00' + os.urandom(5000) + b'CONTACT_INTOPIX_' + os.urandom(5000))
+        failed, first, second = self._contexts()
+        failed.postprocess.side_effect = rawpy.LibRawDataError('Data error or unsupported file format')
+        with patch('rawpy.imread', side_effect=[first, second]):
+            image, source, notice = raw_io.decode_photo(he)
+        self.assertEqual(source, 'camera_preview')
+        failed, first, second = self._contexts()
+        failed.postprocess.side_effect = rawpy.LibRawDataError('Data error or unsupported file format')
+        with patch('rawpy.imread', side_effect=[first]):
+            with self.assertRaisesRegex(DecodeError, 'High Efficiency.*Lossless compressed'):
+                raw_io.decode_photo(he, allow_preview=False)
+        # the same error on a NEF without the HE marker is damage: no fallback
+        damaged = self.dir / 'damaged.NEF'
+        damaged.write_bytes(os.urandom(10000))
+        failed, first, second = self._contexts()
+        failed.postprocess.side_effect = rawpy.LibRawDataError('Data error or unsupported file format')
+        with patch('rawpy.imread', side_effect=[first, second]) as read:
+            with self.assertRaisesRegex(DecodeError, 'damaged or truncated'):
+                raw_io.decode_photo(damaged)
+        self.assertEqual(read.call_count, 1)
+
     def _contexts(self, preview_size=(1200, 800)):
         import io as _io
         buf = _io.BytesIO()

@@ -69,8 +69,8 @@ def _raw_error(path, error, preview_tried=False):
     import rawpy
     name = format_name(path)
     no_preview = ' No usable embedded camera preview was found either.' if preview_tried else ''
-    if isinstance(error, rawpy.LibRawFileUnsupportedError) and Path(path).suffix.lower() == '.nef' \
-            and is_nikon_high_efficiency(path):
+    if isinstance(error, (rawpy.LibRawFileUnsupportedError, rawpy.LibRawDataError)) \
+            and Path(path).suffix.lower() == '.nef' and is_nikon_high_efficiency(path):
         return DecodeError('Nikon High Efficiency (HE / HE★) NEF: this compression uses a licensed codec that the '
                            f'bundled LibRaw decoder cannot read.{no_preview} Set the camera to NEF (RAW) compression → '
                            'Lossless compressed for shoots you want to cull here. The file has not been changed.')
@@ -132,6 +132,13 @@ def decode_photo(path, allow_preview=True):
                                       output_color=rawpy.ColorSpace.sRGB)
             except rawpy.LibRawFileUnsupportedError as error:
                 raise _PixelsUnsupported() from error
+            except rawpy.LibRawDataError as error:
+                # Some cameras' High Efficiency NEFs (e.g. Nikon Z50 II) make LibRaw start decoding and
+                # stop with a data error instead of reporting the format as unsupported. Only a NEF that
+                # carries the HE codec marker is treated as undecodable; other data errors mean damage.
+                if path.suffix.lower() == '.nef' and is_nikon_high_efficiency(path):
+                    raise _PixelsUnsupported() from error
+                raise
         return Image.fromarray(rgb), 'decoded_raw', ''
     except _PixelsUnsupported as wrapped:
         original = wrapped.__cause__

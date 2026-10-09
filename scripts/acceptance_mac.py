@@ -90,14 +90,14 @@ def fingerprint(folder):
 class App:
     """A running instance of the packaged app, driven through its loopback API."""
 
-    def __init__(self, out, offline=True, via_open=False, label='run'):
+    def __init__(self, out, offline=True, via_open=False, label='run', extra_env=None):
         self.auto = Path(out) / f'automation-{label}.json'
         if self.auto.exists():
             self.auto.unlink()
         env = {'HOME': str(HOME), 'USER': os.environ.get('USER', 'runner'), 'TMPDIR': os.environ.get('TMPDIR', '/tmp'),
                'PATH': '/usr/bin:/bin:/usr/sbin:/sbin', 'LANG': 'en_GB.UTF-8',
                'PHOTOSELECT_AUTOMATION_FILE': str(self.auto),
-               'PHOTOSELECT_EXPORT_DIR': str(Path(out) / 'exports')}
+               'PHOTOSELECT_EXPORT_DIR': str(Path(out) / 'exports'), **(extra_env or {})}
         (Path(out) / 'exports').mkdir(exist_ok=True)
         self.via_open = via_open
         if via_open:
@@ -324,8 +324,8 @@ def inspect_decodes(app, rows, real, out):
             record(f'decode {s["model"]} {name}', 'FAIL', 'missing from results')
             continue
         if s.get('kind') == 'nikon_he':
-            check(f'Nikon Z6III High Efficiency NEF analysed from the camera preview and labelled ({name})',
-                  row['status'] == 'analysed' and row.get('basis') == 'camera_preview' and max(row['size']) >= 6000
+            check(f'Nikon High Efficiency NEF analysed from the camera preview and labelled ({s["model"]}, {name})',
+                  row['status'] == 'analysed' and row.get('basis') == 'camera_preview' and max(row['size']) >= 4000
                   and 'do not measure the original RAW' in (row.get('notice') or ''),
                   {'basis': row.get('basis'), 'size': row['size'], 'scores': row['scores']})
             report.append({'file': name, 'model': s['model'], 'decoded': False, 'basis': row.get('basis'), 'size': row['size']})
@@ -430,12 +430,28 @@ def diagnostics_check(app, out):
     check('Help → Create Diagnostic Report produces a report without full paths', ok, oriented)
 
 
-def ui_check(app, folder, out, expect_persisted, label):
+def fake_lightroom(out):
+    """A stand-in for Lightroom Classic (not installed on the runners): an AppleScript applet that records
+    the files macOS hands it, the same way Lightroom receives files dropped on its icon."""
+    received = Path(out) / 'lightroom-received.txt'
+    script = Path(out) / 'fake-lightroom.applescript'
+    script.write_text('on open theFiles\n set out to ""\n repeat with f in theFiles\n'
+                      '  set out to out & POSIX path of f & linefeed\n end repeat\n'
+                      f' do shell script "printf %s " & quoted form of out & " > " & quoted form of "{received}"\n'
+                      'end open\n')
+    app = Path(out) / 'Fake Lightroom.app'
+    run('osacompile', '-o', app, script)
+    return app, received
+
+
+def ui_check(app, folder, out, expect_persisted, label, lightroom_received=None):
     cmd = [sys.executable, str(Path(__file__).resolve().parent.parent / 'tests' / 'ui_check.py'), '--port', str(app.port),
            '--token', app.token, '--folder', str(folder), '--engine', 'webkit', '--recursive',
            '--shots', str(Path(out) / f'screens-{label}')]
     if expect_persisted:
         cmd.append('--expect-persisted')
+    if lightroom_received:
+        cmd += ['--lightroom-received', str(lightroom_received)]
     r = run(*cmd, check_=False, timeout=3600)
     for line in r.stdout.splitlines():
         if line.startswith(('PASS ', 'FAIL ')):
@@ -520,7 +536,7 @@ def main():
     kinds = {Path(m['file']).suffix.lower() for m in json.loads((Path(a.samples) / 'manifest.json').read_text())}
     if not any(m.get('kind') == 'nikon_he' for m in json.loads((Path(a.samples) / 'manifest.json').read_text())):
         record('Nikon High Efficiency NEF camera-preview fallback', 'NOT TESTED', 'no HE sample could be downloaded')
-    for ext, label in (('.nef', 'Nikon NEF'), ('.nrw', 'Nikon NRW'), ('.orf', 'Olympus / OM System ORF')):
+    for ext, label in (('.nef', 'Nikon NEF'), ('.nrw', 'Nikon NRW'), ('.orf', 'Olympus / OM System ORF'), ('.arw', 'Sony ARW')):
         if ext not in kinds:
             record(f'genuine {label} decode', 'NOT TESTED', 'no genuine sample file was available to this run')
     install(a.dmg, out)
@@ -538,7 +554,12 @@ def main():
         app = None
         try:
             t = time.time()
-            app = App(out, offline=True, label='1')
+            try:
+                fake_lr, lr_received = fake_lightroom(out)
+            except Exception as error:
+                fake_lr, lr_received = '', None
+                record('stand-in Lightroom app for the hand-off test', 'NOT TESTED', error)
+            app = App(out, offline=True, label='1', extra_env={'PHOTOSELECT_LR_APP': str(fake_lr)})
             check('packaged app launches offline without external Python/Homebrew (sandboxed: no outbound network)', True,
                   f'ready in {time.time() - t:.1f} s; hidden: {hidden}')
         except Exception as error:
@@ -549,7 +570,7 @@ def main():
             screenshot(out, 'app-window-launch1.png')
             library_checks(app, shoot, real, out)
             diagnostics_check(app, out)
-            ui_check(app, shoot.parent, out, False, 'launch 1')
+            ui_check(app, shoot.parent, out, False, 'launch 1', lightroom_received=lr_received)
             screenshot(out, 'app-window-after-ui.png')
             port, pid = app.port, app.pid
             q, method, detail = app.quit()

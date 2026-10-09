@@ -22,7 +22,7 @@ import raw_io
 import store as store_module
 from engine import Library
 
-APP_VERSION = '1.3.0'
+APP_VERSION = '1.4.0'
 log = logging.getLogger('photoselect.app')
 
 
@@ -46,6 +46,33 @@ def lightroom_modules_dir():
     if override:
         return Path(override)
     return Path.home() / 'Library' / 'Application Support' / 'Adobe' / 'Lightroom' / 'Modules'
+
+
+LIGHTROOM_BUNDLE_ID = 'com.adobe.LightroomClassicCC7'
+OPEN_IN_LIGHTROOM_MAX = 2000   # files handed to Lightroom's Import window in one go
+
+
+def lightroom_app():
+    """Path of Adobe Lightroom Classic on this Mac, or None."""
+    override = os.environ.get('PHOTOSELECT_LR_APP')
+    if override is not None:
+        return override if override and Path(override).exists() else None
+    if sys.platform != 'darwin':
+        return None
+    default = Path('/Applications/Adobe Lightroom Classic/Adobe Lightroom Classic.app')
+    if default.exists():
+        return str(default)
+    try:
+        found = subprocess.run(['/usr/bin/mdfind', f"kMDItemCFBundleIdentifier == '{LIGHTROOM_BUNDLE_ID}'"],
+                               capture_output=True, text=True, timeout=10).stdout.split('\n')
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return next((p for p in found if p.endswith('.app')), None)
+
+
+def _open_in_lightroom(app_path, paths):
+    """Hand files to Lightroom Classic like dropping them on its icon: it opens its Import window with them."""
+    subprocess.run(['/usr/bin/open', '-a', app_path, *paths], check=True, capture_output=True, timeout=60)
 
 
 def _tsv_field(value):
@@ -84,6 +111,7 @@ def create_app(library=None, store=None, token=None):
     library = library or Library(store, store_module.cache_dir())
     app = Flask(__name__, static_folder=None)
     app.config.update(TOKEN=token or secrets.token_urlsafe(32), PORT=None, PICK_FOLDER=None, SAVE_FILE=None,
+                      OPEN_IN_LIGHTROOM=_open_in_lightroom,
                       DESKTOP=False, EXPORT_DIR=os.environ.get('PHOTOSELECT_EXPORT_DIR'))
     app.library, app.store = library, store
 
@@ -288,6 +316,23 @@ def create_app(library=None, store=None, token=None):
         import diagnostics
         return save_text(diagnostics.build(library, store.prefs(), APP_VERSION), diagnostics.filename())
 
+    def plugin_path():
+        return lightroom_modules_dir() / LIGHTROOM_PLUGIN
+
+    @app.get('/api/lightroom/status')
+    def lightroom_status():
+        installed = (plugin_path() / 'Info.lua').exists()
+        return jsonify(plugin_installed=installed, plugin_path=str(plugin_path()) if installed else '',
+                       lightroom=lightroom_app() or '')
+
+    @app.post('/api/lightroom/reveal')
+    def lightroom_reveal():
+        target = plugin_path() if (plugin_path() / 'Info.lua').exists() else resource_dir() / 'lightroom' / LIGHTROOM_PLUGIN
+        if sys.platform != 'darwin':
+            return jsonify(error='Show in Finder is only available on macOS.', path=str(target)), 400
+        subprocess.run(['/usr/bin/open', '-R', str(target)], check=False)
+        return jsonify(ok=True, path=str(target))
+
     @app.post('/api/lightroom')
     def lightroom():
         data = request.get_json(force=True) or {}
@@ -308,8 +353,37 @@ def create_app(library=None, store=None, token=None):
         tmp.write_text(lightroom_selections(folder, table), encoding='utf-8')
         os.replace(tmp, target)
         log.info('Lightroom selections for %d photos saved to %s', len(table), target)
-        return jsonify(saved=str(target), count=len(table),
-                       plugin_installed=(lightroom_modules_dir() / LIGHTROOM_PLUGIN / 'Info.lua').exists())
+        result = {'saved': str(target), 'count': len(table), 'plugin_installed': (plugin_path() / 'Info.lua').exists()}
+        wanted = data.get('open')
+        if wanted is None:
+            return jsonify(result)
+        # "Open in Lightroom": hand only the chosen photos to Lightroom's Import window.
+        known = {r['path']: r for r in table}
+        paths = [p for p in wanted if isinstance(p, str) and p in known and os.path.isfile(p)]
+        if not paths:
+            return jsonify(error='None of the chosen photos could be found. Check that the drive is connected.', **result), 400
+        if len(paths) > OPEN_IN_LIGHTROOM_MAX:
+            return jsonify(error=f'{len(paths)} photos is more than PhotoSelect hands to Lightroom at once '
+                                 f'({OPEN_IN_LIGHTROOM_MAX}). Choose fewer groups, or import the folder in Lightroom.',
+                           **result), 400
+        app_path = lightroom_app()
+        if not app_path:
+            return jsonify(error='Adobe Lightroom Classic was not found on this Mac. Your selections are saved; '
+                                 'import the folder in Lightroom, then use Apply PhotoSelect Selections.', **result), 404
+        pending = target.parent / 'pending.import'
+        if data.get('auto_apply'):
+            tmp = pending.with_suffix('.tmp')
+            tmp.write_text(lightroom_selections(folder, [known[p] for p in paths]), encoding='utf-8')
+            os.replace(tmp, pending)
+        else:
+            pending.unlink(missing_ok=True)
+        try:
+            app.config['OPEN_IN_LIGHTROOM'](app_path, paths)
+        except (OSError, subprocess.SubprocessError) as error:
+            log.exception('opening Lightroom failed')
+            return jsonify(error=f'Lightroom Classic could not be opened: {error}', **result), 500
+        log.info('handed %d photos to Lightroom Classic (%s), auto-apply %s', len(paths), app_path, bool(data.get('auto_apply')))
+        return jsonify(opened=len(paths), lightroom=app_path, **result)
 
     @app.post('/api/lightroom/install')
     def install_lightroom_plugin():

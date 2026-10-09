@@ -1,14 +1,15 @@
 """Download genuine camera RAW samples for acceptance testing (never bundled in the app).
 
 Source: raw.pixls.us, a public archive of camera RAW files (mostly CC0), used by darktable,
-RawSpeed and LibRaw developers. Picks several Nikon NEF, one Nikon NRW and several Olympus /
-OM System ORF files, verifies SHA-256, and writes manifest.json. Files supplied by the user can be
+RawSpeed and LibRaw developers. Picks several Nikon NEF, one Nikon NRW, several Olympus /
+OM System ORF files, Sony A7 / A9 ARW files and Nikon High Efficiency NEFs, verifies SHA-256, and writes manifest.json. Files supplied by the user can be
 placed in the output folder too; they are included in the manifest as 'user'.
 """
 import argparse
 import hashlib
 import json
 import random
+import re
 import sys
 import urllib.parse
 import urllib.request
@@ -22,6 +23,8 @@ PREFER = {
     'orf': ['OM-1', 'OM-1 Mark II', 'OM-5', 'E-M1 Mark III', 'E-M1X', 'E-M1 Mark II', 'E-M5 Mark III', 'E-M10 Mark IV',
             'E-M1MarkIII', 'E-M1MarkII', 'E-M5MarkIII', 'E-M1'],
     'nrw': ['P1000', 'P7800', 'P7700', 'P950', 'B700'],
+    # Sony A7 / A9 series (model folders are named by the ILCE- code); newest bodies first
+    'arw': ['ILCE-7M4', 'ILCE-9M3', 'ILCE-7RM5', 'ILCE-7CM2', 'ILCE-7SM3', 'ILCE-7M3', 'ILCE-9M2', 'ILCE-7RM4', 'ILCE-9'],
 }
 LIMIT = 70 * 2 ** 20
 
@@ -67,6 +70,7 @@ def main():
     ap.add_argument('--nef', type=int, default=3)
     ap.add_argument('--orf', type=int, default=3)
     ap.add_argument('--nrw', type=int, default=1)
+    ap.add_argument('--arw', type=int, default=2)
     a = ap.parse_args()
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -80,7 +84,7 @@ def main():
                 entries.append({'sha256': parts[0], 'path': parts[1].lstrip('*').lstrip('./')})
         print(f'raw.pixls.us listing: {len(entries)} files; first: {listing[:2]}')
         for ext, makes, count in (('nef', ['nikon'], a.nef), ('nrw', ['nikon'], a.nrw),
-                                  ('orf', ['olympus', 'om digital', 'om system'], a.orf)):
+                                  ('orf', ['olympus', 'om digital', 'om system'], a.orf), ('arw', ['sony'], a.arw)):
             got = 0
             for e in candidates(entries, ext, makes):
                 if got >= count:
@@ -99,6 +103,20 @@ def main():
                                  'source': 'raw.pixls.us (CC0 sample archive)', 'sha256': digest, 'bytes': len(data)})
                 print(f'  {make} / {model}: {name} ({len(data) / 2**20:.1f} MB)')
                 got += 1
+        # Nikon High Efficiency NEFs other than the Z6III one below (e.g. Z50 II, which LibRaw reports differently)
+        he = [e for e in entries if 'nikon' in e['path'].split('/')[0].lower() and e['path'].lower().endswith('.nef')
+              and re.search(r'high.?efficien', e['path'], re.I) and 'Z6_3' not in e['path']]
+        he.sort(key=lambda e: 'Z50' not in e['path'].upper().replace(' ', ''))
+        print(f'Nikon High Efficiency NEF candidates: {[e["path"] for e in he[:8]]}')
+        for e in he[:2]:
+            make, model, name = e['path'].split('/')[:3]
+            data = download(BASE + urllib.parse.quote(e['path']))
+            if data and hashlib.sha256(data).hexdigest() == e['sha256']:
+                target = out / f"{model.replace(' ', '_')}_HE__{name}"
+                target.write_bytes(data)
+                manifest.append({'file': target.name, 'make': make, 'model': f'{model} (HE)', 'kind': 'nikon_he',
+                                 'source': 'raw.pixls.us (CC0 sample archive)', 'bytes': len(data)})
+                print(f'  {make} / {model}: {name} (High Efficiency, {len(data) / 2**20:.1f} MB)')
     except Exception as error:
         print(f'raw.pixls.us unavailable: {error}')
     # A Nikon High Efficiency NEF (LibRaw cannot decode the pixels; the app falls back to the camera JPEG).
@@ -122,12 +140,12 @@ def main():
             print(f'fallback NEF unavailable: {error}')
     known = {m['file'] for m in manifest}
     for p in sorted(out.iterdir()):
-        if p.suffix.lower() in ('.nef', '.nrw', '.orf') and p.name not in known:
+        if p.suffix.lower() in ('.nef', '.nrw', '.orf', '.arw') and p.name not in known:
             manifest.append({'file': p.name, 'make': '?', 'model': '?', 'source': 'user', 'bytes': p.stat().st_size})
     (out / 'manifest.json').write_text(json.dumps(manifest, indent=1))
     print(json.dumps(manifest, indent=1))
     kinds = {Path(m['file']).suffix.lower() for m in manifest}
-    missing = {'.nef', '.orf', '.nrw'} - kinds
+    missing = {'.nef', '.orf', '.nrw', '.arw'} - kinds
     if missing:
         print(f'WARNING: no genuine samples for {sorted(missing)}; those formats will be reported as NOT TESTED.')
     sys.exit(0 if kinds else 2)

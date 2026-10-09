@@ -10,6 +10,7 @@ inspector, region drawing and CSV export work.
 """
 import argparse
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -25,6 +26,8 @@ def main():
     ap.add_argument('--shots', default=None)
     ap.add_argument('--expect-persisted', action='store_true')
     ap.add_argument('--recursive', action='store_true')
+    ap.add_argument('--lightroom-received', default=None,
+                    help='file a stand-in Lightroom app writes the paths it was handed to (absent: no Lightroom)')
     a = ap.parse_args()
     from playwright.sync_api import sync_playwright
 
@@ -250,8 +253,40 @@ def main():
         page.evaluate('installLightroomPlugin()')
         wait("document.getElementById('notice').textContent.includes('plug-in installed')", 30_000)
         page.click('#lightroom')
-        wait("document.getElementById('notice').textContent.includes('ready for Lightroom Classic')", 30_000)
-        check('Lightroom plug-in installed and selections sent', True, page.text_content('#notice')[:120])
+        page.wait_for_selector('#lrDialog[open]')
+        wait("document.getElementById('lrPlugin').textContent.includes('plug-in installed')", 30_000)
+        groups = page.eval_on_selector_all('[data-lrgroup]', 'els => els.map(e => [e.dataset.lrgroup, e.checked, e.closest("label").textContent.trim()])')
+        check('Send to Lightroom window shows plug-in status and star groups',
+              len(groups) == 4 and [g[0] for g in groups] == ['3', '2', '1', '5'], groups)
+        page.click('#lrSave')
+        wait("document.getElementById('lrResult').textContent.includes('are saved')", 30_000)
+        check('Lightroom plug-in installed and selections saved', True, page.text_content('#lrResult')[:120])
+        if shots:
+            page.screenshot(path=str(shots / 'lightroom-dialog.png'))
+        wanted = page.evaluate("lightroomRows().filter(x => lrChoice[x.rating]).map(x => x.path)")
+        received = Path(a.lightroom_received) if a.lightroom_received else None
+        if received and received.exists():
+            received.unlink()
+        page.click('#lrOpen')
+        wait("document.getElementById('lrResult').textContent.includes('is opening') || "
+             "document.getElementById('lrError').textContent.length > 0", 60_000)
+        if received:
+            deadline = time.time() + 60
+            while not received.exists() and time.time() < deadline:
+                time.sleep(.5)
+            got = sorted(l for l in received.read_text().splitlines() if l) if received.exists() else []
+            support = (Path(os.environ['PHOTOSELECT_HOME']) / 'support' if os.environ.get('PHOTOSELECT_HOME')
+                       else Path.home() / 'Library/Application Support/PhotoSelect')
+            pending = support / 'Lightroom' / 'pending.import'
+            check('Open in Lightroom hands only the chosen groups to Lightroom (stand-in app received them)',
+                  got == sorted(wanted) and len(got) > 0, f'{len(got)} received, {len(wanted)} chosen; '
+                  + page.text_content('#lrResult')[:100])
+            check('automatic star rating requested for the opened photos', pending.exists() and
+                  len(pending.read_text().splitlines()) == len(wanted) + 2, str(pending))
+        else:
+            check('missing Lightroom Classic explained, selections still saved',
+                  'not found on this Mac' in page.text_content('#lrError'), page.text_content('#lrError')[:120])
+        page.click('[data-close="lrDialog"]')
         check('no JavaScript errors', not errors, '; '.join(errors[:3]))
         browser.close()
 

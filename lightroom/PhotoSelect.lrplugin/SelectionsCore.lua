@@ -25,6 +25,22 @@ local function extension(name)
   return string.lower(string.match(name or '', '%.([^%.]+)$') or '')
 end
 
+local function stem(name)
+  return string.lower(string.match(name or '', '^(.*)%.[^%.]+$') or name or '')
+end
+
+-- 'YYYY-MM-DD HH:MM:SS' to seconds (calendar arithmetic only, no time zone), or nil.
+local function seconds(text)
+  local y, mo, d, h, mi, s = string.match(text or '', '^(%d+)-(%d+)-(%d+) (%d+):(%d+):(%d+)')
+  if not y then return nil end
+  y, mo = tonumber(y), tonumber(mo)
+  if mo <= 2 then y, mo = y - 1, mo + 12 end
+  local days = 365 * y + math.floor(y / 4) - math.floor(y / 100) + math.floor(y / 400)
+    + math.floor((153 * (mo - 3) + 2) / 5) + tonumber(d)
+  return ((days * 24 + tonumber(h)) * 60 + tonumber(mi)) * 60 + tonumber(s)
+end
+Core.seconds = seconds
+
 -- Parse one selections file. Returns { exported = seconds, folder = text, entries = { ... } } or nil, error.
 function Core.parse(text)
   text = string.gsub(text or '', '\r\n', '\n')
@@ -63,7 +79,7 @@ end
 -- Build lookup tables from parsed files; entries from later exports replace earlier ones.
 function Core.index(files)
   table.sort(files, function(a, b) return a.exported < b.exported end)
-  local idx = { byPath = {}, byNameTime = {}, byTime = {}, byName = {}, count = 0 }
+  local idx = { byPath = {}, byNameTime = {}, byTime = {}, byName = {}, byStem = {}, byStemTime = {}, names = {}, count = 0 }
   for _, f in ipairs(files) do
     for _, e in ipairs(f.entries) do
       local old = idx.byPath[string.lower(e.path)]
@@ -72,8 +88,13 @@ function Core.index(files)
       local named = idx.byName[string.lower(e.name)] or {}
       named[#named + 1] = e
       idx.byName[string.lower(e.name)] = named
+      local stemmed = idx.byStem[stem(e.name)] or {}
+      stemmed[#stemmed + 1] = e
+      idx.byStem[stem(e.name)] = stemmed
+      idx.names[#idx.names + 1] = e.name
       if e.capture ~= '' then
         idx.byNameTime[string.lower(e.name) .. '|' .. e.capture] = e
+        idx.byStemTime[stem(e.name) .. '|' .. e.capture] = e
         local list = idx.byTime[e.capture] or {}
         list[#list + 1] = e
         idx.byTime[e.capture] = list
@@ -89,8 +110,10 @@ end
 1. the same file (imported with Add, or PhotoSelect analysed the imported copy);
 2. the same file name (current or original, before renaming) and capture time to the second
    (imported with Copy or Move);
-3. the same file name, when only one PhotoSelect photo has that name;
-4. otherwise the only analysed photo with that capture time and file type (renamed on import).
+3. the same name without its extension and the same capture time (imported with Copy as DNG);
+4. the same file name, or name without extension, when only one PhotoSelect photo has it;
+5. the same name and a capture time differing by whole hours only (camera or Lightroom time zone);
+6. otherwise the only analysed photo with that capture time and file type (renamed on import).
 Returns entry, how. ]]
 function Core.match(idx, photo)
   local e = idx.byPath[string.lower(photo.path or '')]
@@ -105,17 +128,38 @@ function Core.match(idx, photo)
       e = idx.byNameTime[name .. '|' .. capture]
       if e then return e, 'name' end
     end
+    for _, name in ipairs(names) do
+      e = idx.byStemTime[stem(name) .. '|' .. capture]
+      if e then return e, 'name' end
+    end
   end
-  for _, name in ipairs(names) do
-    local list, found = idx.byName[name], nil
+  local function only(list, accept)
+    local found = nil
     for _, c in ipairs(list or {}) do
-      if not c.replaced then
-        if found then found = false break end
+      if not c.replaced and (not accept or accept(c)) then
+        if found then return nil end
         found = c
       end
     end
+    return found
+  end
+  for _, name in ipairs(names) do
+    local found = only(idx.byName[name]) or only(idx.byStem[stem(name)])
     if found then return found, 'name' end
   end
+  local t = seconds(capture)
+  if t then
+    local function hoursApart(c)
+      local u = seconds(c.capture)
+      local d = u and math.abs(u - t)
+      return d and d > 0 and d <= 14 * 3600 and d % 3600 == 0
+    end
+    for _, name in ipairs(names) do
+      local found = only(idx.byStem[stem(name)], hoursApart)
+      if found then return found, 'time zone' end
+    end
+  end
+  if capture == '' then return nil end
   if capture == '' then return nil end
   local list = idx.byTime[capture]
   if list then
@@ -137,7 +181,7 @@ matched, notFound, ambiguous, conflicts (a different star rating is already set 
 unchanged (rating already right). With overwrite false, conflicting ratings are left as they are
 (keywords are still applied). ]]
 function Core.plan(idx, photos, overwrite)
-  local plan = { items = {}, matched = 0, notFound = 0, ambiguous = 0, conflicts = 0, unchanged = 0, rated = 0 }
+  local plan = { items = {}, matched = 0, notFound = 0, ambiguous = 0, conflicts = 0, unchanged = 0, rated = 0, unmatched = {} }
   for _, p in ipairs(photos) do
     local e, how = Core.match(idx, p)
     if e then
@@ -156,17 +200,21 @@ function Core.plan(idx, photos, overwrite)
       plan.items[#plan.items + 1] = { photo = p, entry = e, setRating = setRating, how = how }
     elseif how == 'ambiguous' then
       plan.ambiguous = plan.ambiguous + 1
+      plan.unmatched[#plan.unmatched + 1] = basename(p.fileName or p.path)
     else
       plan.notFound = plan.notFound + 1
+      plan.unmatched[#plan.unmatched + 1] = basename(p.fileName or p.path)
     end
   end
   return plan
 end
 
--- Plain-language summary shown before anything is changed.
-function Core.summary(plan, total, selectionCount)
+-- Plain-language summary shown before anything is changed. scope describes which photos were
+-- checked, e.g. 'the 3 selected photos' or 'all 120 photos shown in the Library'.
+function Core.summary(plan, total, selectionCount, scope, idx)
   local lines = {
-    string.format('%d of %d photos match PhotoSelect selections (%d photos available).', plan.matched, total, selectionCount),
+    string.format('Checked %s: %d of %d match PhotoSelect selections (%d photos available).',
+      scope or (total .. ' photos'), plan.matched, total, selectionCount),
   }
   if plan.notFound > 0 then
     lines[#lines + 1] = string.format('%d photos were not found in PhotoSelect and will be left as they are.', plan.notFound)
@@ -179,6 +227,18 @@ function Core.summary(plan, total, selectionCount)
   end
   if plan.conflicts > 0 then
     lines[#lines + 1] = string.format('%d already have a different star rating set in Lightroom.', plan.conflicts)
+  end
+  if #plan.unmatched > 0 then
+    local shown = {}
+    for i = 1, math.min(10, #plan.unmatched) do shown[i] = plan.unmatched[i] end
+    lines[#lines + 1] = 'Not matched: ' .. table.concat(shown, ', ') .. (#plan.unmatched > 10 and ', …' or '')
+    if idx and #idx.names > 0 then
+      local names = {}
+      for i, n in ipairs(idx.names) do names[i] = n end
+      table.sort(names)
+      lines[#lines + 1] = string.format('PhotoSelect has %d photos named %s … %s. If these are not the photos you imported, '
+        .. 'import that folder first.', #names, names[1], names[#names])
+    end
   end
   lines[#lines + 1] = 'Stars: Keep 3, Consider 2, Drop 1, Liked 5. Keywords are added under "PhotoSelect".'
   return table.concat(lines, '\n')

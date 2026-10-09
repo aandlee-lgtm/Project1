@@ -45,9 +45,12 @@ jobs:
             echo "## What's new in ${TAG#v}"
             awk -v v="## ${TAG#v}" '$0==v{on=1;next} /^## /{on=0} on' docs/RELEASES.md
           } > notes.md
+      - name: Lightroom plug-in as a separate download
+        if: env.EXISTS != '1'
+        run: (cd lightroom && zip -qr ../dist/PhotoSelect-Lightroom-plugin.zip PhotoSelect.lrplugin -x '*.DS_Store')
       - name: Create release
         if: env.EXISTS != '1'
         run: |
           gh release create "$TAG" -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
             --title "PhotoSelect ${TAG#v} (Apple silicon)" --notes-file notes.md \
-            dist/PhotoSelect-AppleSilicon.dmg dist/PhotoSelect-AppleSilicon.dmg.sha256
+            dist/PhotoSelect-AppleSilicon.dmg dist/PhotoSelect-AppleSilicon.dmg.sha256 dist/PhotoSelect-Lightroom-plugin.zip

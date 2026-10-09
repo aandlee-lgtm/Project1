@@ -148,10 +148,51 @@ class AppTests(unittest.TestCase):
             plugin = modules / 'PhotoSelect.lrplugin'
             self.assertEqual(Path(r['installed']), plugin)
             self.assertEqual(sorted(p.name for p in plugin.iterdir()),
-                             ['ApplySelections.lua', 'Config.lua', 'Info.lua', 'SelectionsCore.lua'])
+                             ['ApplySelections.lua', 'Config.lua', 'Info.lua', 'Init.lua', 'LightroomOps.lua',
+                              'SelectionsCore.lua', 'Shutdown.lua'])
             self.assertIn(str(home / 'support' / 'Lightroom'), (plugin / 'Config.lua').read_text())
             self.assertTrue(self.post('/api/lightroom', {'folder': '', 'rows': rows}).get_json()['plugin_installed'])
             self.assertEqual(self.post('/api/lightroom/install', {}).status_code, 200)   # reinstall replaces
+
+    def test_open_in_lightroom(self):
+        home = Path(self.tmp.name) / 'home'
+        fake_app = Path(self.tmp.name) / 'Adobe Lightroom Classic.app'
+        handed = []
+        self.app.config['OPEN_IN_LIGHTROOM'] = lambda app_path, paths: handed.append((app_path, list(paths)))
+        rows = [{'path': str(self.photos / 'a.jpg'), 'name': 'a.jpg', 'capture': '2026-05-01 10:00:00', 'rating': 3,
+                 'keywords': ['Keep'], 'decision': '', 'suggestion': 'Keep'},
+                {'path': str(self.photos / 'b.JPG'), 'name': 'b.JPG', 'capture': '2026-05-01 10:00:00', 'rating': 1,
+                 'keywords': ['Drop'], 'decision': '', 'suggestion': 'Drop'}]
+        pending = home / 'support' / 'Lightroom' / 'pending.import'
+        with patch.dict(os.environ, {'PHOTOSELECT_HOME': str(home), 'PHOTOSELECT_LR_APP': str(fake_app),
+                                     'PHOTOSELECT_LR_MODULES': str(Path(self.tmp.name) / 'Modules')}):
+            status = self.get('/api/lightroom/status').get_json()
+            self.assertEqual((status['plugin_installed'], status['lightroom']), (False, ''))
+            # Lightroom not installed: explained, selections still saved, nothing handed over
+            r = self.post('/api/lightroom', {'folder': str(self.photos), 'rows': rows, 'open': [rows[0]['path']]})
+            self.assertEqual(r.status_code, 404)
+            self.assertIn('not found on this Mac', r.get_json()['error'])
+            self.assertTrue(Path(r.get_json()['saved']).exists())
+            self.assertEqual(handed, [])
+            fake_app.mkdir()
+            self.assertEqual(self.get('/api/lightroom/status').get_json()['lightroom'], str(fake_app))
+            # only the chosen group (Keep) is handed over; the automatic rating covers just those
+            r = self.post('/api/lightroom', {'folder': str(self.photos), 'rows': rows, 'open': [rows[0]['path']],
+                                             'auto_apply': True}).get_json()
+            self.assertEqual((r['opened'], r['count']), (1, 2))
+            self.assertEqual(handed, [(str(fake_app), [rows[0]['path']])])
+            lines = pending.read_text().splitlines()
+            self.assertEqual((len(lines), lines[2].split('\t')[1]), (3, 'a.jpg'))
+            # without automatic rating, an older request is withdrawn
+            self.post('/api/lightroom', {'folder': str(self.photos), 'rows': rows, 'open': [rows[1]['path']]})
+            self.assertFalse(pending.exists())
+            # paths that were not part of the selections, or no longer exist, are never handed over
+            r = self.post('/api/lightroom', {'folder': str(self.photos), 'rows': rows, 'open': ['/etc/passwd']})
+            self.assertEqual(r.status_code, 400)
+            with patch.object(app_module, 'OPEN_IN_LIGHTROOM_MAX', 1):
+                r = self.post('/api/lightroom', {'folder': str(self.photos), 'rows': rows, 'open': [x['path'] for x in rows]})
+                self.assertIn('more than PhotoSelect hands to Lightroom', r.get_json()['error'])
+            self.assertEqual(len(handed), 2)
 
     def test_export_never_overwrites_an_original(self):
         self.post('/api/scan', {'folder': str(self.photos)})

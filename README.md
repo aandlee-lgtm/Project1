@@ -1,7 +1,7 @@
-# PhotoSelect 1.3 — Apple silicon Mac app
+# PhotoSelect 1.4 — Apple silicon Mac app
 
 PhotoSelect helps you cull bursts of sailing and sports photos. Point it at a folder of Nikon
-(NEF/NRW), Olympus / OM System (ORF), other RAW, JPEG, PNG or TIFF files. It decodes each photo
+(NEF/NRW), Olympus / OM System (ORF), Sony (ARW), other RAW, JPEG, PNG or TIFF files. It decodes each photo
 on your Mac, groups bursts, ranks frames with transparent scores you can weight, and lets you
 mark Keep / Consider / Drop and likes, then export a CSV. Originals are only ever read:
 nothing is deleted, renamed, moved, uploaded, or written to your photo folders.
@@ -36,30 +36,29 @@ nothing is deleted, renamed, moved, uploaded, or written to your photo folders.
    Nothing changes until you click **Apply**, and **Undo learned settings** restores the previous ones.
    Save settings as named **profiles** (e.g. Sailing), or tick *Use these settings whenever this folder
    is analysed*.
-9. **Send to Lightroom** (Adobe Lightroom Classic). Install the plug-in once with **Help → Install
-   Lightroom Plug-in…** and restart Lightroom. Cull first, click **Send to Lightroom**, import the folder
-   in Lightroom, then choose **Library → Plug-in Extras → Apply PhotoSelect Selections…**:
-   * stars: Keep ★★★, Consider ★★, Drop ★, ♥ Liked ★★★★★ (your decision wins over the suggestion);
-   * keywords under *PhotoSelect*: Keep / Consider / Drop / Liked / Burst NNN / Near-identical /
-     Camera preview, for Smart Collections (not included when exporting images);
-   * photos are matched by file, then file name + capture time, then a unique capture time, so
-     copied or renamed imports still match. A summary is shown first. Star ratings already set in
-     Lightroom are kept unless you tick *Replace*.
+9. **Send to Lightroom…** (Adobe Lightroom Classic) opens a window that shows:
+   * whether the PhotoSelect plug-in is installed, with **Install plug-in** and **Show plug-in in Finder**
+     buttons. The plug-in is also attached to each GitHub Release as `PhotoSelect-Lightroom-plugin.zip`,
+     for Lightroom → File → Plug-in Manager… → Add;
+   * a checkbox for each group, with counts: ★★★ Keep, ★★ Consider, ★ Drop, ★★★★★ ♥ Liked.
+
+   **Open in Lightroom Import** starts Lightroom Classic (or brings it to the front) and opens its
+   Import window with only the photos in the ticked groups. Choose **Add** or **Copy** there and click
+   **Import**. With *Add the stars and keywords automatically* ticked, the plug-in rates the photos a
+   few seconds after they are imported. This needs Lightroom to have been restarted once after
+   installing the plug-in. **Only save selections** keeps the earlier route: import yourself, then
+   **Library → Plug-in Extras → Apply PhotoSelect Selections…**.
+   * Stars: Keep ★★★, Consider ★★, Drop ★, ♥ Liked ★★★★★ (your decision wins over the suggestion).
+   * Keywords go under *PhotoSelect*: Keep / Consider / Drop / Liked / Burst NNN / Near-identical /
+     Camera preview, for Smart Collections. They are not included when exporting images.
+   * Apply PhotoSelect Selections works on the selected photos, or on every photo shown when at most
+     one is selected. Photos are matched by file, then file name and capture time, including Copy as
+     DNG imports and time-zone offsets, then a unique name or capture time. The summary lists any
+     photos that did not match. Star ratings already set in Lightroom are kept unless you tick
+     *Replace*.
 
    The selections are saved in `~/Library/Application Support/PhotoSelect/Lightroom/`, never in your
    photo folders, and no XMP sidecar files are written.
-
-Decisions, likes, focus regions, preferences and analysis results are saved automatically:
-
-| What | Where |
-|---|---|
-| Decisions, likes, regions, preferences, analysis results | `~/Library/Application Support/PhotoSelect/photoselect.db` |
-| Thumbnails and previews (safe to clear: Help → About → Clear analysis cache) | `~/Library/Caches/PhotoSelect/` |
-| Log file (Help → Open Log Folder) | `~/Library/Logs/PhotoSelect/` |
-| Selections sent to Lightroom | `~/Library/Application Support/PhotoSelect/Lightroom/` |
-| Lightroom plug-in (Help → Install Lightroom Plug-in…) | `~/Library/Application Support/Adobe/Lightroom/Modules/PhotoSelect.lrplugin` |
-
-Nothing is written inside the app bundle or the disk image.
 
 ## What the scores mean (and don't)
 
@@ -93,13 +92,18 @@ and are marked **NEAR-IDENTICAL**. The viewer shows each frame's likeness to its
 the burst comparison shows likeness to #1, and the CSV and diagnostic report include it. Frames
 without capture times stay ungrouped.
 
+**Sony A7 / A9 series.** Sony ARW files from these bodies are decoded by the bundled LibRaw. The
+build checks every A7 / A9 sample in the public raw.pixls.us archive: each body and RAW mode
+(uncompressed, compressed, lossless compressed). The results are in the validation report, and
+bodies without a public sample are listed as not tested. The Format filter has a *Sony ARW* option.
+
 **RAW rendering:** LibRaw with the camera's white balance, sRGB output, the camera orientation
 flag, and no per-image auto-brightening, so a burst renders consistently. It will not match
 your Lightroom edits.
 
 **When RAW pixels can't be decoded — camera preview fallback.** Some RAW files can be opened but not
-decoded by LibRaw, notably **Nikon High Efficiency (HE / HE★) NEF**, such as the Z6III's, which uses
-a licensed codec. If the camera stored a usable JPEG inside the file (Nikon stores a full-size one,
+decoded by LibRaw, notably **Nikon High Efficiency (HE / HE★) NEF**, such as the Z6III's and the
+Z50 II's, which uses a licensed codec. If the camera stored a usable JPEG inside the file (Nikon stores a full-size one,
 6048 × 4032 on the Z6III), PhotoSelect analyses that JPEG instead. Such photos are labelled
 **CAMERA PREVIEW** on the card, in the viewer, in comparisons and in the CSV (`analysis_source`,
 `source_notice`). Their scores include the camera's sharpening, noise reduction and Picture Control,

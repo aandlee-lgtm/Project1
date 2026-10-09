@@ -177,7 +177,9 @@ and discussed first, then shipped together. Each item says what was decided and,
   - existing Lightroom stars are kept unless *Replace* is ticked.
 - Photo cards for camera-preview photos show the normal reason line. The CAMERA PREVIEW badge stays.
 
-### After 1.3.0 (planned for the next version: waiting for build_new)
+### 1.4.0: Z50 II HE NEF, Sony A7 / A9, Lightroom Import with chosen groups
+Built when the owner sent **build_new** after items 8–12 were discussed (below). "Shipped in 1.4.0"
+at the end lists what was built.
 8. **Z50 II High Efficiency NEF reported as damaged.** The owner sent DSC_1312.NEF, which 1.3.0 listed
    as "Nikon NEF: the RAW data is damaged or truncated (Data error or unsupported file format)".
    - Found: the file is not damaged.
@@ -245,6 +247,31 @@ and discussed first, then shipped together. Each item says what was decided and,
       (Apply PhotoSelect Selections), or becomes automatic if the plug-in can detect the new import.
     - Needs a real-Lightroom check on the owner's Mac.
 
+**Shipped in 1.4.0.**
+- (8) A High Efficiency NEF that LibRaw reports as a *data error* now falls back to the camera preview.
+  The NEF must carry the HE codec marker; other data errors are still reported as damage. The owner's
+  DSC_1312.NEF (Z50 II) is analysed from its 5568 × 3712 camera JPEG. The macOS tests also fetch other
+  HE samples, such as a Z50 II one, when the archive has them.
+- (9) Sony ARW: a *Sony ARW* format filter and Sony mentioned in the app and README.
+  - A CI job decodes every A7 / A9 sample on raw.pixls.us with the bundled LibRaw. It reports, per body
+    and mode, the result, the embedded JPEG size and sub-second capture times; bodies without a sample
+    are NOT TESTED.
+  - Two Sony samples are also tested end to end in the installed app.
+- (10, 12) **Send to Lightroom…** opens a window with:
+  - the plug-in status, with Install / Reinstall and Show plug-in in Finder;
+  - ★ group checkboxes with counts (Keep and Liked ticked by default);
+  - **Open in Lightroom Import**, which hands only the chosen photos to Lightroom Classic so its Import
+    window opens with them;
+  - automatic star rating after the import, done by the plug-in's background task (needs one
+    Lightroom restart after installing);
+  - **Only save selections**.
+
+  Help also has **Show Lightroom Plug-in in Finder**, and each GitHub Release has
+  `PhotoSelect-Lightroom-plugin.zip`.
+- (11) The plug-in checks every photo shown when at most one is selected, and says which photos it
+  checked. It matches Copy as DNG imports and capture times that are whole hours apart. Its summary
+  lists unmatched names and the range of PhotoSelect names, with a hint to import that folder first.
+
 ---
 
 ## 2. Definitions (draft glossary for the user instructions)
@@ -274,7 +301,10 @@ and discussed first, then shipped together. Each item says what was decided and,
 | **Learn from my decisions** | Proposes the slider weights and thresholds whose suggestions best match the photos you marked (at least 30; ♥ liked counts as Keep). Applied only when you click Apply, and can be undone. |
 | **Settings profile** | A named set of slider weights and Keep / Consider thresholds (e.g. Sailing), saved on this Mac. |
 | **Folder settings** | Settings remembered for one folder and used automatically whenever that folder is analysed. |
-| **Send to Lightroom** | Saves the current selections for the Lightroom Classic plug-in, in ~/Library/Application Support/PhotoSelect/Lightroom (never in the photo folders). |
+| **Send to Lightroom…** | Opens the Lightroom window: the plug-in status, the star groups to import, **Open in Lightroom Import** and **Only save selections**. Selections are saved in ~/Library/Application Support/PhotoSelect/Lightroom (never in the photo folders). |
+| **Open in Lightroom Import** | Starts Lightroom Classic and opens its Import window with only the photos in the ticked star groups; you choose Add or Copy and click Import. |
+| **Automatic star rating** | After an Open in Lightroom Import, the plug-in adds the stars and keywords a few seconds after the photos appear in the catalog (for up to 3 hours). Stars already set in Lightroom are kept. |
+| **Sony ARW** | Sony's RAW format; A7 and A9 bodies are checked against the public sample archive in every build. |
 | **Apply PhotoSelect Selections** | The Lightroom Classic command (Library → Plug-in Extras) that applies the stars and keywords after import, showing a summary first. |
 | **CAMERA PREVIEW** | The photo was analysed from the JPEG the camera stored inside the RAW file, because the RAW pixels could not be decoded (e.g. Nikon High Efficiency NEF). Its scores include the camera's own sharpening and noise reduction. |
 | **High Efficiency NEF (HE / HE★)** | A Nikon RAW compression (seen on the Z6III and Z50 II) that LibRaw cannot decode. To get full RAW analysis, shoot with NEF (RAW) compression set to Lossless compressed. |

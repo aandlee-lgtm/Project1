@@ -61,11 +61,11 @@ textarea{min-height:64px;resize:vertical}
 
 <div class="wrap">
   <section class="intro">
-    <div class="eyebrow">PhotoSelect 1.3.0 · on your own Mac</div>
+    <div class="eyebrow">PhotoSelect 1.4.0 · on your own Mac</div>
     <h1>Field tests for your M2</h1>
     <p>Run these on your Mac with your own Nikon and Olympus files. Nothing needs uploading: fill in the boxes as you go, attach the diagnostic report the app creates, then press <b>Copy results</b> and paste the text into our chat. Your answers are kept in this browser as you type, so you can stop and come back.</p>
     <div class="how">
-      <div><b>1 · Get the app</b><span id="dmgLine">Download <a href="https://github.com/aandlee-lgtm/Project1/releases/tag/v1.3.0" target="_blank" rel="noopener">PhotoSelect 1.3.0</a> and download PhotoSelect-AppleSilicon.dmg. Open the DMG and drag PhotoSelect to Applications.</span></div>
+      <div><b>1 · Get the app</b><span id="dmgLine">Download <a href="https://github.com/aandlee-lgtm/Project1/releases/tag/v1.4.0" target="_blank" rel="noopener">PhotoSelect 1.4.0</a> and download PhotoSelect-AppleSilicon.dmg. Open the DMG and drag PhotoSelect to Applications.</span></div>
       <div><b>2 · Run the tests</b>Do them in order; T4 and T5 matter most. Mark each one Pass, Issue or Skipped. Skipping is fine, just say why.</div>
       <div><b>3 · Report back</b>Help → <i>Create Diagnostic Report…</i> after T2 and T8. Copy the results below and paste them in chat, with the report files attached or pasted.</div>
     </div>
@@ -186,13 +186,19 @@ const TESTS=[
     ['profileok','Profile saved, loaded and remembered for a folder?','select',YN]],
   expect:'A clear proposal you can apply or undo; nothing changes until Apply.',
   react:'If the proposal is worse than your current settings for unmarked photos, I will add more evidence (for example burst rank) to what it learns from.'},
- {id:'T15',title:'Lightroom Classic',why:'Your selections should arrive in Lightroom as star ratings (new in 1.3).',
-  steps:['In PhotoSelect: Help → Install Lightroom Plug-in…, then quit and reopen Lightroom Classic.','Analyse a folder in PhotoSelect, mark a few photos, then click Send to Lightroom.','In Lightroom, import that folder (Add or Copy). With the imported photos shown, choose Library → Plug-in Extras → Apply PhotoSelect Selections… and read the summary.','Click Apply. Check stars (Keep 3, Consider 2, Drop 1, Liked 5) and the keywords under PhotoSelect.'],
-  fields:[['lrversion','Lightroom Classic version','text','14.0'],['importmode','Import mode used','select',['','Add','Copy','Copy as DNG','Move']],
-    ['summary','Summary text: matched / not found','text','120 of 120 match'],
-    ['stars','Stars and keywords correct?','select',['','Yes','Some wrong','No']],['renamed','Did you rename files on import?','select',YN]],
-  expect:'All imported photos match and get the right stars and keywords; stars you had set in Lightroom are kept unless you tick Replace.',
-  react:'Unmatched photos tell me how Lightroom stored the file name or capture time; send the summary text and one file name and I will widen the matching.'}
+ {id:'T15',title:'Lightroom Classic',why:'Your selections should arrive in Lightroom as star ratings (updated in 1.4).',
+  steps:['If you added the 1.3 plug-in yourself, remove it in Lightroom → File → Plug-in Manager (select PhotoSelect → Remove).','In PhotoSelect click Send to Lightroom…, then Install plug-in; quit and reopen Lightroom Classic.','Analyse a folder you have not imported yet, then Send to Lightroom… → tick the groups to import (e.g. Keep and Liked) → Open in Lightroom Import.','In Lightroom\'s Import window choose Add (or Copy) and click Import. Wait a few seconds: the stars and PhotoSelect keywords should appear by themselves.','Optional: run Library → Plug-in Extras → Apply PhotoSelect Selections… on the import and read the summary.'],
+  fields:[['lrversion','Lightroom Classic version','text','14.0'],['importwin','Did Lightroom\'s Import window open with only the chosen photos?','select',['','Yes','Opened, but with other photos too','Lightroom opened without the Import window','Nothing happened']],
+    ['importmode','Import mode used','select',['','Add','Copy','Copy as DNG','Move']],
+    ['auto','Stars appeared automatically after the import?','select',['','Yes','Some','No']],
+    ['summary','Apply PhotoSelect Selections summary (first line)','text','Checked 27 photos: 27 of 27 match']],
+  expect:'Lightroom opens its Import window with exactly the chosen groups; after Import the stars (Keep 3, Consider 2, Drop 1, Liked 5) and keywords appear within a few seconds.',
+  react:'If the Import window does not open, I will switch to adding the photos from the plug-in itself. If stars do not appear automatically, the summary text tells me whether matching or the background task is the problem.'},
+ {id:'T16',title:'Nikon High Efficiency NEF (Z50 II, Z6III)',why:'HE NEFs should be analysed from the camera JPEG, not reported as damaged (fixed in 1.4).',
+  steps:['Analyse a folder that includes High Efficiency NEFs, such as DSC_1312.NEF.','Check the CAMERA PREVIEW badge on those photos and that none are listed under "could not be analysed" as damaged.'],
+  fields:[['hecount','HE photos analysed / total HE photos','text','41 / 41'],['hedamaged','Any HE file still listed as damaged?','select',YN]],
+  expect:'Every HE NEF is analysed from its camera JPEG and labelled CAMERA PREVIEW.',
+  react:'Any HE file still listed as damaged: send me that file and its camera model.'}
 ];
 const KEY='photoselect-field-tests-v1';
 let state={};
@@ -227,7 +233,7 @@ function update(){
   document.getElementById('output').value=report();
 }
 function report(){
-  const lines=['PhotoSelect 1.3.0 field test results',''];
+  const lines=['PhotoSelect 1.4.0 field test results',''];
   TESTS.forEach(t=>{const s=state[t.id]||{};lines.push(`${t.id} ${t.title}: ${s.status||'not done'}`);
     t.fields.forEach(([k,label])=>{if(s[k])lines.push(`  ${label}: ${s[k]}`)});
     if(s.notes)lines.push(`  Notes: ${s.notes.replace(/\n/g,' / ')}`);lines.push('')});

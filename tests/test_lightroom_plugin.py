@@ -5,6 +5,7 @@ and catalog. Lightroom itself cannot run here, so the SDK calls are checked agai
 only; the field test sheet covers a real Lightroom Classic run. Needs the `lupa` package.
 """
 import os
+import time
 import unittest
 from pathlib import Path
 
@@ -85,6 +86,29 @@ class SelectionsCoreTests(unittest.TestCase):
         e, how = m(path='/P/x.NEF', fileName='x.NEF', capture='2027-01-01 00:00:00')
         self.assertIsNone(e)
 
+    def test_dng_copies_time_zones_and_unmatched_names(self):
+        idx = self.core.index(self.files(selections([
+            row('DSC_0001.NEF', 3), row('DSC_0002.NEF', 1, capture='2026-05-01 10:00:01'),
+            row('DSC_0002.NEF', 2, capture='2026-05-02 08:00:00', folder='/Volumes/Card/DAY2')])))
+        m = lambda **kw: self.match(idx, self.photo(**kw))
+        e, how = m(path='/P/DSC_0002.dng', fileName='DSC_0002.dng', capture='2026-05-01 10:00:01')
+        self.assertEqual((e.rating, how), (1, 'name'))                          # Copy as DNG
+        e, how = m(path='/P/DSC_0001.dng', fileName='DSC_0001.dng', capture='')
+        self.assertEqual((e.rating, how), (3, 'name'))                          # unique name without extension
+        e, how = m(path='/P/DSC_0001.NEF', fileName='DSC_0001.NEF', capture='2026-05-01 12:00:00')
+        self.assertEqual(e.rating, 3)                                           # unique name wins anyway
+        e, how = m(path='/P/DSC_0002.NEF', fileName='DSC_0002.NEF', capture='2026-05-02 10:00:00')
+        self.assertEqual((e.rating, how), (2, 'time zone'))                     # two DSC_0002: 2 h offset picks one
+        e, how = m(path='/P/DSC_0002.NEF', fileName='DSC_0002.NEF', capture='2026-05-02 10:30:00')
+        self.assertIsNone(e)                                                    # not whole hours
+        self.assertEqual(self.lua.eval("require('SelectionsCore').seconds")('2026-03-01 00:00:00')
+                         - self.lua.eval("require('SelectionsCore').seconds")('2026-02-28 00:00:00'), 86400)
+        photos = self.lua.table(self.photo(path='/P/IMG_9.NEF', fileName='IMG_9.NEF', capture='2026-01-01 00:00:00'))
+        plan = self.core.plan(idx, photos, False)
+        text = self.core.summary(plan, 1, 3, 'all 1 photos shown', idx)
+        self.assertIn('Not matched: IMG_9.NEF', text)
+        self.assertIn('PhotoSelect has 3 photos named DSC_0001.NEF … DSC_0002.NEF', text)
+
     def test_newer_export_wins(self):
         old = selections([row('DSC_0001.NEF', 1, keywords=['Drop'])], exported=100)
         new = selections([row('DSC_0001.NEF', 3, keywords=['Keep'])], exported=200)
@@ -106,7 +130,7 @@ class SelectionsCoreTests(unittest.TestCase):
         plan = self.core.plan(idx, photos, True)
         self.assertEqual([plan['items'][i].setRating for i in (1, 2, 3)], [3, 1, None])
         text = self.core.summary(plan, 4, 3)
-        self.assertIn('3 of 4 photos match', text)
+        self.assertIn('Checked 4 photos: 3 of 4 match', text)
         self.assertIn('1 already have a different star rating', text)
 
 
@@ -114,16 +138,22 @@ class SelectionsCoreTests(unittest.TestCase):
 class ApplySelectionsTests(unittest.TestCase):
     """Runs Library > Plug-in Extras > Apply PhotoSelect Selections against a simulated catalog."""
 
-    def run_plugin(self, folder, photos, answer='ok', overwrite=False):
+    def run_plugin(self, folder, photos, answer='ok', overwrite=False, selected=None, script='ApplySelections.lua'):
         lua = lua51.LuaRuntime(unpack_returned_tuples=True)
         lua.execute(f"package.path = [[{PLUGIN}/?.lua;]] .. package.path")
         lua.execute(f"package.loaded['Config'] = {{ selectionsFolder = [==[{folder}]==] }}")
         lua.globals().LIST_DIR = lambda f: lua.table(*[str(p) for p in sorted(Path(f).iterdir())])
+        lua.globals().NOW_UNIX = time.time()
+        lua.globals().EXISTS = lambda p: 'directory' if Path(p).is_dir() else 'file' if Path(p).is_file() else False
+        lua.globals().PLUGIN_DIR = str(PLUGIN)
         lua.execute(SDK_MOCK)
         lua.globals().ANSWER, lua.globals().OVERWRITE = answer, overwrite
         for p in photos:
             lua.eval('addPhoto')(lua.table_from(p))
-        lua.execute((PLUGIN / 'ApplySelections.lua').read_text())
+        if selected is not None:
+            lua.eval('selectPhotos')(lua.table(*selected))
+        if script:
+            lua.execute((PLUGIN / script).read_text())
         return lua
 
     def setUp(self):
@@ -153,7 +183,7 @@ class ApplySelectionsTests(unittest.TestCase):
     def test_apply_sets_stars_and_keywords(self):
         lua = self.run_plugin(self.folder, self.photos())
         g = lua.globals()
-        self.assertIn('3 of 4 photos match', g.DIALOG_TEXT)
+        self.assertIn('Checked 4 photos: 3 of 4 match', g.DIALOG_TEXT)
         self.assertIn('1 photos were not found', g.DIALOG_TEXT)
         self.assertEqual(self.state(lua), {
             'DSC_0001.NEF': (5, ['PhotoSelect/Burst 001', 'PhotoSelect/Keep', 'PhotoSelect/Liked']),
@@ -173,6 +203,60 @@ class ApplySelectionsTests(unittest.TestCase):
         self.assertEqual(lua.globals().WRITES, 0)
         self.assertEqual(self.state(lua)['DSC_0001.NEF'], (0, []))
 
+    def test_one_selected_photo_checks_the_whole_view(self):
+        # The owner's first real run: one photo was selected, so only it was checked and nothing matched.
+        lua = self.run_plugin(self.folder, self.photos(), selected=[4])
+        self.assertIn('Checked all 4 photos shown: 3 of 4 match', lua.globals().DIALOG_TEXT)
+        lua = self.run_plugin(self.folder, self.photos(), selected=[1, 4])
+        self.assertIn('Checked 2 photos: 1 of 2 match', lua.globals().DIALOG_TEXT)
+        self.assertIn('Not matched: OTHER.NEF', lua.globals().DIALOG_TEXT)
+
+    def test_photos_not_imported_yet_explained(self):
+        lua = self.run_plugin(self.folder, [self.photos()[3]])
+        self.assertIn('Not matched: OTHER.NEF', lua.globals().MESSAGE)
+        self.assertIn('import that folder first', lua.globals().MESSAGE)
+
+    def pending(self, rows, age=0):
+        text = selections(rows)
+        head, rest = text.split('\n', 1)
+        parts = head.split('\t')
+        parts[2] = str(float(parts[2]) - age)
+        (self.folder / 'pending.import').write_text('\t'.join(parts) + '\n' + rest)
+
+    def test_auto_apply_after_import(self):
+        # PhotoSelect handed two Keep photos to Lightroom's Import window; one was added in place, one copied.
+        self.pending([row('DSC_0001.NEF', 3, keywords=['Keep']),
+                      row('DSC_0009.NEF', 3, capture='2026-05-01 10:00:09', keywords=['Keep'])])
+        photos = [{'path': '/Volumes/Card/DCIM/DSC_0001.NEF', 'fileName': 'DSC_0001.NEF', 'time': '2026-05-01 10:00:00'},
+                  {'path': '/Pictures/DSC_0009.NEF', 'fileName': 'DSC_0009.NEF', 'time': '2026-05-01 10:00:09', 'rating': 4}]
+        lua = self.run_plugin(self.folder, [], script=None)
+        ops = lua.eval("require 'LightroomOps'")
+        self.assertEqual(ops.applyPending(False), 0)                  # nothing imported yet
+        self.assertEqual(lua.globals().WRITES, 0)
+        lua.eval('addPhoto')(lua.table_from(photos[0]))               # the import runs
+        self.assertEqual(ops.applyPending(False), 1)
+        self.assertEqual(ops.applyPending(False), 0)                  # never applied twice
+        lua.eval('addPhoto')(lua.table_from(photos[1]))
+        self.assertEqual(ops.applyPending(False), 0)                  # copied: only found by name search
+        self.assertEqual(ops.applyPending(True), 1)
+        self.assertEqual(self.state(lua), {'DSC_0001.NEF': (3, ['PhotoSelect/Keep']),
+                                           'DSC_0009.NEF': (4, ['PhotoSelect/Keep'])})   # existing 4 stars kept
+        self.assertFalse((self.folder / 'pending.import').exists())  # all done
+        self.assertIn('stars applied to 1 imported photos', lua.globals().BEZEL)
+
+    def test_auto_apply_request_expires(self):
+        self.pending([row('DSC_0001.NEF', 3)], age=4 * 3600)
+        lua = self.run_plugin(self.folder, self.photos(), script=None)
+        self.assertEqual(lua.eval("require 'LightroomOps'").applyPending(True), 0)
+        self.assertFalse((self.folder / 'pending.import').exists())
+        self.assertEqual(lua.globals().WRITES, 0)
+
+    def test_init_runs_background_task_until_shutdown(self):
+        self.pending([row('DSC_0001.NEF', 3, folder='/Pictures/2026')])     # imported with Add
+        lua = self.run_plugin(self.folder, self.photos(), script='Init.lua')   # mock sleep runs Shutdown.lua
+        self.assertEqual(lua.globals().SLEEPS, 1)
+        self.assertEqual(self.state(lua)['DSC_0001.NEF'][0], 3)
+
     def test_no_selections_explains_what_to_do(self):
         lua = self.run_plugin(self.folder / 'missing', self.photos())
         self.assertIn('Send to Lightroom', lua.globals().MESSAGE)
@@ -180,7 +264,7 @@ class ApplySelectionsTests(unittest.TestCase):
 
 
 SDK_MOCK = r'''
-PHOTOS, WRITES, MESSAGE, DIALOG_TEXT = {}, 0, nil, nil
+PHOTOS, SELECTED, WRITES, MESSAGE, DIALOG_TEXT, BEZEL, SLEEPS = {}, nil, 0, nil, nil, nil, 0
 local writing = false
 local Keyword = {}
 Keyword.__index = Keyword
@@ -217,13 +301,29 @@ function addPhoto(t)
   if t.oldKeyword then table.insert(p.keywords, makeKeyword(t.oldKeyword, makeKeyword('PhotoSelect'))) end
   table.insert(PHOTOS, p)
 end
+function selectPhotos(indices)
+  SELECTED = {}
+  for _, i in ipairs(indices) do table.insert(SELECTED, PHOTOS[i]) end
+end
 function keywordNames(p)
   local out = {}
   for _, k in ipairs(p.keywords) do table.insert(out, (k.parent and k.parent.name .. '/' or '') .. k.name) end
   return out
 end
 local catalog = {}
-function catalog:getTargetPhotos() return PHOTOS end
+function catalog:getTargetPhotos() return (SELECTED and #SELECTED > 0) and SELECTED or PHOTOS end
+function catalog:getMultipleSelectedOrAllPhotos() return (SELECTED and #SELECTED > 1) and SELECTED or PHOTOS end
+function catalog:findPhotoByPath(path)
+  for _, p in ipairs(PHOTOS) do if p.path == path then return p end end
+  return nil
+end
+function catalog:findPhotos(args)
+  local d = args.searchDesc
+  assert(d.criteria == 'filename' and d.operation == '==')
+  local out = {}
+  for _, p in ipairs(PHOTOS) do if p.fileName == d.value then table.insert(out, p) end end
+  return out
+end
 function catalog:batchGetRawMetadata(photos, keys)
   local out = {}
   for _, p in ipairs(photos) do
@@ -252,9 +352,11 @@ local modules = {
   LrApplication = { activeCatalog = function() return catalog end },
   LrBinding = { makePropertyTable = function(context) return {} end },
   -- dateTimeOriginal is stored here as the formatted text already; the real SDK returns a number
-  LrDate = { timeToUserFormat = function(t, fmt) assert(fmt == '%Y-%m-%d %H:%M:%S') return t end },
+  LrDate = { timeToUserFormat = function(t, fmt) assert(fmt == '%Y-%m-%d %H:%M:%S') return t end,
+             currentTime = function() return NOW_UNIX - 978307200 end },
   LrDialogs = {
     message = function(title, text, kind) MESSAGE = text end,
+    showBezel = function(text) BEZEL = text end,
     presentModalDialog = function(args)
       assert(args.title and args.actionVerb == 'Apply')
       DIALOG_TEXT = args.contents.items[1].title
@@ -263,17 +365,14 @@ local modules = {
     end,
   },
   LrFileUtils = {
-    exists = function(path)
-      local f = io.open(path .. '/.', 'r')
-      if f then f:close() return 'directory' end
-      return false
-    end,
+    exists = function(path) return EXISTS(path) end,
     files = function(folder)
       local names = LIST_DIR(folder)
       local i = 0
       return function() i = i + 1 return names[i] end
     end,
     readFile = function(path) local f = assert(io.open(path, 'rb')) local t = f:read('*a') f:close() return t end,
+    delete = function(path) os.remove(path) return true end,
   },
   LrFunctionContext = {
     callWithContext = function(name, fn)
@@ -288,7 +387,12 @@ local modules = {
     child = function(a, b) return a .. '/' .. b end,
     getStandardFilePath = function(kind) return '/Users/test' end,
   },
-  LrTasks = { startAsyncTask = function(fn) fn() end },
+  LrTasks = {
+    startAsyncTask = function(fn) fn() end,
+    pcall = pcall,
+    -- one pass of the background loop, then the plug-in is shut down
+    sleep = function(s) SLEEPS = SLEEPS + 1 dofile(PLUGIN_DIR .. '/Shutdown.lua') end,
+  },
   LrView = {
     bind = function(key) return { bind = key } end,
     osFactory = function()

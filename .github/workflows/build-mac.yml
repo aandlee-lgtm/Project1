@@ -92,3 +92,25 @@ jobs:
             ${{ runner.temp }}/acceptance/decoded/*.small.jpg
             ${{ runner.temp }}/acceptance/exports/*.csv
             ${{ runner.temp }}/samples/manifest.json
+
+  sony-coverage:
+    # Every Sony A7 / A9 sample on raw.pixls.us through PhotoSelect's decoder (same rawpy / LibRaw as the app).
+    if: contains(github.event.head_commit.message, '[build_new]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Decoder (pinned like the app)
+        run: pip install --quiet $(grep -E '^(rawpy|numpy|pillow|exifread)==' requirements-mac.txt)
+      - name: Sony A7 / A9 coverage
+        run: python scripts/sony_coverage.py "$RUNNER_TEMP/sony"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sony-coverage
+          path: |
+            ${{ runner.temp }}/sony/coverage.md
+            ${{ runner.temp }}/sony/coverage.json

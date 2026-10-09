@@ -36,6 +36,8 @@ details{margin-top:16px}#compare{display:grid;grid-template-columns:repeat(auto-
 .comparephoto{border:1px solid var(--line);padding:12px;border-radius:8px;min-width:0}.comparephoto.top{border-color:#2b6b60}.comparephoto img.fit{width:100%;height:220px;object-fit:contain;background:#090c0e}
 .cropbox{height:320px;overflow:auto;background:#090c0e;border-radius:6px}.cropbox img{display:block}
 #inspectBox{overflow:auto;height:76vh;background:#090c0e;border-radius:8px;cursor:zoom-in}#inspectBox.zoomed{cursor:zoom-out}#inspectBox img{display:block;margin:auto}
+.lrgroups{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin:6px 0 12px}.lrgroups label{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px;display:flex;gap:8px;align-items:center}.lrgroups b{color:var(--teal)}
+#lrDialog{width:min(760px,96vw)}#lrSteps li{margin:3px 0}
 .pager{display:flex;gap:8px;align-items:center;justify-content:center;margin:18px 0}
 a{color:var(--teal)}kbd{border:1px solid var(--line);border-radius:4px;padding:0 4px;font-size:11px}
 @media(max-width:860px){main{grid-template-columns:1fr}aside{border-right:0;border-bottom:1px solid var(--line)}.summary{grid-template-columns:1fr 1fr}.import{flex-wrap:wrap}}
@@ -76,15 +78,15 @@ a{color:var(--teal)}kbd{border:1px solid var(--line);border-radius:4px;padding:0
 <section class="workspace"><div class="tag">THE REVIEW ROOM</div><h1 style="margin-top:8px">Find the frames worth your time.</h1>
 <p class="muted" style="margin:0">Import a folder, tune the criteria, and review the strongest shot in each burst.</p>
 <div class="import"><input id="folder" type="text" placeholder="Full folder path, e.g. /Volumes/Card/DCIM/100NIKON" aria-label="Photo folder path"><button id="browse">Choose folder</button><button id="scan" class="primary">Analyse photos</button><button id="cancel" hidden>Cancel</button></div>
-<label class="hint"><input id="recursive" type="checkbox"> Include subfolders</label><span class="hint"> · Nikon NEF / NRW · Olympus &amp; OM System ORF · other RAW · JPEG / PNG / TIFF</span>
+<label class="hint"><input id="recursive" type="checkbox"> Include subfolders</label><span class="hint"> · Nikon NEF / NRW · Olympus &amp; OM System ORF · Sony ARW · other RAW · JPEG / PNG / TIFF</span>
 <div id="status">Ready when you are. Start with one small shoot to tune your preferences.</div><div class="progress"><i id="progress"></i></div><div id="error" role="alert"></div><div id="notice" class="hint" role="status"></div>
 <div class="summary" role="group" aria-label="Show photos by recommendation"><button type="button" class="stat" data-bucket="all" style="--c:var(--teal)" aria-pressed="true"><strong id="total">0</strong><span>Photos analysed</span><small>Show all</small></button><button type="button" class="stat" data-bucket="Keep" style="--c:var(--teal)" aria-pressed="false"><strong id="kept" style="color:var(--teal)">0</strong><span>Keep</span><small>Show only Keep</small></button><button type="button" class="stat" data-bucket="Consider" style="--c:var(--amber)" aria-pressed="false"><strong id="considered" style="color:var(--amber)">0</strong><span>Consider</span><small>Show only Consider</small></button><button type="button" class="stat" data-bucket="Drop" style="--c:var(--orange)" aria-pressed="false"><strong id="dropped" style="color:var(--orange)">0</strong><span>Drop</span><small>Show only Drop</small></button></div>
 <div class="toolbar">
 <select id="filter" aria-label="Filter photos"><option value="all">All photos</option><option>Keep</option><option>Consider</option><option>Drop</option><option value="liked">Liked photos</option><option value="manual">Decided manually</option><option value="close">Close burst contenders</option><option value="pending">Not yet analysed</option></select>
-<select id="formatFilter" aria-label="Filter camera formats"><option value="all">All file formats</option><option value="nikon">Nikon NEF / NRW</option><option value="olympus">Olympus / OM System ORF</option><option value="raw">All RAW files</option><option value="other">JPEG / PNG / TIFF</option></select>
+<select id="formatFilter" aria-label="Filter camera formats"><option value="all">All file formats</option><option value="nikon">Nikon NEF / NRW</option><option value="olympus">Olympus / OM System ORF</option><option value="sony">Sony ARW</option><option value="raw">All RAW files</option><option value="other">JPEG / PNG / TIFF</option></select>
 <select id="sort" aria-label="Sort photos"><option value="score">Best score first</option><option value="name">Filename</option><option value="group">Burst order</option><option value="time">Capture time</option></select>
 <label class="hint"><input id="winners" type="checkbox"> Burst winners only</label><span class="spacer"></span>
-<button id="compareLikes">Compare liked photos</button><button id="export">Export decisions</button><button id="lightroom" title="Star ratings and keywords for Adobe Lightroom Classic">Send to Lightroom</button></div>
+<button id="compareLikes">Compare liked photos</button><button id="export">Export decisions</button><button id="lightroom" title="Star ratings and keywords for Adobe Lightroom Classic">Send to Lightroom…</button></div>
 <div id="pagerTop" class="pager"></div><div id="grid" class="grid"></div><div id="pagerBottom" class="pager"></div>
 <div id="empty" class="empty"><div class="icon">▧</div><h2>Your next shortlist starts here.</h2><p class="muted">Choose a photo folder on this Mac or an external drive.<br>Your files stay where they are. You make the final call.</p></div>
 <details id="failures" hidden><summary>Files that could not be analysed (<span id="failureCount">0</span>)</summary><p class="hint">These files are not scored. Each one is listed with the reason; the rest of the folder was analysed normally.</p><pre id="failureList" style="white-space:pre-wrap"></pre></details>
@@ -104,6 +106,17 @@ a{color:var(--teal)}kbd{border:1px solid var(--line);border-radius:4px;padding:0
 
 <dialog id="comparison"><div class="dialoghead"><strong id="compareTitle">Comparison</strong><div class="detailtools"><label class="hint"><input id="cropMode" type="checkbox"> 100% crops of the focus region</label><button data-close="comparison">Close</button></div></div>
 <p class="hint">Ranked by your current weights. Close scores are a prompt to look, not a verdict: check the subject and moment before deciding.</p><div id="compare"></div></dialog>
+
+<dialog id="lrDialog" aria-labelledby="lrTitle"><div class="dialoghead"><strong id="lrTitle">Send to Lightroom Classic</strong><button data-close="lrDialog">Close</button></div>
+<p id="lrPlugin" class="hint"></p>
+<div class="detailtools"><button id="lrInstall">Install plug-in</button><button id="lrReveal">Show plug-in in Finder</button></div>
+<h2>Which photos should Lightroom import?</h2>
+<div id="lrGroups" class="lrgroups"></div>
+<label class="hint"><input id="lrAuto" type="checkbox" checked> Add the stars and keywords automatically once Lightroom has imported them</label>
+<div class="detailtools" style="margin-top:14px"><button id="lrOpen" class="primary">Open in Lightroom Import</button><button id="lrSave">Only save selections</button></div>
+<div id="lrError" role="alert" style="color:#ffb0aa;margin-top:10px;white-space:pre-wrap"></div><div id="lrResult" class="hint" role="status" style="margin-top:10px"></div>
+<ol id="lrSteps" class="hint"></ol>
+<p class="hint">Stars: Keep ★★★, Consider ★★, Drop ★, ♥ Liked ★★★★★ (your decision wins over the suggestion). Keywords go under <b>PhotoSelect</b>. PhotoSelect never moves or renames your photos: Lightroom does the import, and stars you already set in Lightroom are kept.</p></dialog>
 
 <dialog id="about"><div class="dialoghead"><strong>About PhotoSelect</strong><button data-close="about">Close</button></div><pre id="aboutText" class="hint" style="white-space:pre-wrap"></pre><button id="diagButton" onclick="document.getElementById('about').close();createDiagnostics()">Create diagnostic report…</button> <button id="clearCache">Clear analysis cache</button> <button onclick="document.getElementById('about').close();installLightroomPlugin()">Install Lightroom plug-in…</button> <span id="aboutMessage" class="hint"></span></dialog>
 <script>
@@ -226,7 +239,7 @@ function rememberFolderSettings(){const key=folderKey();if(key&&(prefs.folder_se
 function matches(r){const f=$('filter').value,ff=$('formatFilter').value;
   if(f==='liked'&&!r.liked)return false;if(f==='manual'&&!r.decision)return false;if(f==='close'&&!isClose(r))return false;if(f==='pending'&&r.status==='analysed')return false;
   if(['Keep','Consider','Drop'].includes(f)&&decision(r)!==f)return false;
-  if(ff==='nikon'&&!/^Nikon /.test(r.format))return false;if(ff==='olympus'&&!/^Olympus/.test(r.format))return false;if(ff==='raw'&&!r.is_raw)return false;if(ff==='other'&&r.is_raw)return false;
+  if(ff==='nikon'&&!/^Nikon /.test(r.format))return false;if(ff==='olympus'&&!/^Olympus/.test(r.format))return false;if(ff==='sony'&&!/^Sony/.test(r.format))return false;if(ff==='raw'&&!r.is_raw)return false;if(ff==='other'&&r.is_raw)return false;
   if($('winners').checked&&!isWinner(r))return false;return true}
 function sourceLabel(r){if(r.status==='preview')return 'embedded camera preview · analysis pending';if(r.status!=='analysed')return 'waiting';const c=r.source==='cache'?' (cached result)':'';if(r.basis==='camera_preview')return 'CAMERA PREVIEW · RAW pixels not decodable'+c;return r.is_raw?'RAW decoded'+c:'decoded'+c}
 function pager(pages){if(pages<=1)return '';return `<button data-page="${page-1}" ${page<=0?'disabled':''}>← Previous</button><span class="hint">Page ${page+1} of ${pages} · ${visible.length} photos</span><button data-page="${page+1}" ${page>=pages-1?'disabled':''}>Next →</button>`}
@@ -359,11 +372,38 @@ function lightroomRows(){derive();const out=[];
     const i=derived.info.get(r.id)||{},kw=[];if(d)kw.push(d);if(r.liked)kw.push('Liked');if(i.size>1)kw.push('Burst '+String(r.group).padStart(3,'0'));if(r.near_identical)kw.push('Near-identical');if(r.basis==='camera_preview')kw.push('Camera preview');
     out.push({path:r.path,name:r.name.split('/').pop(),capture:r.timestamp?localTime(r.timestamp):'',rating:r.liked?5:STARS[d],keywords:kw,decision:r.decision||'',suggestion:r.status==='analysed'?autoDecision(r):''})}
   return out}
+const LR_GROUPS=[[3,'Keep','★★★',true],[2,'Consider','★★',false],[1,'Drop','★',false],[5,'♥ Liked','★★★★★',true]];
+let lrChoice=Object.fromEntries(LR_GROUPS.map(g=>[g[0],g[3]])),lrStatus={};
+async function refreshLightroomStatus(){try{lrStatus=await api('lightroom/status')}catch(e){lrStatus={}}
+  $('lrPlugin').innerHTML=lrStatus.plugin_installed?`✓ PhotoSelect plug-in installed${lrStatus.lightroom?'':' · Lightroom Classic was not found on this Mac'}.`
+    :'<b>The PhotoSelect plug-in is not installed yet.</b> Install it once, then quit and reopen Lightroom Classic. Or add it yourself: Show plug-in in Finder, then Lightroom → File → Plug-in Manager… → Add.';
+  $('lrInstall').textContent=lrStatus.plugin_installed?'Reinstall plug-in':'Install plug-in'}
+function renderLightroomDialog(){const all=lightroomRows(),count=r=>all.filter(x=>x.rating===r).length;
+  $('lrGroups').innerHTML=LR_GROUPS.map(([r,label,stars])=>`<label><input type="checkbox" data-lrgroup="${r}" ${lrChoice[r]?'checked':''} ${count(r)?'':'disabled'}><span><b>${stars}</b> ${label}<br><span class="hint">${count(r)} photo${count(r)===1?'':'s'}</span></span></label>`).join('');
+  document.querySelectorAll('[data-lrgroup]').forEach(c=>c.onchange=()=>{lrChoice[c.dataset.lrgroup]=c.checked;renderLightroomDialog()});
+  const n=all.filter(x=>lrChoice[x.rating]).length;$('lrOpen').textContent=`Open ${n} photos in Lightroom Import`;$('lrOpen').disabled=!n;
+  $('lrSteps').innerHTML=[`<b>Open in Lightroom Import</b> starts Lightroom Classic (or brings it to the front) and opens its Import window with only these ${n} photos.`,
+    'In Lightroom, choose <b>Add</b> (files stay where they are) or <b>Copy</b> at the top of the Import window, then click <b>Import</b>.',
+    $('lrAuto').checked?'The stars and keywords are added automatically a few seconds after the import. This needs the plug-in, and Lightroom restarted once after installing it. If they do not appear, use Library → Plug-in Extras → Apply PhotoSelect Selections…'
+      :'Then choose <b>Library → Plug-in Extras → Apply PhotoSelect Selections…</b> to add the stars and keywords.'].map(x=>`<li>${x}</li>`).join('')}
 $('lightroom').onclick=async()=>{if(!rows.length){showError('Analyse a folder before sending selections to Lightroom.');return}
-  try{showError();const r=await api('lightroom',{folder:prefs.folder||$('folder').value,rows:lightroomRows()});
-    $('notice').textContent=`Selections for ${r.count} photos are ready for Lightroom Classic (Keep ★★★, Consider ★★, Drop ★, Liked ★★★★★). Import this folder in Lightroom, then choose Library → Plug-in Extras → Apply PhotoSelect Selections.`+(r.plugin_installed?'':' First install the plug-in: Help → Install Lightroom Plug-in…')}catch(e){showError(e)}};
+  showError();$('lrError').textContent='';$('lrResult').textContent='';renderLightroomDialog();await refreshLightroomStatus();if(!$('lrDialog').open)$('lrDialog').showModal()};
+$('lrAuto').onchange=renderLightroomDialog;
+async function sendToLightroom(open){$('lrError').textContent='';$('lrResult').textContent=open?'Opening Lightroom Classic…':'Saving…';
+  const all=lightroomRows(),body={folder:prefs.folder||$('folder').value,rows:all};
+  if(open){body.open=all.filter(x=>lrChoice[x.rating]).map(x=>x.path);body.auto_apply=$('lrAuto').checked}
+  try{const r=await api('lightroom',body);
+    $('lrResult').textContent=open?`Lightroom Classic is opening its Import window with ${r.opened} photos. Selections for all ${r.count} photos are saved for Apply PhotoSelect Selections.`
+      :`Selections for ${r.count} photos are saved. Import this folder in Lightroom, then choose Library → Plug-in Extras → Apply PhotoSelect Selections…`;
+    $('notice').textContent=$('lrResult').textContent;if(!r.plugin_installed)$('lrError').textContent='The plug-in is not installed yet: click Install plug-in, then quit and reopen Lightroom Classic.'}
+  catch(e){$('lrResult').textContent='';$('lrError').textContent=e.message}}
+$('lrOpen').onclick=()=>sendToLightroom(true);$('lrSave').onclick=()=>sendToLightroom(false);
+$('lrInstall').onclick=async()=>{await installLightroomPlugin();await refreshLightroomStatus()};
+$('lrReveal').onclick=()=>revealLightroomPlugin();
+async function revealLightroomPlugin(){try{const r=await api('lightroom/reveal',{});$('notice').textContent='Plug-in shown in Finder: '+r.path}catch(e){($('lrDialog').open?$('lrError'):$('error')).textContent=e.message}}
 async function installLightroomPlugin(){try{showError();const r=await api('lightroom/install',{});
-  $('notice').textContent=`Lightroom plug-in installed in ${r.installed}. Quit and reopen Lightroom Classic if it is running; the command appears under Library → Plug-in Extras → Apply PhotoSelect Selections.`}catch(e){showError(e)}}
+  const msg=`Lightroom plug-in installed in ${r.installed}. Quit and reopen Lightroom Classic if it is running; the command appears under Library → Plug-in Extras → Apply PhotoSelect Selections. If you added an older copy yourself in Plug-in Manager, remove that one.`;
+  $('notice').textContent=msg;if($('lrDialog').open)$('lrResult').textContent=msg}catch(e){showError(e);if($('lrDialog').open)$('lrError').textContent=e.message}}
 
 function download(text,name,type,bom){const blob=new Blob([(bom?'\ufeff':'')+text],{type}),a=document.createElement('a'),u=URL.createObjectURL(blob);a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}
 async function createDiagnostics(){try{$('notice').textContent='Creating diagnostic report…';const r=await api('diagnostics',{});
