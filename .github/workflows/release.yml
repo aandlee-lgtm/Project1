@@ -14,6 +14,8 @@ permissions:
 
 jobs:
   release:
+    # Publishes only when the commit message contains build_new.
+    if: contains(github.event.head_commit.message, 'build_new')
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
