@@ -1,6 +1,6 @@
 """Probe a camera model's RAW samples from raw.pixls.us against the bundled decoder.
 
-Usage: python probe_camera.py "Z 6III" [more model substrings...]
+Usage: python probe_camera.py "Z 6III" [more model substrings...]  (run by .github/workflows/probe-camera.yml)
 Prints, per sample file: size, whether rawpy/LibRaw decodes it (and the error if not), the
 NEF compression tag when present, and the size of the embedded camera JPEG.
 """
