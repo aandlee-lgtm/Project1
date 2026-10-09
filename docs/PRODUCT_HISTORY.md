@@ -258,6 +258,9 @@ at the end lists what was built.
   - The bundled LibRaw 0.22.1 cannot open that mode, and no newer rawpy exists. PhotoSelect now
     analyses any genuine camera file that LibRaw cannot open from the camera's own full-size JPEG,
     found inside the file and labelled CAMERA PREVIEW.
+- Release note: v1.4.0 was first published by mistake with the 1.3.0 DMG, because the first 1.4.0
+  commit touched the release workflow. Within minutes it was replaced by the tested 1.4.0 DMG (run
+  37922521013). The release workflow now only publishes a DMG built from the same version.
   - The Lightroom hand-off test showed that macOS records a "last opened" date attribute on files
     handed to an app. Content and dates are unchanged; this is documented as expected.
   - A CI job decodes every A7 / A9 sample on raw.pixls.us with the bundled LibRaw. It reports, per body
