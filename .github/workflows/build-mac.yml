@@ -13,6 +13,7 @@ permissions:
 jobs:
   build:
     # Builds only when the commit message contains build_new (the owner's explicit go-ahead).
+    # The [build_new] commit must also change a file outside paths-ignore above, or no run starts.
     if: contains(github.event.head_commit.message, '[build_new]')
     # GitHub's macos-14 runners are Apple silicon (arm64) virtual machines.
     runs-on: macos-14
