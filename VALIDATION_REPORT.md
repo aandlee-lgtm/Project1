@@ -1,4 +1,33 @@
-# PhotoSelect validation report (1.0.0, updated for 1.5.0)
+# PhotoSelect validation report (1.0.0, updated for 1.6.0)
+
+## 1.6.0 results
+Build and acceptance run: https://github.com/aandlee-lgtm/Project1/actions/runs/38003122912. The installed
+DMG passed on clean macOS 14.8 and 15.7 runners: 111 passed or informational, 0 failed, on each. The
+first 1.6.0 run (38002583793) stopped at one unit test, which built a path by hand. macOS resolves
+/var to /private/var, so it did not match; the test now uses the analysed photo's path, as the app does.
+
+**New checks:**
+- The top bar stays on screen when scrolled: Choose folder, Analyse photos, Send to Lightroom… and the
+  status remain within the top 60 px. Checked in WebKit before and after relaunch.
+- The title bar shows only the version (v1.6.0).
+- Star changes from Lightroom: the UI check writes a change as the plug-in would. PhotoSelect then
+  shows "From Lightroom: 1 Keep → Drop" and the decision changes. Unit tests cover the mapping, a photo
+  changed twice, removed stars and unknown photos.
+- Plug-in (Lua 5.1, simulated catalog; 17 plug-in tests, 70 in total):
+  - stars are tracked after applying and changes are reported once;
+  - changes survive a Lightroom restart;
+  - photos removed from the catalog are forgotten;
+  - the PhotoSelect collection set gets five Smart Collections with the right rules;
+  - *From PhotoSelect* goes only on photos PhotoSelect rated.
+
+**250-RAW-file folder** (same files and runner type as before, 2 workers): 179 s on macOS 14 and
+169 s on macOS 15 (1.25–1.33 files/s; 1.5.0: 235–243 s). Peak memory was 1.6 / 2.1 GB, and the first
+analysed photo came after 26–31 s. These are run-to-run variation on shared runners; 1.6.0 did not
+change analysis.
+
+**Not tested:** the 1.6 plug-in inside a real Lightroom Classic. In particular, whether
+`createSmartCollection` accepts the combined rating + keyword rules as simulated, and the
+`getPhotoByLocalId` look-ups. Field test T18 covers this.
 
 ## 1.5.0 results
 Build and acceptance run: https://github.com/aandlee-lgtm/Project1/actions/runs/37935799010. The installed

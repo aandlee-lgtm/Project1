@@ -1,5 +1,28 @@
 # PhotoSelect releases
 
+## 1.6.0
+- **Main actions always at hand.** A top bar stays in place while you scroll. It holds the folder
+  (full path on hover), **Choose folder**, **Analyse photos** (**Cancel** while analysing),
+  **Send to Lightroom…**, the status line and the progress line. Filters and Export stay in the
+  toolbar. On a narrow window the bar wraps.
+- **Review passes in Lightroom.** The plug-in adds a **PhotoSelect** collection set with Smart
+  Collections:
+  - **1 Rescue** (★), **2 Confirm** (★★★), **3 Decide** (★★), **Liked** (★★★★★) and **Borderline**;
+  - send all groups once, then work through them in Lightroom, where you can edit before deciding;
+  - a photo moves between collections as you change its stars;
+  - *Borderline* (a new keyword) marks photos without your own decision whose score is within
+    5 points of the Keep or Consider threshold: the close calls.
+- **Your Lightroom changes come back to PhotoSelect.** Change the stars of a photo PhotoSelect rated,
+  and within about 30 s PhotoSelect updates its decision:
+  - 5★ Liked, 3★ or 4★ Keep, 2★ Consider, 1★ Drop; removing the stars changes nothing;
+  - a summary shows what changed, e.g. "From Lightroom: 6 Drop → Keep, 2 Keep → Drop";
+  - the changes count as your decisions for *Learn from my decisions*;
+  - the next Send to Lightroom keeps them rather than undoing them.
+- The title bar shows only the version (e.g. v1.6.0).
+- Update once: Send to Lightroom… → Reinstall plug-in, then restart Lightroom Classic.
+- Tested: the installed DMG passed all 111 acceptance checks on macOS 14.8 and 15.7 (run 38003122912).
+  250 RAW files took 168–179 s on the test Mac (235–243 s in 1.5.0).
+
 ## 1.5.0
 - **Stars appear in Lightroom by themselves.** The 1.5 plug-in rates photos once they are in your
   catalog, with no command to run.
