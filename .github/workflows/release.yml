@@ -1,10 +1,12 @@
 name: Publish release
 
-# Pushing a tag such as v1.0.2 publishes the DMG from the latest successful
-# "Build and test macOS app" run on the branch as a GitHub Release (no rebuild).
+# When docs/RELEASES.md changes on the branch, publish the DMG from the latest successful
+# "Build and test macOS app" run as a GitHub Release named after APP_VERSION in app.py.
+# Reuses the tested DMG (no rebuild); does nothing if that release already exists.
 on:
   push:
-    tags: ['v*']
+    branches: ['claude/**']
+    paths: ['docs/RELEASES.md', '.github/workflows/release.yml']
 
 permissions:
   contents: write
@@ -13,27 +15,36 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
-      - name: Fetch the tested DMG
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Decide version
         run: |
-          RUN=$(gh run list -R "$GITHUB_REPOSITORY" --workflow build-mac.yml --branch claude/relaxed-tesla-nh3gba \
+          VERSION=$(python3 -c "import re;print(re.search(r\"APP_VERSION = '([^']+)'\", open('app.py').read()).group(1))")
+          echo "TAG=v$VERSION" >> "$GITHUB_ENV"
+          if gh release view "v$VERSION" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then echo "EXISTS=1" >> "$GITHUB_ENV"; fi
+      - name: Fetch the tested DMG
+        if: env.EXISTS != '1'
+        run: |
+          RUN=$(gh run list -R "$GITHUB_REPOSITORY" --workflow build-mac.yml --branch "$GITHUB_REF_NAME" \
                 --status success --limit 1 --json databaseId -q '.[0].databaseId')
           echo "Using build run $RUN"
           gh run download "$RUN" -R "$GITHUB_REPOSITORY" -n PhotoSelect-AppleSilicon-dmg -D dist
           (cd dist && shasum -a 256 -c PhotoSelect-AppleSilicon.dmg.sha256)
-          echo "RUN=$RUN" >> "$GITHUB_ENV"
+          {
+            echo "Apple silicon Mac app. Download PhotoSelect-AppleSilicon.dmg, open it and drag PhotoSelect to Applications."
+            echo "It is ad-hoc signed, not notarised: on first launch use System Settings, Privacy & Security, Open Anyway (see INSTALL.md)."
+            echo ""
+            echo "Built and acceptance-tested on macOS 14 and 15: https://github.com/$GITHUB_REPOSITORY/actions/runs/$RUN"
+            echo ""
+            echo "Nikon High Efficiency (HE / HE★) NEF cannot be decoded by the bundled LibRaw; use Lossless compressed NEF."
+            echo ""
+            echo "Changes: see docs/RELEASES.md"
+          } > notes.md
       - name: Create release
-        env:
-          GH_TOKEN: ${{ github.token }}
+        if: env.EXISTS != '1'
         run: |
-          gh release create "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" --prerelease \
-            --title "PhotoSelect ${GITHUB_REF_NAME#v} (Apple silicon)" \
-            --notes "Apple silicon Mac app. Download PhotoSelect-AppleSilicon.dmg, open it and drag PhotoSelect to Applications. Ad-hoc signed, not notarised: on first launch use System Settings → Privacy & Security → Open Anyway (see INSTALL.md).
-
-Built and acceptance-tested on macOS 14 and 15 in run https://github.com/$GITHUB_REPOSITORY/actions/runs/$RUN.
-
-Nikon High Efficiency (HE/HE★) NEF is not supported by the bundled LibRaw decoder; use Lossless compressed NEF." \
+          gh release create "$TAG" -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
+            --title "PhotoSelect ${TAG#v} (Apple silicon)" --notes-file notes.md \
             dist/PhotoSelect-AppleSilicon.dmg dist/PhotoSelect-AppleSilicon.dmg.sha256
