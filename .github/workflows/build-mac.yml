@@ -1,0 +1,86 @@
+name: Build and test macOS app (Apple silicon)
+
+on:
+  push:
+    branches: [main, 'claude/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    # GitHub's macos-14 runners are Apple silicon (arm64) virtual machines.
+    runs-on: macos-14
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build host
+        run: |
+          sw_vers; uname -m; sysctl -n machdep.cpu.brand_string; echo "$(($(sysctl -n hw.memsize)/1073741824)) GB"
+      - name: Install python.org CPython 3.12.10 (build machine only; not needed by users)
+        run: |
+          curl -fsSLo "$RUNNER_TEMP/python.pkg" https://www.python.org/ftp/python/3.12.10/python-3.12.10-macos11.pkg
+          sudo installer -pkg "$RUNNER_TEMP/python.pkg" -target /
+          /Library/Frameworks/Python.framework/Versions/3.12/bin/python3.12 -c 'import sys,platform; print(sys.version, platform.machine())'
+      - name: Build PhotoSelect.app and DMG (ad-hoc signed)
+        run: bash scripts/build_mac.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PhotoSelect-AppleSilicon-dmg
+          path: |
+            dist/PhotoSelect-AppleSilicon.dmg
+            dist/PhotoSelect-AppleSilicon.dmg.sha256
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build-reports
+          path: |
+            build/bundle-report.json
+            build/installed-packages.txt
+            build/min-macos.txt
+            build/THIRD_PARTY_NOTICES.txt
+
+  acceptance:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: PhotoSelect-AppleSilicon-dmg
+          path: dist
+      - name: Test host
+        run: sw_vers; uname -m; sysctl -n machdep.cpu.brand_string
+      - name: Fetch genuine camera RAW samples (test data only)
+        run: /usr/bin/python3 scripts/fetch_samples.py "$RUNNER_TEMP/samples"
+      - name: Test harness (system Python, separate from the app)
+        run: |
+          /usr/bin/python3 -m venv "$RUNNER_TEMP/harness"
+          "$RUNNER_TEMP/harness/bin/pip" install --quiet numpy pillow playwright
+          "$RUNNER_TEMP/harness/bin/python" -m playwright install webkit
+      - name: Acceptance tests on the installed app
+        run: |
+          "$RUNNER_TEMP/harness/bin/python" scripts/acceptance_mac.py --dmg dist/PhotoSelect-AppleSilicon.dmg \
+            --samples "$RUNNER_TEMP/samples" --out "$RUNNER_TEMP/acceptance"
+      - name: Summary
+        if: always()
+        run: cat "$RUNNER_TEMP/acceptance/acceptance.md" >> "$GITHUB_STEP_SUMMARY" || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: acceptance-${{ matrix.os }}
+          path: |
+            ${{ runner.temp }}/acceptance/**/*.md
+            ${{ runner.temp }}/acceptance/**/*.json
+            ${{ runner.temp }}/acceptance/**/*.png
+            ${{ runner.temp }}/acceptance/**/*.log
+            ${{ runner.temp }}/acceptance/decoded/*.small.jpg
+            ${{ runner.temp }}/acceptance/exports/*.csv
+            ${{ runner.temp }}/samples/manifest.json

@@ -1,6 +1,25 @@
-# Apple silicon prebuilt wheels; no RAW decoder compilation needed.
-Flask>=3.1,<4
-numpy>=2,<3
-Pillow>=11,<13
+# PhotoSelect runtime, Apple silicon (arm64), CPython 3.12. Exact pins for reproducible builds.
+# All packages install from prebuilt macOS 11.0+ arm64 / universal2 wheels except proxy_tools
+# (pure Python, source only). numpy is pinned to its macosx_11_0_arm64 wheel by the build script.
+flask==3.1.3
+werkzeug==3.1.9
+jinja2==3.1.6
+markupsafe==3.0.4
+itsdangerous==2.2.0
+click==8.5.0
+blinker==1.9.0
+waitress==3.0.2
+numpy==2.5.3
+pillow==12.3.0
 rawpy==0.27.1
-ExifRead>=3,<4
+exifread==3.5.1
+pywebview==6.2.1
+proxy_tools==0.1.0
+bottle==0.13.4
+typing_extensions==4.16.0
+pyobjc-core==12.2.2
+pyobjc-framework-Cocoa==12.2.2
+pyobjc-framework-Quartz==12.2.2
+pyobjc-framework-WebKit==12.2.2
+pyobjc-framework-Security==12.2.2
+pyobjc-framework-UniformTypeIdentifiers==12.2.2

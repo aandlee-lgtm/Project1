@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Used only for Developer ID signing with the hardened runtime. No sandbox, network-client or
+     file-access entitlements are requested: the app only listens on loopback and reads folders the
+     user chooses. Python's ctypes/libffi needs unsigned executable memory. -->
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+</dict>
+</plist>

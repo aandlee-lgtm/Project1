@@ -1,29 +1,273 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PhotoSelect · Make room for your best frames</title><style>
-:root{--bg:#111518;--panel:#1a2024;--line:#30383d;--muted:#9eabb4;--text:#edf2f5;--mint:#ade1c5}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px system-ui,sans-serif}button,input,select{font:inherit}button,select,input[type=text],input[type=number]{background:#232c32;color:var(--text);border:1px solid var(--line);border-radius:7px;padding:10px}button{cursor:pointer}button:hover{border-color:var(--mint)}button.primary{background:var(--mint);color:#153325;font-weight:700}button:disabled{opacity:.4;cursor:wait}header{height:78px;padding:0 28px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line)}.brand{font-size:22px;font-weight:700;letter-spacing:-1px}.brand b{color:var(--mint)}.tag{color:var(--muted);font-size:12px;letter-spacing:.08em}main{display:grid;grid-template-columns:280px 1fr;min-height:calc(100vh - 78px)}aside{padding:26px 22px;border-right:1px solid var(--line)}h1{font-size:26px;letter-spacing:-.6px;margin:0 0 8px}h2{font-size:14px;margin:24px 0 12px}.muted{color:var(--muted);line-height:1.6}.section{border-top:1px solid var(--line);margin-top:24px;padding-top:4px}.weight{margin:20px 0}.weight label{display:flex;justify-content:space-between}.weight input{width:100%;accent-color:var(--mint);margin:12px 0 0}.weight small{color:var(--muted);font-size:11px}.workspace{padding:28px;min-width:0}.import{display:flex;gap:8px;margin:22px 0 12px}.import input{flex:1;min-width:100px}.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:22px 0}.toolbar .spacer{flex:1}.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:24px}.stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}.stat strong{font-size:26px;display:block;margin-bottom:5px}.stat span{color:var(--muted)}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:18px}.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}.photo{height:190px;background:#090c0e;position:relative;cursor:pointer}.photo img{width:100%;height:100%;object-fit:contain}.badge{position:absolute;top:10px;left:10px;background:#18201ee8;border:1px solid #436653;border-radius:5px;padding:5px 7px;color:var(--mint);font-size:11px}.cardbody{padding:14px}.filename{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}.score{font-size:28px;font-weight:650}.topline{display:flex;justify-content:space-between;align-items:center;margin:10px 0}.pill{padding:5px 8px;border-radius:5px;font-size:11px;background:#25372e;color:var(--mint)}.Consider{background:#493c24;color:#e8c786}.Skip{background:#3b292b;color:#e4a5a5}.bars{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:11px;color:var(--muted)}.bar{height:3px;background:#384249;margin-top:5px}.bar i{display:block;height:100%;background:#95bba8}.actions{display:flex;gap:5px;margin-top:14px}.actions button{padding:6px 8px;font-size:11px;flex:1}.actions button.active{border-color:var(--mint);color:var(--mint)}.empty{text-align:center;padding:85px 20px;border:1px dashed var(--line);border-radius:12px}.empty .icon{font-size:44px;color:var(--mint)}.progress{height:3px;background:#293238;margin-top:12px}.progress i{display:block;background:var(--mint);height:100%;width:0}#status{min-height:22px;color:var(--muted);margin-top:12px}#error{color:#ffb0aa;white-space:pre-wrap}dialog{width:min(1100px,95vw);max-height:94vh;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:22px}dialog::backdrop{background:#000b}.dialoghead{display:flex;align-items:center;justify-content:space-between}.stage{position:relative;display:table;margin:16px auto;max-width:100%;line-height:0;touch-action:none}.stage img{display:block;max-width:100%;max-height:62vh;user-select:none}.region{position:absolute;border:2px solid #ade1c5;background:#ade1c526;pointer-events:none}.detailtools{display:flex;gap:8px;flex-wrap:wrap}.hint{font-size:12px;color:var(--muted);line-height:1.6}details{margin-top:16px}#compare{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:15px}.comparephoto img{width:100%;height:220px;object-fit:contain}.comparephoto{border:1px solid var(--line);padding:12px;border-radius:8px}a{color:var(--mint)}@media(max-width:800px){main{grid-template-columns:1fr}aside{border-right:0;border-bottom:1px solid var(--line)}.weights{display:grid;grid-template-columns:1fr 1fr;gap:0 20px}.workspace{padding:18px}header{padding:0 18px}.tag{display:none}.summary{grid-template-columns:1fr 1fr}.import{flex-wrap:wrap}}
-</style></head><body><header><div class="brand">Photo<b>Select</b> <span class="tag"> / YOUR BEST FRAMES, IN FOCUS</span></div><span class="tag">v0.3 · LOCAL PROCESSING · ORIGINALS UNTOUCHED</span></header><main><aside><div class="tag">YOUR SELECTION CRITERIA</div><h2>What matters in this shoot?</h2><p class="muted">Adjust the balance. Rankings update immediately.</p><div class="weights" id="weights"></div><div class="section"><h2>Recommendation thresholds</h2><label class="weight">Keep from <output id="keepValue">75</output><input id="keep" type="range" min="50" max="95" value="75"></label><label class="weight">Consider from <output id="considerValue">45</output><input id="consider" type="range" min="10" max="49" value="45"></label></div><div class="section"><h2>Burst matching</h2><label class="hint">Maximum frame gap (seconds)<br><input id="gap" type="number" min="0.1" max="10" step="0.1" value="2" style="width:100%;margin-top:8px"></label><label class="weight" style="display:block">Similarity tolerance <output id="similarityValue">14</output><input id="similarity" type="range" min="0" max="32" value="14"></label><button id="regroup">Regroup bursts</button><p class="hint">Uses capture time and image similarity. Missing capture times stay ungrouped. Higher tolerance allows more variation.</p></div><div class="section"><h2>Understand the scores</h2><p class="hint">Detail scores are relative to this folder, measured at up to 1,600 pixels. Focus starts in the central region; draw your own region in the viewer.</p><p class="hint">Composition uses edge placement and border clutter. It cannot judge subject expression, decisive moments, a boat's full rig, or artistic intent. Noise and water texture can inflate detail scores.</p></div></aside><section class="workspace"><div class="tag">THE REVIEW ROOM</div><h1 style="margin-top:8px">Find the frames worth your time.</h1><p class="muted" style="margin:0">Import a folder, tune the criteria, and review the strongest shot in each burst.</p><div class="import"><input id="folder" type="text" placeholder="Full folder path, e.g. /Users/andrew/Pictures/Regatta" aria-label="Photo folder path"><button id="browse">Choose folder</button><button id="scan" class="primary">Analyse photos</button></div><label class="hint"><input id="recursive" type="checkbox"> Include subfolders</label><span class="hint"> · Nikon NEF / NRW · Olympus & OM System ORF · Other RAW · JPEG / PNG / TIFF</span><div id="status">Ready when you are. Start with one small shoot to tune your preferences.</div><div class="progress"><i id="progress"></i></div><div id="error" role="alert"></div><div class="summary"><div class="stat"><strong id="total">0</strong><span>Photos analysed</span></div><div class="stat"><strong id="kept" style="color:var(--mint)">0</strong><span>Keep</span></div><div class="stat"><strong id="considered" style="color:#e8c786">0</strong><span>Consider</span></div><div class="stat"><strong id="skipped">0</strong><span>Skip suggestion</span></div></div><div class="toolbar"><select id="filter" aria-label="Filter photos"><option value="all">All photos</option><option>Keep</option><option>Consider</option><option>Skip</option><option value="liked">Liked photos</option></select><select id="formatFilter" aria-label="Filter camera formats"><option value="all">All file formats</option><option value="nikon">Nikon NEF / NRW</option><option value="olympus">Olympus / OM System ORF</option><option value="raw">All RAW files</option></select><select id="sort" aria-label="Sort photos"><option value="score">Best score first</option><option value="name">Filename</option><option value="group">Burst order</option></select><label class="hint"><input id="winners" type="checkbox"> Burst winners only</label><span class="spacer"></span><button id="compareLikes">Compare liked photos</button><button id="export">Export decisions</button></div><div id="grid" class="grid"></div><div id="empty" class="empty"><div class="icon">▧</div><h2>Your next shortlist starts here.</h2><p class="muted">Choose a photo folder on this computer.<br>Your files stay where they are. You make the final call.</p></div><details id="failures" hidden><summary>Files that could not be analysed</summary><pre id="failureList" style="white-space:pre-wrap"></pre></details></section></main><dialog id="viewer"><div class="dialoghead"><div><strong id="viewTitle"></strong><div id="viewScores" class="hint"></div></div><button onclick="document.getElementById('viewer').close()">Close</button></div><p class="hint">Drag a rectangle over the subject to measure focus there. Region selection uses the analysis preview; use full-resolution detail to verify critical focus.</p><div class="stage" id="stage"><img id="viewImage" draggable="false" alt="Selected photo"><div id="region" class="region" hidden></div></div><div class="detailtools"><button id="resetROI">Reset focus region</button><button id="full">Open full-resolution detail</button><button id="burstCompare">Compare this burst</button><button id="prev">← Previous</button><button id="next">Next →</button></div><p id="viewMessage" class="hint"></p></dialog><dialog id="comparison"><div class="dialoghead"><strong id="compareTitle">Comparison</strong><button onclick="document.getElementById('comparison').close()">Close</button></div><p class="hint">Ranked by your current weights. Scores suggest a starting point; check the subject and moment before deciding.</p><div id="compare"></div></dialog><script>
-const TOKEN='__TOKEN__';const $=id=>document.getElementById(id);let rows=[],current=null,busy=false,visible=[],urls=new Map(),manual={},liked={},session='';let weights={sharpness:40,focus:40,composition:15,exposure:5};const descriptions={sharpness:'Overall edge detail',focus:'Detail in your chosen subject region',composition:'Placement and border clutter cues',exposure:'Clipped shadows and highlights'};
-function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-async function api(path,body){let r=await fetch('/api/'+path,{method:body===undefined?'GET':'POST',headers:{'X-Session':TOKEN,'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});if(!r.ok){let j=await r.json().catch(()=>({error:r.statusText}));throw Error(j.error||r.statusText)}return r.json()}
-function save(){localStorage.setItem('photoselect:'+session,JSON.stringify({manual,liked,weights,keep:$('keep').value,consider:$('consider').value}))}
-function restore(){try{let v=JSON.parse(localStorage.getItem('photoselect:'+session)||'{}');manual=v.manual||{};liked=v.liked||{};weights=v.weights||weights;if(v.keep)$('keep').value=v.keep;if(v.consider)$('consider').value=v.consider;buildWeights()}catch(e){manual={};liked={}}}
-function buildWeights(){$('weights').innerHTML=Object.keys(weights).map(k=>`<div class="weight"><label for="weight-${k}">${k[0].toUpperCase()+k.slice(1)}<output id="value-${k}">${Object.values(weights).reduce((a,b)=>a+b,0)?Math.round(weights[k]/Object.values(weights).reduce((a,b)=>a+b,0)*100):0}%</output></label><input id="weight-${k}" type="range" min="0" max="100" value="${weights[k]}"><small>${descriptions[k]}</small></div>`).join('');Object.keys(weights).forEach(k=>$('weight-'+k).oninput=e=>{weights[k]=+e.target.value;let sum=Object.values(weights).reduce((a,b)=>a+b,0);Object.keys(weights).forEach(t=>$('value-'+t).textContent=sum?Math.round(weights[t]/sum*100)+'%':'Off');save();render()})}
-function score(r){let sum=Object.values(weights).reduce((a,b)=>a+b,0);return sum?Object.keys(weights).reduce((a,k)=>a+weights[k]*(r.scores[k]||0),0)/sum:0}
-function decision(r){return manual[r.path]||(score(r)>=+$('keep').value?'Keep':score(r)>=+$('consider').value?'Consider':'Skip')}
-function winners(){let m=new Map();rows.forEach(r=>{if(!m.has(r.group)||score(r)>score(m.get(r.group)))m.set(r.group,r)});return new Set([...m.values()].map(r=>r.id))}
-async function imageURL(id,full=false){let key=id+(full?':full':'');if(urls.has(key))return urls.get(key);let r=await fetch('/api/image/'+id+(full?'?full=1':''),{headers:{'X-Session':TOKEN}});if(!r.ok)throw Error('Could not load image.');let url=URL.createObjectURL(await r.blob());urls.set(key,url);return url}
-function render(){let win=winners(),counts=new Map();rows.forEach(r=>counts.set(r.group,(counts.get(r.group)||0)+1));$('total').textContent=rows.length;for(let [id,value] of [['kept','Keep'],['considered','Consider'],['skipped','Skip']])$(id).textContent=rows.filter(r=>decision(r)===value).length;visible=rows.filter(r=>($('filter').value==='all'||($('filter').value==='liked'?liked[r.path]:decision(r)===$('filter').value))&&($('formatFilter').value==='all'||($('formatFilter').value==='raw'?r.decoded_raw:$('formatFilter').value==='nikon'?/^Nikon /.test(r.format):r.format==='Olympus / OM System ORF'))&&(!$('winners').checked||win.has(r.id)));visible.sort((a,b)=>$('sort').value==='score'?score(b)-score(a):$('sort').value==='group'?a.group-b.group||score(b)-score(a):a.name.localeCompare(b.name));$('empty').hidden=rows.length>0;$('grid').innerHTML=visible.map(r=>`<article class="card"><div class="photo" data-open="${r.id}" tabindex="0" role="button" aria-label="Inspect ${esc(r.name)}"><img data-img="${r.id}" alt="${esc(r.name)}">${win.has(r.id)&&counts.get(r.group)>1?'<span class="badge">BURST '+r.group+' · TOP FRAME</span>':''}</div><div class="cardbody"><div class="filename" title="${esc(r.name)}">${esc(r.name)}</div><div class="hint" style="font-size:10px;margin-top:5px">${esc(r.format)}${r.decoded_raw?' · RAW decoded':''}</div><div class="topline"><span class="score">${score(r).toFixed(0)}<small style="font-size:12px;color:var(--muted)"> / 100</small></span><span class="pill ${decision(r)}">${decision(r)}${manual[r.path]?' · manual':''}</span></div><div class="bars">${Object.keys(weights).map(k=>`<div>${k==='focus'&&r.roi?'Subject focus':k} ${r.scores[k]??'—'}<div class="bar"><i style="width:${r.scores[k]||0}%"></i></div></div>`).join('')}</div><div class="actions"><button data-like="${r.id}" class="${liked[r.path]?'active':''}">${liked[r.path]?'♥ Liked':'♡ Like'}</button>${['Keep','Consider','Skip'].map(d=>`<button data-decision="${r.id}" data-value="${d}" class="${manual[r.path]===d?'active':''}">${d}</button>`).join('')}<button data-auto="${r.id}" title="Clear manual decision">↺</button></div></div></article>`).join('');document.querySelectorAll('[data-img]').forEach(async im=>{try{let url=await imageURL(im.dataset.img);if(im.isConnected)im.src=url}catch(e){im.alt='Preview unavailable'}});document.querySelectorAll('[data-open]').forEach(el=>{el.onclick=()=>openViewer(el.dataset.open);el.onkeydown=e=>{if(e.key==='Enter')openViewer(el.dataset.open)}});document.querySelectorAll('[data-like]').forEach(el=>el.onclick=()=>{let r=rows.find(r=>r.id===el.dataset.like);liked[r.path]=!liked[r.path];save();render()});document.querySelectorAll('[data-decision]').forEach(el=>el.onclick=()=>{manual[rows.find(r=>r.id===el.dataset.decision).path]=el.dataset.value;save();render()});document.querySelectorAll('[data-auto]').forEach(el=>el.onclick=()=>{delete manual[rows.find(r=>r.id===el.dataset.auto).path];save();render()})}
-async function poll(){try{let s=await api('state');busy=s.running;$('scan').disabled=busy;$('browse').disabled=busy;$('regroup').disabled=busy;rows=s.rows;if(session!==s.folder&&s.folder){session=s.folder;restore()}$('status').textContent=busy?`Analysing ${s.done} of ${s.total} files… Scores appear after the scan finishes.`:s.total?`${rows.length} photos analysed · ${new Set(rows.map(r=>r.group)).size} groups · ${s.errors.length} unreadable files`:'Ready to analyse your photos.';$('progress').style.width=s.total?s.done/s.total*100+'%':'0';$('failures').hidden=!s.errors.length;$('failureList').textContent=s.errors.map(e=>e.name+': '+e.error).join('\n');if(!busy)render();if(busy)setTimeout(poll,800)}catch(e){$('error').textContent=e.message;busy=false;$('scan').disabled=false}}
-$('browse').onclick=async()=>{try{$('status').textContent='Choose a folder in the system dialog…';let r=await api('pick',{});if(r.folder)$('folder').value=r.folder;$('status').textContent='Folder selected. Click Analyse photos.'}catch(e){$('error').textContent=e.message}};
-$('scan').onclick=async()=>{try{$('error').textContent='';await api('scan',{folder:$('folder').value,recursive:$('recursive').checked});urls.forEach(u=>URL.revokeObjectURL(u));urls.clear();$('grid').innerHTML='';poll()}catch(e){$('error').textContent=e.message}};
-for(let id of ['keep','consider'])$(id).oninput=()=>{$(id+'Value').textContent=$(id).value;save();render()};for(let id of ['filter','formatFilter','sort','winners'])$(id).onchange=render;$('similarity').oninput=()=>$('similarityValue').textContent=$('similarity').value;
-$('regroup').onclick=async()=>{try{await api('groups',{gap:+$('gap').value,similarity:+$('similarity').value});poll()}catch(e){$('error').textContent=e.message}};
-async function openViewer(id){current=rows.find(r=>r.id===id);$('viewTitle').textContent=current.name;$('viewScores').textContent=`${current.format} · ${current.size.join(' × ')} · Overall ${score(current).toFixed(0)} · Focus ${current.scores.focus} · Composition ${current.scores.composition}`;$('viewMessage').textContent='';$('region').hidden=true;try{$('viewImage').src=await imageURL(id);if(!$('viewer').open)$('viewer').showModal();if(current.roi){let [x,y,w,h]=current.roi;Object.assign($('region').style,{left:x*100+'%',top:y*100+'%',width:w*100+'%',height:h*100+'%'});$('region').hidden=false}}catch(e){$('error').textContent=e.message}}
-let start=null;const stage=$('stage');function point(e){let b=$('viewImage').getBoundingClientRect();return [Math.max(0,Math.min(1,(e.clientX-b.left)/b.width)),Math.max(0,Math.min(1,(e.clientY-b.top)/b.height))]}
-stage.onpointerdown=e=>{if(busy)return;start=point(e);stage.setPointerCapture(e.pointerId)};stage.onpointermove=e=>{if(!start)return;let p=point(e);Object.assign($('region').style,{left:Math.min(start[0],p[0])*100+'%',top:Math.min(start[1],p[1])*100+'%',width:Math.abs(start[0]-p[0])*100+'%',height:Math.abs(start[1]-p[1])*100+'%'});$('region').hidden=false};stage.onpointerup=async e=>{if(!start)return;let p=point(e),roi=[Math.min(start[0],p[0]),Math.min(start[1],p[1]),Math.abs(start[0]-p[0]),Math.abs(start[1]-p[1])];start=null;try{await api('roi',{id:current.id,roi});await poll();openViewer(current.id)}catch(e){$('viewMessage').textContent=e.message}};stage.onpointercancel=()=>start=null;
-$('resetROI').onclick=async()=>{try{await api('roi',{id:current.id,roi:null});await poll();openViewer(current.id)}catch(e){$('viewMessage').textContent=e.message}};
-$('full').onclick=async()=>{const tab=window.open('about:blank','_blank');if(!tab){$('viewMessage').textContent='Allow pop-ups to open full-resolution detail.';return}try{$('viewMessage').textContent='Decoding full-resolution detail…';let u=await imageURL(current.id,true);tab.location.href=u;$('viewMessage').textContent='Full-resolution image opened. Click it to inspect at native size.'}catch(e){tab.close();$('viewMessage').textContent=e.message}};
-for(let [id,delta] of [['prev',-1],['next',1]])$(id).onclick=()=>{let i=visible.findIndex(r=>r.id===current.id);if(visible.length)openViewer(visible[(i+delta+visible.length)%visible.length].id)};
-async function compare(list,title){if(!list.length){$('error').textContent='Like a few photos first.';return}list.sort((a,b)=>score(b)-score(a));$('compareTitle').textContent=title;$('compare').innerHTML=list.map((r,i)=>`<div class="comparephoto"><strong>#${i+1} · ${score(r).toFixed(0)}/100</strong><img data-cimg="${r.id}" alt="${esc(r.name)}"><div class="filename">${esc(r.name)}</div><p class="hint">Focus ${r.scores.focus} · Composition ${r.scores.composition}</p><button data-inspect="${r.id}">Inspect frame</button></div>`).join('');$('comparison').showModal();document.querySelectorAll('[data-cimg]').forEach(async el=>{el.src=await imageURL(el.dataset.cimg)});document.querySelectorAll('[data-inspect]').forEach(el=>el.onclick=()=>{$('comparison').close();openViewer(el.dataset.inspect)})}
-$('compareLikes').onclick=()=>compare(rows.filter(r=>liked[r.path]),'Your liked photos · ranked');$('burstCompare').onclick=()=>{let g=current.group;$('viewer').close();compare(rows.filter(r=>r.group===g),'Burst '+g+' · ranked')};
-$('export').onclick=()=>{if(!rows.length){$('error').textContent='Analyse a folder before exporting.';return}let win=winners(),data=[['filename','original_path','file_format','raw_decoded','recommendation','manual_decision','liked','score','sharpness','focus','composition','exposure','burst','burst_winner','focus_region','weights']];rows.forEach(r=>data.push([r.name,r.path,r.format,r.decoded_raw,decision(r),manual[r.path]||'',!!liked[r.path],score(r).toFixed(1),r.scores.sharpness,r.scores.focus,r.scores.composition,r.scores.exposure,r.group,win.has(r.id),JSON.stringify(r.roi),JSON.stringify(weights)]));const cell=v=>'"'+String(v).replace(/"/g,'""')+'"';let blob=new Blob(['\ufeff'+data.map(r=>r.map(cell).join(',')).join('\r\n')],{type:'text/csv'}),a=document.createElement('a'),u=URL.createObjectURL(blob);a.href=u;a.download='PhotoSelect-decisions.csv';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)};buildWeights();poll();
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PhotoSelect</title><link rel="icon" href="data:,"><style>
+:root{--bg:#111518;--panel:#1a2024;--line:#30383d;--muted:#9eabb4;--text:#edf2f5;--mint:#ade1c5;--amber:#e8c786;--rose:#e4a5a5}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px -apple-system,system-ui,sans-serif}
+button,input,select{font:inherit}button,select,input[type=text],input[type=number]{background:#232c32;color:var(--text);border:1px solid var(--line);border-radius:7px;padding:9px 10px}
+button{cursor:pointer}button:hover{border-color:var(--mint)}button.primary{background:var(--mint);color:#153325;font-weight:700}button:disabled{opacity:.4;cursor:default}
+header{height:64px;padding:0 24px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line)}
+.brand{font-size:21px;font-weight:700;letter-spacing:-1px}.brand b{color:var(--mint)}.tag{color:var(--muted);font-size:12px;letter-spacing:.08em}
+main{display:grid;grid-template-columns:280px 1fr;min-height:calc(100vh - 64px)}aside{padding:22px;border-right:1px solid var(--line)}
+h1{font-size:24px;letter-spacing:-.6px;margin:0 0 8px}h2{font-size:14px;margin:22px 0 10px}.muted{color:var(--muted);line-height:1.6}
+.section{border-top:1px solid var(--line);margin-top:22px;padding-top:4px}.weight{margin:18px 0;display:block}.weight label,.weight .row{display:flex;justify-content:space-between}
+.weight input{width:100%;accent-color:var(--mint);margin:10px 0 0}.weight small{color:var(--muted);font-size:11px}
+.workspace{padding:24px;min-width:0}.import{display:flex;gap:8px;margin:18px 0 10px}.import input{flex:1;min-width:100px}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:20px 0 14px}.toolbar .spacer{flex:1}
+.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:20px}.stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+.stat strong{font-size:24px;display:block;margin-bottom:4px}.stat span{color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.photo{height:190px;background:#090c0e;position:relative;cursor:pointer}.photo img{width:100%;height:100%;object-fit:contain}
+.badges{position:absolute;top:8px;left:8px;right:8px;display:flex;flex-wrap:wrap;gap:4px}.badge{background:#18201ee8;border:1px solid #436653;border-radius:5px;padding:4px 6px;color:var(--mint);font-size:10px;letter-spacing:.03em}
+.badge.warn{border-color:#6b5a33;color:var(--amber)}.badge.dim{border-color:var(--line);color:var(--muted)}
+.cardbody{padding:13px}.filename{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}.score{font-size:26px;font-weight:650}
+.topline{display:flex;justify-content:space-between;align-items:center;margin:8px 0}.pill{padding:5px 8px;border-radius:5px;font-size:11px;background:#25372e;color:var(--mint)}
+.Consider{background:#493c24;color:var(--amber)}.Skip{background:#3b292b;color:var(--rose)}.Pending{background:#262d32;color:var(--muted)}
+.bars{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:11px;color:var(--muted)}.bar{height:3px;background:#384249;margin-top:4px}.bar i{display:block;height:100%;background:#95bba8}
+.why{font-size:11px;color:var(--muted);margin-top:10px;line-height:1.45;min-height:16px}
+.actions{display:flex;gap:5px;margin-top:12px}.actions button{padding:6px 7px;font-size:11px;flex:1}.actions button.active,.detailtools button.active{border-color:var(--mint);color:var(--mint)}
+.empty{text-align:center;padding:70px 20px;border:1px dashed var(--line);border-radius:12px}.empty .icon{font-size:44px;color:var(--mint)}
+.progress{height:3px;background:#293238;margin-top:10px}.progress i{display:block;background:var(--mint);height:100%;width:0;transition:width .3s}
+#status{min-height:22px;color:var(--muted);margin-top:10px}#error{color:#ffb0aa;white-space:pre-wrap}
+dialog{width:min(1180px,96vw);max-height:94vh;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:20px}dialog::backdrop{background:#000b}
+.dialoghead{display:flex;align-items:center;justify-content:space-between;gap:12px}.stage{position:relative;display:table;margin:14px auto;max-width:100%;line-height:0;touch-action:none;cursor:crosshair}
+.stage img{display:block;max-width:100%;max-height:58vh;user-select:none}.region{position:absolute;border:2px solid var(--mint);background:#ade1c526;pointer-events:none}
+.detailtools{display:flex;gap:7px;flex-wrap:wrap}.hint{font-size:12px;color:var(--muted);line-height:1.6}.reasons{margin:10px 0 0;padding-left:18px}.reasons li{margin:2px 0}
+details{margin-top:16px}#compare{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.comparephoto{border:1px solid var(--line);padding:12px;border-radius:8px;min-width:0}.comparephoto.top{border-color:#436653}.comparephoto img.fit{width:100%;height:220px;object-fit:contain;background:#090c0e}
+.cropbox{height:320px;overflow:auto;background:#090c0e;border-radius:6px}.cropbox img{display:block}
+#inspectBox{overflow:auto;height:76vh;background:#090c0e;border-radius:8px;cursor:zoom-in}#inspectBox.zoomed{cursor:zoom-out}#inspectBox img{display:block;margin:auto}
+.pager{display:flex;gap:8px;align-items:center;justify-content:center;margin:18px 0}
+a{color:var(--mint)}kbd{border:1px solid var(--line);border-radius:4px;padding:0 4px;font-size:11px}
+@media(max-width:860px){main{grid-template-columns:1fr}aside{border-right:0;border-bottom:1px solid var(--line)}.summary{grid-template-columns:1fr 1fr}.import{flex-wrap:wrap}}
+</style></head><body>
+<header><div class="brand">Photo<b>Select</b> <span class="tag"> / YOUR BEST FRAMES, IN FOCUS</span></div><span class="tag">v__VERSION__ · LOCAL PROCESSING · ORIGINALS UNTOUCHED</span></header>
+<main><aside>
+<div class="tag">YOUR SELECTION CRITERIA</div><h2>What matters in this shoot?</h2><p class="muted">Adjust the balance. Rankings update immediately.</p>
+<div id="weights"></div>
+<div class="section"><h2>Recommendation thresholds</h2>
+<label class="weight"><span class="row">Keep from <output id="keepValue">75</output></span><input id="keep" type="range" min="50" max="95" value="75"></label>
+<label class="weight"><span class="row">Consider from <output id="considerValue">45</output></span><input id="consider" type="range" min="10" max="49" value="45"></label>
+<p class="hint">Suggestions only. Nothing is deleted or moved, and a frame is never marked Skip just because another frame in its burst scored higher.</p></div>
+<div class="section"><h2>Burst matching</h2>
+<label class="hint">Maximum frame gap (seconds)<br><input id="gap" type="number" min="0.1" max="10" step="0.1" value="2" style="width:100%;margin-top:8px"></label>
+<label class="weight"><span class="row">Similarity tolerance <output id="similarityValue">14</output></span><input id="similarity" type="range" min="0" max="32" value="14"></label>
+<button id="regroup">Regroup bursts</button>
+<p class="hint">Uses capture time (with sub-seconds when the camera records them) plus a small image fingerprint and average colour. Frames without capture times stay ungrouped.</p></div>
+<div class="section"><h2>Understand the scores</h2>
+<p class="hint"><b>Scores are relative to this folder</b>, not probabilities or absolute quality: even a folder of soft photos has a top frame.</p>
+<p class="hint"><b>Sharpness</b>: edge detail across the frame. <b>Subject focus</b>: edge detail in the central region, or the region you draw, measured on the full-resolution RAW decode. Noise, waves, foliage and a sharp background can inflate both; a noise warning appears when this folder's noise estimate is high.</p>
+<p class="hint"><b>Composition</b>: edge placement near thirds and border clutter. It is not a trained aesthetic model and cannot judge expressions, the decisive moment or a cropped rig. <b>Exposure</b>: share of unclipped pixels in the rendered image.</p>
+<p class="hint">Not included: eye or face detection, subject recognition, motion-blur detection, artistic judgement.</p></div>
+</aside>
+<section class="workspace"><div class="tag">THE REVIEW ROOM</div><h1 style="margin-top:8px">Find the frames worth your time.</h1>
+<p class="muted" style="margin:0">Import a folder, tune the criteria, and review the strongest shot in each burst.</p>
+<div class="import"><input id="folder" type="text" placeholder="Full folder path, e.g. /Volumes/Card/DCIM/100NIKON" aria-label="Photo folder path"><button id="browse">Choose folder</button><button id="scan" class="primary">Analyse photos</button><button id="cancel" hidden>Cancel</button></div>
+<label class="hint"><input id="recursive" type="checkbox"> Include subfolders</label><span class="hint"> · Nikon NEF / NRW · Olympus &amp; OM System ORF · other RAW · JPEG / PNG / TIFF</span>
+<div id="status">Ready when you are. Start with one small shoot to tune your preferences.</div><div class="progress"><i id="progress"></i></div><div id="error" role="alert"></div>
+<div class="summary"><div class="stat"><strong id="total">0</strong><span>Photos analysed</span></div><div class="stat"><strong id="kept" style="color:var(--mint)">0</strong><span>Keep</span></div><div class="stat"><strong id="considered" style="color:var(--amber)">0</strong><span>Consider</span></div><div class="stat"><strong id="skipped">0</strong><span>Skip suggestion</span></div></div>
+<div class="toolbar">
+<select id="filter" aria-label="Filter photos"><option value="all">All photos</option><option>Keep</option><option>Consider</option><option>Skip</option><option value="liked">Liked photos</option><option value="manual">Decided manually</option><option value="close">Close burst contenders</option><option value="pending">Not yet analysed</option></select>
+<select id="formatFilter" aria-label="Filter camera formats"><option value="all">All file formats</option><option value="nikon">Nikon NEF / NRW</option><option value="olympus">Olympus / OM System ORF</option><option value="raw">All RAW files</option><option value="other">JPEG / PNG / TIFF</option></select>
+<select id="sort" aria-label="Sort photos"><option value="score">Best score first</option><option value="name">Filename</option><option value="group">Burst order</option><option value="time">Capture time</option></select>
+<label class="hint"><input id="winners" type="checkbox"> Burst winners only</label><span class="spacer"></span>
+<button id="compareLikes">Compare liked photos</button><button id="export">Export decisions</button></div>
+<div id="pagerTop" class="pager"></div><div id="grid" class="grid"></div><div id="pagerBottom" class="pager"></div>
+<div id="empty" class="empty"><div class="icon">▧</div><h2>Your next shortlist starts here.</h2><p class="muted">Choose a photo folder on this Mac or an external drive.<br>Your files stay where they are. You make the final call.</p></div>
+<details id="failures" hidden><summary>Files that could not be analysed (<span id="failureCount">0</span>)</summary><p class="hint">These files are not scored. Each one is listed with the reason; the rest of the folder was analysed normally.</p><pre id="failureList" style="white-space:pre-wrap"></pre></details>
+</section></main>
+
+<dialog id="viewer"><div class="dialoghead"><div><strong id="viewTitle"></strong><div id="viewScores" class="hint"></div></div><button data-close="viewer">Close</button></div>
+<p class="hint">Drag a rectangle over the sailors, boat or other subject to measure focus there (measured on the full-resolution decode). Keys: <kbd>←</kbd><kbd>→</kbd> move · <kbd>K</kbd> keep · <kbd>C</kbd> consider · <kbd>S</kbd> skip · <kbd>L</kbd> like · <kbd>F</kbd> full resolution.</p>
+<div class="stage" id="stage"><img id="viewImage" draggable="false" alt="Selected photo"><div id="region" class="region" hidden></div></div>
+<div class="detailtools"><button id="vLike">♡ Like</button><button data-vdec="Keep">Keep</button><button data-vdec="Consider">Consider</button><button data-vdec="Skip">Skip</button><button id="vAuto" title="Clear manual decision">↺ Auto</button>
+<span style="flex:1"></span><button id="resetROI">Reset focus region</button><button id="full" class="primary">Inspect full resolution</button><button id="burstCompare">Compare this burst</button><button id="reveal" hidden>Show in Finder</button><button id="prev">←</button><button id="next">→</button></div>
+<ul id="reasons" class="reasons hint"></ul><p id="viewMessage" class="hint"></p></dialog>
+
+<dialog id="inspector"><div class="dialoghead"><div><strong id="inspectTitle"></strong><div id="inspectInfo" class="hint"></div></div>
+<div class="detailtools"><button data-zoom="fit">Fit</button><button data-zoom="1">100% (1:1 pixels)</button><button data-zoom="2">200%</button><button data-close="inspector">Close</button></div></div>
+<p class="hint">Full-resolution decode of the original file (camera white balance, standard LibRaw rendering — not your Lightroom edits). Click the image to switch between fit and 1:1 at that point.</p>
+<div id="inspectBox"><img id="inspectImage" alt="Full-resolution image"></div></dialog>
+
+<dialog id="comparison"><div class="dialoghead"><strong id="compareTitle">Comparison</strong><div class="detailtools"><label class="hint"><input id="cropMode" type="checkbox"> 100% crops of the focus region</label><button data-close="comparison">Close</button></div></div>
+<p class="hint">Ranked by your current weights. Close scores are a prompt to look, not a verdict: check the subject and moment before deciding.</p><div id="compare"></div></dialog>
+
+<dialog id="about"><div class="dialoghead"><strong>About PhotoSelect</strong><button data-close="about">Close</button></div><pre id="aboutText" class="hint" style="white-space:pre-wrap"></pre><button id="clearCache">Clear analysis cache</button> <span id="aboutMessage" class="hint"></span></dialog>
+<script>
+const TOKEN='__TOKEN__', DESKTOP=__DESKTOP__;
+const $=id=>document.getElementById(id);
+const KEYS=['sharpness','focus','composition','exposure'];
+const LABEL={sharpness:'Sharpness',focus:'Subject focus',composition:'Composition',exposure:'Exposure'};
+const DESCRIPTION={sharpness:'Edge detail across the frame',focus:'Edge detail in the subject region',composition:'Placement and border-clutter cues',exposure:'Clipped shadows and highlights'};
+const CLOSE=3, DEFAULT_CROP=[0.375,0.375,0.25,0.25];
+let rows=[],errors=[],byId=new Map(),prefs={weights:{sharpness:30,focus:50,composition:15,exposure:5},keep:75,consider:45,gap:2,similarity:14,recursive:false,folder:'',page_size:120};
+let status={running:false,version:-1},rowsVersion=-1,lastRowsFetch=0,current=null,visible=[],page=0,derived=null,saveTimer=null;
+
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+async function api(path,body){const r=await fetch('/api/'+path,{method:body===undefined?'GET':'POST',headers:{'X-Session':TOKEN,'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});
+  if(!r.ok){const j=await r.json().catch(()=>({error:r.statusText}));throw Error(j.error||r.statusText)}return r.json()}
+const img=(kind,r,extra='')=>`/api/${kind}/${r.id}?t=${TOKEN}&v=${r.status}${extra}`;
+function showError(e){$('error').textContent=e?(e.message||String(e)):''}
+
+// ---------- scoring (client side so sliders respond instantly) ----------
+function weightSum(){return KEYS.reduce((a,k)=>a+(+prefs.weights[k]||0),0)}
+function score(r){if(r.status!=='analysed')return null;const s=weightSum();return s?KEYS.reduce((a,k)=>a+prefs.weights[k]*(r.scores[k]||0),0)/s:0}
+function autoDecision(r){const s=score(r);if(s===null)return 'Pending';return s>=+prefs.keep?'Keep':s>=+prefs.consider?'Consider':'Skip'}
+function decision(r){return r.decision||autoDecision(r)}
+function derive(){const groups=new Map();for(const r of rows){if(r.status!=='analysed')continue;if(!groups.has(r.group))groups.set(r.group,[]);groups.get(r.group).push(r)}
+  const info=new Map();for(const [g,list] of groups){list.sort((a,b)=>score(b)-score(a));const top=score(list[0]);
+    list.forEach((r,i)=>info.set(r.id,{rank:i+1,size:list.length,gap:top-score(r),next:list.length>1?score(list[0])-score(list[1]):null}))}
+  derived={groups,info};return derived}
+function isWinner(r){const i=derived.info.get(r.id);return i&&i.rank===1}
+function isClose(r){const i=derived.info.get(r.id);return i&&i.size>1&&i.rank>1&&i.gap<=CLOSE}
+function reasons(r){
+  if(r.status!=='analysed')return [r.status==='preview'?'Showing the camera\'s embedded preview. Full RAW decode and scoring are still pending.':'Waiting for analysis.'];
+  const out=[],s=score(r),d=decision(r),i=derived.info.get(r.id),sum=weightSum();
+  if(r.decision)out.push(`Your decision: ${r.decision} (automatic suggestion would be ${autoDecision(r)}).`);
+  else out.push(`${d}: weighted score ${s.toFixed(1)} ${d==='Keep'?'≥ Keep threshold '+prefs.keep:d==='Consider'?'≥ Consider threshold '+prefs.consider+' and < '+prefs.keep:'< Consider threshold '+prefs.consider}.`);
+  if(sum){const parts=KEYS.filter(k=>prefs.weights[k]>0).map(k=>({k,c:prefs.weights[k]*(r.scores[k]||0)/sum})).sort((a,b)=>b.c-a.c);
+    out.push('Contributions: '+parts.map(p=>`${LABEL[p.k]} ${r.scores[p.k]} × ${Math.round(prefs.weights[p.k]/sum*100)}%`).join(' · ')+'.')}
+  if(r.roi)out.push(r.roi_state==='full'?'Subject focus measured in your region on the full-resolution decode.':r.roi_state==='error'?'Your region could not be measured; the central region is used.':'Measuring your region at full resolution…');
+  else out.push('Subject focus measured in the central half of the frame. Draw a region over the subject to target it.');
+  if(r.noise_flag)out.push('High noise estimate for this folder: sharpness and focus may be inflated by noise or fine texture (water, foliage).');
+  if(r.metrics.clip_high>2)out.push(`Highlights clipped in ${r.metrics.clip_high}% of pixels.`);
+  if(r.metrics.clip_low>5)out.push(`Shadows clipped in ${r.metrics.clip_low}% of pixels.`);
+  if(i&&i.size>1){if(i.rank===1)out.push(`Top-ranked of ${i.size} frames in burst ${r.group}`+(i.next!==null?`, ${i.next.toFixed(1)} points ahead of the next`+(i.next<=CLOSE?' — close: compare before deciding.':'.'):'.'));
+    else out.push(`#${i.rank} of ${i.size} in burst ${r.group}, ${i.gap.toFixed(1)} points below the top frame`+(i.gap<=CLOSE?' — close contender: compare.':'.'))}
+  return out}
+
+// ---------- preferences and marks (stored by the app, not the browser) ----------
+function savePrefs(){clearTimeout(saveTimer);saveTimer=setTimeout(()=>api('prefs',prefs).catch(showError),250)}
+function buildWeights(){const sum=weightSum();
+  $('weights').innerHTML=KEYS.map(k=>`<label class="weight"><span class="row">${LABEL[k]}<output id="value-${k}">${sum?Math.round(prefs.weights[k]/sum*100)+'%':'Off'}</output></span><input id="weight-${k}" type="range" min="0" max="100" value="${prefs.weights[k]}"><small>${DESCRIPTION[k]}</small></label>`).join('');
+  KEYS.forEach(k=>$('weight-'+k).oninput=e=>{prefs.weights[k]=+e.target.value;const s=weightSum();KEYS.forEach(t=>$('value-'+t).textContent=s?Math.round(prefs.weights[t]/s*100)+'%':'Off');savePrefs();render()})}
+function applyPrefs(){buildWeights();for(const id of ['keep','consider','similarity']){$(id).value=prefs[id];$(id+'Value').textContent=prefs[id]}$('gap').value=prefs.gap;$('recursive').checked=!!prefs.recursive;if(!$('folder').value)$('folder').value=prefs.folder||''}
+async function mark(r,fields){Object.assign(r,fields);render();if(current&&current.id===r.id)updateViewer();try{await api('mark',{id:r.id,...fields})}catch(e){showError(e)}}
+
+// ---------- grid ----------
+function matches(r){const f=$('filter').value,ff=$('formatFilter').value;
+  if(f==='liked'&&!r.liked)return false;if(f==='manual'&&!r.decision)return false;if(f==='close'&&!isClose(r))return false;if(f==='pending'&&r.status==='analysed')return false;
+  if(['Keep','Consider','Skip'].includes(f)&&decision(r)!==f)return false;
+  if(ff==='nikon'&&!/^Nikon /.test(r.format))return false;if(ff==='olympus'&&!/^Olympus/.test(r.format))return false;if(ff==='raw'&&!r.is_raw)return false;if(ff==='other'&&r.is_raw)return false;
+  if($('winners').checked&&!isWinner(r))return false;return true}
+function sourceLabel(r){if(r.status==='preview')return 'embedded camera preview · analysis pending';if(r.status!=='analysed')return 'waiting';return r.is_raw?(r.source==='cache'?'RAW decoded (cached result)':'RAW decoded'):(r.source==='cache'?'decoded (cached)':'decoded')}
+function pager(pages){if(pages<=1)return '';return `<button data-page="${page-1}" ${page<=0?'disabled':''}>← Previous</button><span class="hint">Page ${page+1} of ${pages} · ${visible.length} photos</span><button data-page="${page+1}" ${page>=pages-1?'disabled':''}>Next →</button>`}
+function render(){derive();const analysed=rows.filter(r=>r.status==='analysed');$('total').textContent=analysed.length;
+  for(const [id,v] of [['kept','Keep'],['considered','Consider'],['skipped','Skip']])$(id).textContent=analysed.filter(r=>decision(r)===v).length;
+  visible=rows.filter(matches);const sort=$('sort').value,sc=r=>score(r)??-1;
+  visible.sort((a,b)=>sort==='score'?sc(b)-sc(a)||a.name.localeCompare(b.name):sort==='group'?a.group-b.group||sc(b)-sc(a):sort==='time'?(a.timestamp??1e18)-(b.timestamp??1e18)||a.name.localeCompare(b.name):a.name.localeCompare(b.name));
+  const size=+prefs.page_size||120,pages=Math.max(1,Math.ceil(visible.length/size));page=Math.min(page,pages-1);
+  $('pagerTop').innerHTML=$('pagerBottom').innerHTML=pager(pages);$('empty').hidden=rows.length>0;
+  $('grid').innerHTML=visible.slice(page*size,(page+1)*size).map(r=>{const s=score(r),d=decision(r),i=derived.info.get(r.id),why=reasons(r);
+    const badges=[i&&i.size>1&&i.rank===1?`<span class="badge">BURST ${r.group} · TOP OF ${i.size}</span>`:'',isClose(r)?`<span class="badge warn">CLOSE TO BURST TOP · COMPARE</span>`:'',r.status==='preview'?'<span class="badge dim">EMBEDDED PREVIEW · NOT YET SCORED</span>':'',r.noise_flag?'<span class="badge warn">HIGH NOISE</span>':''].join('');
+    return `<article class="card"><div class="photo" data-open="${r.id}" tabindex="0" role="button" aria-label="Inspect ${esc(r.name)}">${r.status==='pending'?'':`<img loading="lazy" src="${img('thumb',r)}" alt="${esc(r.name)}">`}<div class="badges">${badges}</div></div>
+<div class="cardbody"><div class="filename" title="${esc(r.path)}">${esc(r.name)}</div><div class="hint" style="font-size:10px;margin-top:4px">${esc(r.format)} · ${sourceLabel(r)}</div>
+<div class="topline"><span class="score">${s===null?'—':s.toFixed(0)}<small style="font-size:12px;color:var(--muted)"> / 100</small></span><span class="pill ${d}">${d}${r.decision?' · manual':''}</span></div>
+<div class="bars">${KEYS.map(k=>`<div>${k==='focus'&&r.roi?'Region focus':LABEL[k]} ${r.scores[k]??'—'}<div class="bar"><i style="width:${r.scores[k]||0}%"></i></div></div>`).join('')}</div>
+<div class="why">${esc(why.length>1&&r.status==='analysed'?why[0]+' '+(why.find(w=>/burst/.test(w))||''):why[0])}</div>
+<div class="actions"><button data-like="${r.id}" class="${r.liked?'active':''}">${r.liked?'♥ Liked':'♡ Like'}</button>${['Keep','Consider','Skip'].map(v=>`<button data-decision="${r.id}" data-value="${v}" class="${r.decision===v?'active':''}">${v}</button>`).join('')}<button data-auto="${r.id}" title="Clear manual decision">↺</button></div></div></article>`}).join('')}
+document.addEventListener('click',e=>{const t=e.target.closest('button,[data-open]');if(!t)return;
+  if(t.dataset.page!==undefined){page=+t.dataset.page;render();window.scrollTo(0,0)}
+  else if(t.dataset.open)openViewer(t.dataset.open);
+  else if(t.dataset.like){const r=byId.get(t.dataset.like);mark(r,{liked:!r.liked})}
+  else if(t.dataset.decision)mark(byId.get(t.dataset.decision),{decision:t.dataset.value});
+  else if(t.dataset.auto)mark(byId.get(t.dataset.auto),{decision:null});
+  else if(t.dataset.close)$(t.dataset.close).close()});
+document.addEventListener('keydown',e=>{const o=e.target.closest&&e.target.closest('[data-open]');if(o&&e.key==='Enter')openViewer(o.dataset.open)});
+
+// ---------- polling ----------
+function statusText(s){const n=rows.filter(r=>r.status==='analysed').length,groups=new Set(rows.filter(r=>r.status==='analysed').map(r=>r.group)).size;
+  switch(s.phase){case 'listing':return 'Finding photos…';
+    case 'previews':return `Reading embedded camera previews (${s.previews} done)… full analysis follows.`;
+    case 'analysing':return `Analysing ${s.done} of ${s.total} files (${s.cached} reused from cache) with ${s.workers} workers. Scores are provisional until the scan finishes.`;
+    case 'cancelling':return 'Cancelling… finishing the files already being decoded.';
+    case 'cancelled':return `Cancelled: ${n} of ${s.total} photos analysed. Results so far are kept and reused when you analyse this folder again.`;
+    case 'complete':return `${n} photos analysed in ${s.elapsed}s (${s.cached} from cache) · ${groups} bursts / single frames · ${s.errors} could not be analysed · LibRaw ${s.libraw}`;
+    default:return 'Ready when you are. Start with one small shoot to tune your preferences.'}}
+async function loadRows(){const p=await api('rows');rows=p.rows;errors=p.errors;rowsVersion=p.version;lastRowsFetch=Date.now();byId=new Map(rows.map(r=>[r.id,r]));
+  if(current)current=byId.get(current.id)||current;
+  $('failures').hidden=!errors.length;$('failureCount').textContent=errors.length;$('failureList').textContent=errors.map(e=>`${e.name}\n   ${e.error}`).join('\n');
+  render();if($('viewer').open&&current)updateViewer()}
+async function poll(){try{status=await api('state');const run=status.running;
+    $('scan').disabled=run;$('browse').disabled=run;$('regroup').disabled=run;$('cancel').hidden=!run;$('cancel').disabled=status.phase==='cancelling';
+    $('status').textContent=statusText(status);$('progress').style.width=status.total?Math.min(100,status.done/status.total*100)+'%':'0';
+    if(status.version!==rowsVersion&&(!run||Date.now()-lastRowsFetch>1500))await loadRows();
+  }catch(e){showError(e)}setTimeout(poll,status.running?700:1500)}
+
+// ---------- actions ----------
+$('browse').onclick=async()=>{try{showError();$('status').textContent='Choose a folder in the system dialog…';const r=await api('pick',{});if(r.folder)$('folder').value=r.folder;$('status').textContent=r.folder?'Folder selected. Click Analyse photos.':'No folder chosen.'}catch(e){showError(e)}};
+$('scan').onclick=async()=>{try{showError();prefs.recursive=$('recursive').checked;await api('scan',{folder:$('folder').value,recursive:$('recursive').checked});page=0;rowsVersion=-1;lastRowsFetch=0}catch(e){showError(e)}};
+$('cancel').onclick=()=>api('cancel',{}).catch(showError);
+for(const id of ['keep','consider'])$(id).oninput=()=>{prefs[id]=+$(id).value;$(id+'Value').textContent=$(id).value;savePrefs();render()};
+for(const id of ['filter','formatFilter','sort','winners'])$(id).onchange=()=>{page=0;render()};
+$('similarity').oninput=()=>$('similarityValue').textContent=$('similarity').value;
+$('regroup').onclick=async()=>{try{prefs.gap=+$('gap').value;prefs.similarity=+$('similarity').value;await api('groups',{gap:prefs.gap,similarity:prefs.similarity});await loadRows()}catch(e){showError(e)}};
+
+// ---------- viewer and focus region ----------
+function updateViewer(){const r=current;if(!r)return;const s=score(r);$('viewTitle').textContent=r.name;
+  $('viewScores').textContent=`${r.format}${r.camera?' · '+r.camera:''}${r.size?' · '+r.size.join(' × '):''} · ${sourceLabel(r)} · Overall ${s===null?'—':s.toFixed(0)}`;
+  $('vLike').textContent=r.liked?'♥ Liked':'♡ Like';$('vLike').classList.toggle('active',!!r.liked);
+  document.querySelectorAll('[data-vdec]').forEach(b=>b.classList.toggle('active',r.decision===b.dataset.vdec));
+  $('reasons').innerHTML=reasons(r).map(x=>`<li>${esc(x)}</li>`).join('');
+  if(r.roi){const [x,y,w,h]=r.roi;Object.assign($('region').style,{left:x*100+'%',top:y*100+'%',width:w*100+'%',height:h*100+'%'});$('region').hidden=false}else $('region').hidden=true;
+  $('full').disabled=$('burstCompare').disabled=r.status==='pending'}
+function openViewer(id){current=byId.get(id);if(!current)return;$('viewMessage').textContent='';
+  $('viewImage').src=current.status==='pending'?'':img('preview',current);$('reveal').hidden=!DESKTOP;updateViewer();if(!$('viewer').open)$('viewer').showModal()}
+let start=null;const stage=$('stage');
+function point(e){const b=$('viewImage').getBoundingClientRect();return [Math.max(0,Math.min(1,(e.clientX-b.left)/b.width)),Math.max(0,Math.min(1,(e.clientY-b.top)/b.height))]}
+stage.onpointerdown=e=>{if(!current||current.status==='pending')return;start=point(e);stage.setPointerCapture(e.pointerId)};
+stage.onpointermove=e=>{if(!start)return;const p=point(e);Object.assign($('region').style,{left:Math.min(start[0],p[0])*100+'%',top:Math.min(start[1],p[1])*100+'%',width:Math.abs(start[0]-p[0])*100+'%',height:Math.abs(start[1]-p[1])*100+'%'});$('region').hidden=false};
+stage.onpointerup=async e=>{if(!start)return;const p=point(e),roi=[Math.min(start[0],p[0]),Math.min(start[1],p[1]),Math.abs(start[0]-p[0]),Math.abs(start[1]-p[1])];start=null;
+  try{await api('roi',{id:current.id,roi});$('viewMessage').textContent='Measuring focus in your region on the full-resolution image…';current.roi=roi;current.roi_state='measuring';updateViewer()}catch(err){$('viewMessage').textContent=err.message;updateViewer()}};
+stage.onpointercancel=()=>start=null;
+$('resetROI').onclick=async()=>{try{await api('roi',{id:current.id,roi:null});current.roi=null;$('viewMessage').textContent='Focus region reset to the central half.';await loadRows()}catch(e){$('viewMessage').textContent=e.message}};
+$('vLike').onclick=()=>mark(current,{liked:!current.liked});document.querySelectorAll('[data-vdec]').forEach(b=>b.onclick=()=>mark(current,{decision:b.dataset.vdec}));$('vAuto').onclick=()=>mark(current,{decision:null});
+$('reveal').onclick=()=>api('reveal',{id:current.id}).catch(e=>$('viewMessage').textContent=e.message);
+for(const [id,delta] of [['prev',-1],['next',1]])$(id).onclick=()=>step(delta);
+function step(delta){const i=visible.findIndex(r=>r.id===current.id);if(visible.length)openViewer(visible[(i+delta+visible.length)%visible.length].id)}
+$('viewer').addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;const k=e.key.toLowerCase();
+  if(k==='arrowleft')step(-1);else if(k==='arrowright')step(1);else if(k==='k')mark(current,{decision:'Keep'});else if(k==='c')mark(current,{decision:'Consider'});else if(k==='s')mark(current,{decision:'Skip'});else if(k==='l')mark(current,{liked:!current.liked});else if(k==='f')$('full').click();else return;e.preventDefault()});
+
+// ---------- full-resolution inspector ----------
+let zoom='fit';
+function applyZoom(cx=.5,cy=.5){const im=$('inspectImage'),box=$('inspectBox');if(!im.naturalWidth)return;const dpr=window.devicePixelRatio||1;
+  if(zoom==='fit'){im.style.width='';im.style.height='';im.style.maxWidth='100%';im.style.maxHeight='100%';box.classList.remove('zoomed')}
+  else{const w=im.naturalWidth/dpr*(+zoom);im.style.maxWidth='none';im.style.maxHeight='none';im.style.width=w+'px';im.style.height='auto';box.classList.add('zoomed');
+    box.scrollLeft=cx*w-box.clientWidth/2;box.scrollTop=cy*(im.naturalHeight/dpr*(+zoom))-box.clientHeight/2}
+  document.querySelectorAll('[data-zoom]').forEach(b=>b.classList.toggle('active',b.dataset.zoom===zoom))}
+$('full').onclick=()=>{const r=current;zoom='fit';$('inspectTitle').textContent=r.name;$('inspectInfo').textContent='Decoding the full-resolution image… RAW files can take a few seconds.';
+  const im=$('inspectImage');im.removeAttribute('src');im.onload=()=>{$('inspectInfo').textContent=`${im.naturalWidth} × ${im.naturalHeight} pixels · ${r.format}${r.is_raw?' · decoded from RAW by LibRaw':''}`;applyZoom()};
+  im.onerror=async()=>{let msg='Could not decode the full-resolution image.';try{await fetch(img('full',r)).then(x=>x.json()).then(j=>msg=j.error||msg)}catch(e){}$('inspectInfo').textContent=msg};
+  im.src=img('full',r);$('inspector').showModal()};
+document.querySelectorAll('[data-zoom]').forEach(b=>b.onclick=()=>{zoom=b.dataset.zoom;applyZoom()});
+$('inspectImage').onclick=e=>{const b=e.target.getBoundingClientRect(),cx=(e.clientX-b.left)/b.width,cy=(e.clientY-b.top)/b.height;zoom=zoom==='fit'?'1':'fit';applyZoom(cx,cy)};
+
+// ---------- comparison ----------
+let compareList=[],compareTitle='';
+function cropRegion(r,ref){return r.roi||(ref&&ref.roi)||DEFAULT_CROP}
+function renderCompare(){const crops=$('cropMode').checked,ref=current,dpr=window.devicePixelRatio||1;compareList.sort((a,b)=>(score(b)??-1)-(score(a)??-1));
+  const top=score(compareList[0]);$('compareTitle').textContent=compareTitle;
+  $('compare').innerHTML=compareList.map((r,i)=>{const s=score(r),gap=top-s;return `<div class="comparephoto ${i===0?'top':''}"><strong>#${i+1} · ${s===null?'—':s.toFixed(1)}/100</strong> <span class="hint">${i===0?'top of this set':gap<=CLOSE?gap.toFixed(1)+' behind · close':gap.toFixed(1)+' behind'}</span>
+${crops?`<div class="cropbox"><img data-crop="${r.id}" src="${img('crop',r,'&roi='+cropRegion(r,ref).join(','))}" alt="100% crop of ${esc(r.name)}"></div>`:`<img class="fit" src="${img('preview',r)}" alt="${esc(r.name)}">`}
+<div class="filename" title="${esc(r.path)}">${esc(r.name)}</div><p class="hint">${KEYS.map(k=>LABEL[k]+' '+(r.scores[k]??'—')).join(' · ')}<br>${esc(decision(r))}${r.decision?' (manual)':''}</p>
+<div class="actions"><button data-like="${r.id}" class="${r.liked?'active':''}">${r.liked?'♥':'♡'}</button>${['Keep','Consider','Skip'].map(v=>`<button data-decision="${r.id}" data-value="${v}" class="${r.decision===v?'active':''}">${v}</button>`).join('')}<button data-inspect="${r.id}">Inspect</button></div></div>`}).join('');
+  document.querySelectorAll('[data-crop]').forEach(el=>el.onload=()=>{el.style.width=el.naturalWidth/dpr+'px'});
+  document.querySelectorAll('[data-inspect]').forEach(el=>el.onclick=()=>{$('comparison').close();openViewer(el.dataset.inspect)})}
+function compare(list,title){list=list.filter(r=>r.status==='analysed');if(!list.length){showError('Like a few analysed photos first.');return}compareList=list;compareTitle=title;renderCompare();if(!$('comparison').open)$('comparison').showModal()}
+$('cropMode').onchange=renderCompare;
+$('comparison').addEventListener('click',e=>{if(e.target.closest('[data-like],[data-decision]'))setTimeout(renderCompare,0)});
+$('compareLikes').onclick=()=>{current=null;compare(rows.filter(r=>r.liked),'Your liked photos · ranked')};
+$('burstCompare').onclick=()=>{const g=current.group;$('viewer').close();compare(rows.filter(r=>r.group===g),`Burst ${g} · ranked`)};
+
+// ---------- export ----------
+$('export').onclick=async()=>{if(!rows.length){showError('Analyse a folder before exporting.');return}derive();
+  const data=[['filename','original_path','file_format','camera','analysis_state','raw_decoded','capture_time','recommendation','manual_decision','liked','score','sharpness','focus','composition','exposure','highlights_clipped_pct','shadows_clipped_pct','noise_warning','burst','burst_size','burst_rank','points_below_burst_top','burst_winner','focus_region','focus_region_measured','weights','keep_threshold','consider_threshold','reasons']];
+  for(const r of rows){const i=derived.info.get(r.id)||{},s=score(r);data.push([r.name,r.path,r.format,r.camera||'',r.status==='analysed'?'analysed':'not analysed',r.is_raw&&r.status==='analysed',r.timestamp?new Date(r.timestamp*1000).toISOString():'',r.status==='analysed'?autoDecision(r):'',r.decision||'',!!r.liked,s===null?'':s.toFixed(1),r.scores.sharpness??'',r.scores.focus??'',r.scores.composition??'',r.scores.exposure??'',r.metrics.clip_high??'',r.metrics.clip_low??'',!!r.noise_flag,r.status==='analysed'?r.group:'',i.size||'',i.rank||'',i.gap!==undefined?i.gap.toFixed(1):'',i.rank===1,r.roi?JSON.stringify(r.roi):'',r.roi_state==='full',JSON.stringify(prefs.weights),prefs.keep,prefs.consider,reasons(r).join(' | ')])}
+  for(const e of errors)data.push([e.name,e.path,'','','failed: '+e.error,'','','','','','','','','','','','','','','','','','','','','','','','']);
+  try{const r=await api('export',{rows:data});
+    if(r.csv!==undefined){const blob=new Blob(['﻿'+r.csv],{type:'text/csv'}),a=document.createElement('a'),u=URL.createObjectURL(blob);a.href=u;a.download='PhotoSelect-decisions.csv';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}
+    else if(r.saved)$('status').textContent='Decisions exported to '+r.saved;}catch(e){showError(e)}};
+
+// ---------- about ----------
+async function openAbout(){try{const a=await api('about');$('aboutText').textContent=`PhotoSelect ${a.version}\nLibRaw ${a.libraw} (rawpy ${a.rawpy}) · NumPy ${a.numpy} · Pillow ${a.pillow} · Python ${a.python} (bundled)\nAnalysis workers: ${a.workers}\n\nDecisions, likes, regions and preferences: ${a.support}\nThumbnails and previews cache: ${a.cache} (${(a.cache_bytes/1048576).toFixed(1)} MB)\nLogs: ${a.logs}\n\nAll processing happens on this Mac. Original photos are opened read-only.`;$('aboutMessage').textContent='';$('about').showModal()}catch(e){showError(e)}}
+$('clearCache').onclick=async()=>{try{await api('clear-cache',{});$('aboutMessage').textContent='Cache cleared. Your decisions, likes and regions are kept.';rowsVersion=-1}catch(e){$('aboutMessage').textContent=e.message}};
+
+(async()=>{try{prefs=Object.assign(prefs,await api('prefs'))}catch(e){showError(e)}applyPrefs();poll()})();
 </script></body></html>
