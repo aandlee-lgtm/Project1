@@ -170,7 +170,7 @@ class AppTests(unittest.TestCase):
             self.assertEqual((status['plugin_installed'], status['lightroom']), (False, ''))
             # Lightroom not installed: explained, selections still saved, nothing handed over
             r = self.post('/api/lightroom', {'folder': str(self.photos), 'rows': rows, 'open': [rows[0]['path']]})
-            self.assertEqual(r.status_code, 404)
+            self.assertEqual((r.status_code, r.get_json()['lightroom_missing']), (200, True))
             self.assertIn('not found on this Mac', r.get_json()['error'])
             self.assertTrue(Path(r.get_json()['saved']).exists())
             self.assertEqual(handed, [])

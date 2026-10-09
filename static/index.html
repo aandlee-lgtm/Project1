@@ -393,6 +393,7 @@ async function sendToLightroom(open){$('lrError').textContent='';$('lrResult').t
   const all=lightroomRows(),body={folder:prefs.folder||$('folder').value,rows:all};
   if(open){body.open=all.filter(x=>lrChoice[x.rating]).map(x=>x.path);body.auto_apply=$('lrAuto').checked}
   try{const r=await api('lightroom',body);
+    if(r.lightroom_missing){$('lrResult').textContent='';$('lrError').textContent=r.error;$('notice').textContent=r.error;return}
     $('lrResult').textContent=open?`Lightroom Classic is opening its Import window with ${r.opened} photos. Selections for all ${r.count} photos are saved for Apply PhotoSelect Selections.`
       :`Selections for ${r.count} photos are saved. Import this folder in Lightroom, then choose Library → Plug-in Extras → Apply PhotoSelect Selections…`;
     $('notice').textContent=$('lrResult').textContent;if(!r.plugin_installed)$('lrError').textContent='The plug-in is not installed yet: click Install plug-in, then quit and reopen Lightroom Classic.'}

@@ -544,6 +544,7 @@ def main():
     before = fingerprint(volume)
 
     hidden = []
+    lr_received = None
     for p in ('/Library/Frameworks/Python.framework', '/opt/homebrew'):
         if os.path.exists(p):
             run('sudo', 'mv', p, p + '.hidden-for-test')
@@ -628,10 +629,31 @@ def main():
             run('sudo', 'mv', p + '.hidden-for-test', p, check_=False)
 
     after = fingerprint(volume)
-    changed = [k for k in before if before[k] != after.get(k)]
+    fields = ('content', 'size', 'mtime', 'permissions', 'xattrs')
+
+    def difference(k):
+        b, a2 = before[k], after.get(k)
+        if a2 is None:
+            return {'removed': True}
+        d = {f: True for f, x, y in zip(fields, b, a2) if x != y and f != 'xattrs'}
+        if b[4] != a2[4]:
+            d['xattrs added'] = sorted(set(a2[4]) - set(b[4]))
+            d['xattrs removed'] = sorted(set(b[4]) - set(a2[4]))
+        return d
+    changed = {k: difference(k) for k in before if before[k] != after.get(k)}
     added = [k for k in after if k not in before]
-    check('originals unchanged (content, size, mtime, permissions, xattrs) and no files added', not changed and not added,
-          {'changed': changed[:5], 'added': added[:5], 'files': len(before)})
+    # Files handed to Lightroom ("Open in Lightroom Import") are opened through macOS LaunchServices,
+    # which records a "last opened" date in an extended attribute, exactly as when the user drags a
+    # photo onto any app. Content, size, dates and permissions must still be unchanged.
+    handed = set(lr_received.read_text().split('\n')) if lr_received and lr_received.exists() else set()
+    launch_services = {k: d for k, d in changed.items() if k in handed and set(d) <= {'xattrs added', 'xattrs removed'}
+                       and not d.get('xattrs removed') and set(d['xattrs added']) <= {'com.apple.lastuseddate#PS'}}
+    real = {k: d for k, d in changed.items() if k not in launch_services}
+    check('originals unchanged (content, size, mtime, permissions, xattrs) and no files added', not real and not added,
+          {'changed': dict(list(real.items())[:6]), 'added': added[:10], 'files': len(before)})
+    if launch_services:
+        record('photos handed to Lightroom: content unchanged; macOS added its "last opened" date attribute', 'INFO',
+               f'{len(launch_services)} files: com.apple.lastuseddate#PS')
     v = run('codesign', '--verify', '--deep', '--strict', INSTALLED, check_=False)
     check('app bundle unchanged after use (signature still valid, identical tree hash)',
           v.returncode == 0 and tree_hash(INSTALLED) == facts.get('bundle_tree_hash'), v.stderr.strip())

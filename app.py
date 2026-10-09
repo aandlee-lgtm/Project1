@@ -368,8 +368,10 @@ def create_app(library=None, store=None, token=None):
                            **result), 400
         app_path = lightroom_app()
         if not app_path:
-            return jsonify(error='Adobe Lightroom Classic was not found on this Mac. Your selections are saved; '
-                                 'import the folder in Lightroom, then use Apply PhotoSelect Selections.', **result), 404
+            # An expected outcome, not a failed request (the page reports it in the Lightroom window).
+            return jsonify(lightroom_missing=True, error='Adobe Lightroom Classic was not found on this Mac. Your '
+                           'selections are saved; import the folder in Lightroom, then use Apply PhotoSelect '
+                           'Selections.', **result)
         pending = target.parent / 'pending.import'
         if data.get('auto_apply'):
             tmp = pending.with_suffix('.tmp')
