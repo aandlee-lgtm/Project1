@@ -125,6 +125,24 @@ Planned items from BACKLOG.md, with the discussion behind each:
    - It is applied only on approval, can be undone, and can be saved per folder or as a named
      profile. Everything stays on the Mac.
 
+6. **Selections into Adobe Lightroom Classic.** The owner wants PhotoSelect's selections and
+   recommendations in Lightroom Classic.
+   - Explained: Lightroom keeps Pick/Reject flags only in its catalog, never in files. Sending them
+     needs a Lightroom plug-in. XMP sidecar files can carry stars, labels and keywords, but they write
+     into the photo folders, and re-reading them into photos already in Lightroom can disturb edits.
+   - Owner chose:
+     - cull **before import**;
+     - a **Lightroom plug-in**, not XMP sidecars;
+     - **star ratings**: Keep 3★, Consider 2★, Drop 1★, ♥ Like 5★, plus PhotoSelect keywords.
+   - Planned:
+     - PhotoSelect saves a selections file outside the photo folders. After import, Library →
+       Plug-in Extras → Apply PhotoSelect Selections applies it. Lightroom has no import hook, so this
+       one step is needed.
+     - Photos are matched by file name and capture time, so files Lightroom copied or renamed still
+       match.
+     - A summary is shown first, and existing Lightroom stars are not overwritten unless asked.
+     - The plug-in is installed from Help → Install Lightroom Plug-in….
+
 ---
 
 ## 2. Definitions (draft glossary for the user instructions)
@@ -153,6 +171,8 @@ Planned items from BACKLOG.md, with the discussion behind each:
 | **High Efficiency NEF (HE / HE★)** | A Nikon RAW compression that LibRaw cannot decode. To get full RAW analysis, shoot with NEF (RAW) compression set to Lossless compressed. |
 | **Could not be analysed** | A file that was listed but not scored, with a specific reason (damaged, empty, unreadable or unsupported). |
 | **Diagnostic report** | Help → Create Diagnostic Report…: a text file for troubleshooting, with no images and no full paths. |
+| **Lightroom stars** *(planned)* | How PhotoSelect results appear in Lightroom Classic: Keep 3★, Consider 2★, Drop 1★, Liked 5★. Your decision wins over the suggestion. |
+| **PhotoSelect keywords** *(planned)* | Keywords added in Lightroom under PhotoSelect › (Keep, Consider, Drop, Liked, Burst NN, Camera preview) for Smart Collections. |
 | **build_new** | The owner's keyword that authorises building and releasing a new version from the planned backlog items. |
 
 ---
