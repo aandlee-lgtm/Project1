@@ -1,8 +1,10 @@
 import csv
+import os
 import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from helpers import make_jpeg, fingerprint
 import app as app_module
@@ -77,7 +79,12 @@ class AppTests(unittest.TestCase):
         self.assertEqual(self.post('/api/mark', {'id': rid, 'decision': 'Delete'}).status_code, 400)
         row = next(r for r in self.get('/api/rows').get_json()['rows'] if r['id'] == rid)
         self.assertEqual((row['decision'], row['liked']), ('Keep', True))
-        self.assertEqual(self.post('/api/groups', {'gap': 1, 'similarity': 10}).status_code, 200)
+        self.assertEqual(self.post('/api/groups', {'gap': 1, 'similarity': 10}).status_code, 200)   # 1.2 client
+        self.assertEqual(self.get('/api/prefs').get_json()['likeness'], 79)
+        self.assertEqual(self.post('/api/groups', {'gap': 1.5, 'likeness': 75, 'near_identical': 95,
+                                                   'near_window': 500}).status_code, 200)
+        p = self.get('/api/prefs').get_json()
+        self.assertEqual((p['gap'], p['likeness'], p['near_identical'], p['near_window']), (1.5, 75, 95, 120))
         self.assertEqual(self.post('/api/prefs', {'keep': 81}).get_json()['keep'], 81)
         self.assertEqual(self.get('/api/prefs').get_json()['keep'], 81)
         r = self.post('/api/export', {'rows': [['filename', 'decision'], ['a.jpg', 'Keep']]})
@@ -102,6 +109,49 @@ class AppTests(unittest.TestCase):
         self.assertIn('bad.NEF', text)
         self.assertIn('bursts: 1', text)                      # a.jpg + b.JPG, 0.02 s apart
         self.assertNotIn(str(self.photos.parent), text)       # no absolute paths
+
+    def test_similarity_pref_from_1_2_becomes_likeness(self):
+        self.store.db.execute("INSERT OR REPLACE INTO prefs VALUES('similarity', '7')")
+        self.assertEqual(self.store.prefs()['likeness'], 85)
+        self.store.set_prefs({'likeness': 60})
+        self.assertEqual(self.store.prefs()['likeness'], 60)
+
+    def test_profiles_and_folder_settings_persist(self):
+        settings = {'weights': {'sharpness': 10, 'focus': 70, 'composition': 10, 'exposure': 10}, 'keep': 80, 'consider': 40}
+        self.post('/api/prefs', {'profiles': {'Sailing': settings}, 'folder_settings': {'/x': settings},
+                                 'undo_settings': settings})
+        p = Store(self.store.path).prefs()
+        self.assertEqual((p['profiles']['Sailing'], p['folder_settings']['/x'], p['undo_settings']), (settings,) * 3)
+
+    def test_lightroom_selections_and_plugin_install(self):
+        home = Path(self.tmp.name) / 'home'
+        modules = Path(self.tmp.name) / 'Adobe' / 'Lightroom' / 'Modules'
+        with patch.dict(os.environ, {'PHOTOSELECT_HOME': str(home), 'PHOTOSELECT_LR_MODULES': str(modules)}):
+            before = fingerprint(self.photos)
+            self.assertEqual(self.post('/api/lightroom', {'folder': str(self.photos), 'rows': []}).status_code, 400)
+            self.assertEqual(self.post('/api/lightroom', {'rows': [{'path': 'x', 'name': 'x', 'rating': 9}]}).status_code, 400)
+            rows = [{'path': str(self.photos / 'a.jpg'), 'name': 'a.jpg', 'capture': '2026-05-01 10:00:00', 'rating': 5,
+                     'keywords': ['Keep', 'Liked', 'Burst 001'], 'decision': 'Keep', 'suggestion': 'Consider'},
+                    {'path': str(self.photos / 'b.JPG'), 'name': 'b.JPG', 'capture': '', 'rating': 1,
+                     'keywords': ['Drop'], 'decision': '', 'suggestion': 'Drop'}]
+            r = self.post('/api/lightroom', {'folder': str(self.photos), 'rows': rows}).get_json()
+            self.assertEqual((r['count'], r['plugin_installed']), (2, False))
+            saved = Path(r['saved'])
+            self.assertEqual(saved.parent, home / 'support' / 'Lightroom')
+            lines = saved.read_text(encoding='utf-8').splitlines()
+            self.assertTrue(lines[0].startswith('# PhotoSelect selections\t1\t'))
+            self.assertEqual(lines[1], 'path\tname\tcapture\trating\tkeywords\tdecision\tsuggestion')
+            self.assertEqual(lines[2].split('\t')[1:], ['a.jpg', '2026-05-01 10:00:00', '5', 'Keep|Liked|Burst 001', 'Keep', 'Consider'])
+            self.assertEqual(fingerprint(self.photos), before, 'nothing is written into the photo folder')
+
+            r = self.post('/api/lightroom/install', {}).get_json()
+            plugin = modules / 'PhotoSelect.lrplugin'
+            self.assertEqual(Path(r['installed']), plugin)
+            self.assertEqual(sorted(p.name for p in plugin.iterdir()),
+                             ['ApplySelections.lua', 'Config.lua', 'Info.lua', 'SelectionsCore.lua'])
+            self.assertIn(str(home / 'support' / 'Lightroom'), (plugin / 'Config.lua').read_text())
+            self.assertTrue(self.post('/api/lightroom', {'folder': '', 'rows': rows}).get_json()['plugin_installed'])
+            self.assertEqual(self.post('/api/lightroom/install', {}).status_code, 200)   # reinstall replaces
 
     def test_export_never_overwrites_an_original(self):
         self.post('/api/scan', {'folder': str(self.photos)})

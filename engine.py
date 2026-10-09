@@ -34,6 +34,20 @@ THUMB_EDGE = 512
 METRIC_KEYS = ('sharpness', 'focus', 'focus_default', 'composition', 'exposure', 'clip_low', 'clip_high', 'noise')
 
 
+def burst_settings(prefs, prefs_keys=False):
+    """Burst-matching preferences, clamped to their allowed ranges."""
+    def num(key, low, high, default):
+        try:
+            return max(low, min(high, float(prefs.get(key, default))))
+        except (TypeError, ValueError):
+            return default
+    out = {'gap': num('gap', .1, 10, 2), 'min_likeness': num('likeness', 30, 99, 70),
+           'near_identical': num('near_identical', 50, 100, 90), 'near_window': num('near_window', 0, 120, 10)}
+    if prefs_keys:
+        out['likeness'] = out.pop('min_likeness')
+    return out
+
+
 def default_workers():
     cpus = os.cpu_count() or 2
     try:
@@ -346,13 +360,14 @@ class Library:
         prefs = self.store.prefs()
         done = [r for r in self.rows if r['status'] == 'analysed']
         analysis.normalise(done)
-        analysis.group_bursts(done, max(.1, min(10, float(prefs['gap']))), max(0, min(64, int(prefs['similarity']))))
+        analysis.group_bursts(done, **burst_settings(prefs))
         top = max((r['group'] for r in done), default=0)
         for r in self.rows:
             if r['status'] != 'analysed':
                 top += 1
                 r['group'] = top
                 r['scores'] = {}
+                r['near_identical'], r['likeness'] = False, {}
         self.dirty = False
 
     def snapshot(self):
@@ -375,14 +390,15 @@ class Library:
                     'status': r['status'], 'source': r['source'], 'timestamp': r['timestamp'], 'camera': r['camera'],
                     'size': r['size'], 'scores': r['scores'], 'group': r['group'], 'roi': r['roi'],
                     'roi_state': r['roi_state'], 'noise_flag': r['noise_flag'],
+                    'near_identical': bool(r.get('near_identical')), 'likeness': r.get('likeness') or {},
                     'basis': r.get('basis'), 'notice': r.get('notice', ''),
                     'metrics': {k: r['raw'][k] for k in METRIC_KEYS if r['raw'] and k in r['raw']},
                     'decision': mark.get('decision'), 'liked': bool(mark.get('liked')),
                 })
             return {'version': self.version, 'rows': rows, 'errors': list(self.errors)}
 
-    def regroup(self, gap, similarity):
-        self.store.set_prefs({'gap': max(.1, min(10, float(gap))), 'similarity': max(0, min(64, int(similarity)))})
+    def regroup(self, **settings):
+        self.store.set_prefs(burst_settings({**self.store.prefs(), **settings}, prefs_keys=True))
         with self.lock:
             self._bump()
 

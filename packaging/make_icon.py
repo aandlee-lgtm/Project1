@@ -22,16 +22,16 @@ def draw(path):
     body.paste(grad, (0, 0), mask)
     im.alpha_composite(body)
     d = ImageDraw.Draw(im)
-    mint = (173, 225, 197, 255)
+    teal = (79, 224, 200, 255)   # accent colour #4fe0c8
     # focus brackets
     w, a, b = 30, 250, 774
     arm = 120
     for x, y, dx, dy in ((a, a, 1, 1), (b, a, -1, 1), (a, b, 1, -1), (b, b, -1, -1)):
-        d.line([(x, y), (x + dx * arm, y)], fill=mint, width=w)
-        d.line([(x, y), (x, y + dy * arm)], fill=mint, width=w)
+        d.line([(x, y), (x + dx * arm, y)], fill=teal, width=w)
+        d.line([(x, y), (x, y + dy * arm)], fill=teal, width=w)
     # sail and hull
     d.polygon([(520, 300), (520, 640), (690, 640)], fill=(237, 242, 245, 255))
-    d.polygon([(495, 340), (495, 640), (360, 640)], fill=mint)
+    d.polygon([(495, 340), (495, 640), (360, 640)], fill=teal)
     d.polygon([(340, 668), (700, 668), (650, 718), (390, 718)], fill=(237, 242, 245, 255))
     im.save(path)
 

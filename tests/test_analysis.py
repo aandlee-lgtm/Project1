@@ -95,6 +95,52 @@ class AnalysisTests(unittest.TestCase):
         group_bursts(rows)
         self.assertNotEqual(rows[-1]['group'], rows[0]['group'])
 
+    def test_likeness_percent(self):
+        raw = metrics(self.image)
+        self.assertEqual(analysis.likeness(raw, raw), 100)
+        dark = {**raw, 'look': [v * .5 for v in raw['look']]}
+        self.assertLess(analysis.likeness(raw, dark), 100)
+        self.assertGreaterEqual(analysis.likeness(raw, {**raw, 'look': [1 - v for v in raw['look']]}), 0)
+        # the 1.2 default tolerance (14) is the 1.3 default likeness (70 %)
+        self.assertEqual(analysis.similarity_to_likeness(14), 70)
+        shifted = {**raw, 'look': [min(1, v + .07) for v in raw['look']]}
+        self.assertAlmostEqual(analysis.likeness(raw, shifted), 70, delta=6)
+
+    def test_bursts_by_likeness_threshold(self):
+        raw = metrics(self.image)
+        near = {**raw, 'look': [min(1, v + .05) for v in raw['look']]}      # about 79 % alike
+        rows = [{'name': 'a', 'timestamp': 100, 'raw': raw}, {'name': 'b', 'timestamp': 100.5, 'raw': near}]
+        group_bursts(rows, min_likeness=70)
+        self.assertEqual(rows[0]['group'], rows[1]['group'])
+        self.assertEqual(rows[0]['likeness']['b'], rows[1]['likeness']['a'])
+        self.assertTrue(70 <= rows[0]['likeness']['b'] < 90)
+        group_bursts(rows, min_likeness=90)
+        self.assertNotEqual(rows[0]['group'], rows[1]['group'])
+        self.assertEqual(rows[0]['likeness'], {})
+
+    def test_near_identical_frames_seconds_apart(self):
+        raw = metrics(self.image)
+        other = {**raw, 'look': [0.05] * 96 + [0.95] * 96, 'colour': [.1, .2, .9]}   # dark top, bright bottom, blue
+        rows = [{'name': 'a', 'timestamp': 100, 'raw': raw},
+                {'name': 'x', 'timestamp': 103, 'raw': other},       # a different shot in between
+                {'name': 'b', 'timestamp': 106, 'raw': dict(raw)},   # same scene again, 6 s after a
+                {'name': 'c', 'timestamp': 130, 'raw': dict(raw)}]   # same scene, but 24 s later
+        group_bursts(rows, gap=2, near_identical=90, near_window=10)
+        g = {r['name']: r for r in rows}
+        self.assertEqual(g['a']['group'], g['b']['group'])
+        self.assertTrue(g['a']['near_identical'] and g['b']['near_identical'])
+        self.assertEqual(g['b']['likeness']['a'], 100)
+        self.assertNotEqual(g['x']['group'], g['a']['group'])
+        self.assertNotEqual(g['c']['group'], g['a']['group'])
+        self.assertFalse(g['x']['near_identical'] or g['c']['near_identical'])
+        group_bursts(rows, gap=2, near_identical=90, near_window=0)         # window 0 = off
+        self.assertNotEqual(g['a']['group'], g['b']['group'])
+        # an ordinary burst is not marked near-identical
+        burst = [{'name': str(k), 'timestamp': 100 + k * .1, 'raw': dict(raw)} for k in range(4)]
+        group_bursts(burst)
+        self.assertEqual(len({r['group'] for r in burst}), 1)
+        self.assertFalse(any(r['near_identical'] for r in burst))
+
     def test_valid_region(self):
         self.assertTrue(analysis.valid_region([0, 0, .5, .5]))
         for bad in (None, [.9, 0, .5, .5], [0, 0, .01, .5], [0, 0, 1], ['a', 0, .5, .5]):

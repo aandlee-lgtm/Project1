@@ -4,13 +4,13 @@ from pathlib import Path
 
 ROOT = Path(SPECPATH).parent
 BUILD = ROOT / 'build'
-VERSION = os.environ.get('PHOTOSELECT_VERSION', '1.2.0')
+VERSION = os.environ.get('PHOTOSELECT_VERSION', '1.3.0')
 MIN_MACOS = os.environ.get('PHOTOSELECT_MIN_MACOS', '11.0')
 
 a = Analysis(
     [str(ROOT / 'desktop.py')],
     pathex=[str(ROOT)],
-    datas=[(str(ROOT / 'static'), 'static'),
+    datas=[(str(ROOT / 'static'), 'static'), (str(ROOT / 'lightroom'), 'lightroom'),
            (str(BUILD / 'THIRD_PARTY_NOTICES.txt'), '.')],
     hiddenimports=['webview.platforms.cocoa', 'waitress', 'rawpy', 'exifread'],
     excludes=['tkinter', '_tkinter', 'webview.platforms.qt', 'webview.platforms.gtk', 'webview.platforms.cef',

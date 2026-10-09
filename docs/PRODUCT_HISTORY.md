@@ -100,27 +100,29 @@ finishes.
 - From here on, all feedback is recorded as a feature request in BACKLOG.md.
 - No new version is built until the owner's message includes **build_new**.
 
-### Next version (not built yet: waiting for build_new)
-Planned items from BACKLOG.md, with the discussion behind each:
+### 1.3.0: likeness bursts, learning, profiles, Lightroom Classic
+Built when the owner sent **build_new** on 2026-10-09. The seven backlog items below were requested
+and discussed first, then shipped together. Each item says what was decided and, under "Shipped in
+1.3.0", what was built.
 
 1. **Bursts by % likeness.** The owner asked for bursts to mean more than timing: frames should also
    be a % alike.
    - Today the app already compares a tiny greyscale fingerprint and average colour, but it never
      shows a %.
-   - Planned: a "Similarity ≥ N %" slider, likeness shown in the burst view and viewer, and average
+   - Decided: a "Similarity ≥ N %" slider, likeness shown in the burst view and viewer, and average
      likeness in the CSV and diagnostic report.
 2. **Near-identical shots a few seconds apart.** The owner wants these seen together too.
-   - Planned: frames at least about 90 % alike and within about 10 s are grouped. Both values are
+   - Decided: frames at least about 90 % alike and within about 10 s are grouped. Both values are
      adjustable, and these frames are marked "near-identical".
 3. **Status line without "LibRaw 0.22.1".** The owner liked the key data in the status line but not
    the decoder version.
    - The version stays in Help → About and the diagnostic report.
 4. **Brighter teal accent.** The current accent (#ade1c5) reads as light teal, almost lime green.
-   - Planned: make it a tad brighter while staying in the teal family, with readable text.
+   - Decided: make it a tad brighter while staying in the teal family, with readable text.
 5. **Learn from my decisions.** The owner asked whether the app learns what they keep and drop.
    - Answer: not yet. Suggestions are fixed rules (scores × the owner's weights, then the
      thresholds), and decisions are saved but never fed back into scoring.
-   - Planned: after about 30 or more hand-marked photos, propose weights and thresholds that match
+   - Decided: after about 30 or more hand-marked photos, propose weights and thresholds that match
      the owner's decisions. The proposal shows the reason and how many past decisions it matches.
    - It is applied only on approval, can be undone, and can be saved per folder or as a named
      profile. Everything stays on the Mac.
@@ -134,7 +136,7 @@ Planned items from BACKLOG.md, with the discussion behind each:
      - cull **before import**;
      - a **Lightroom plug-in**, not XMP sidecars;
      - **star ratings**: Keep 3★, Consider 2★, Drop 1★, ♥ Like 5★, plus PhotoSelect keywords.
-   - Planned:
+   - Decided:
      - PhotoSelect saves a selections file outside the photo folders. After import, Library →
        Plug-in Extras → Apply PhotoSelect Selections applies it. Lightroom has no import hook, so this
        one step is needed.
@@ -146,9 +148,34 @@ Planned items from BACKLOG.md, with the discussion behind each:
 7. **Shorter cards for camera-preview photos.** Looking at the grid, the owner asked to remove the sentence
    "Scored from the embedded camera JPEG (camera sharpening and noise reduction included), not the RAW pixels."
    from the photo cards, to save space.
-   - Planned: the card shows its normal reason line instead.
+   - Decided: the card shows its normal reason line instead.
    - The CAMERA PREVIEW badge stays, so it is still clear which photos were scored from the camera JPEG.
    - The full explanation stays in the viewer, the CSV and the diagnostic report.
+
+**Shipped in 1.3.0.**
+- Bursts are grouped by capture time **and % likeness**. There is a *Similarity ≥ %* slider (default
+  70 %, equal to 1.2's default), plus *Near-identical ≥ %* (default 90 %) and a *near-identical window*
+  (default 10 s, 0 = off). Likeness is shown:
+  - in the viewer ("Looks 93 % like the burst's top frame");
+  - in the burst comparison ("93 % alike #1" and the burst average);
+  - in the CSV (`likeness_to_burst_top_pct`, `burst_average_likeness_pct`, `near_identical`);
+  - in the diagnostic report.
+- The status line no longer shows the LibRaw version.
+- The accent is now a brighter teal (#4fe0c8, was #ade1c5) on buttons, sliders, badges, bars and the
+  app icon.
+- *Learn from my decisions*:
+  - a proposal with "Matches X of your Y decisions (current settings match Z)", the weight and
+    threshold changes, and a "why" line;
+  - Apply and Undo;
+  - named profiles, and settings remembered per folder.
+- Lightroom Classic:
+  - **Send to Lightroom** saves the selections;
+  - **Help → Install Lightroom Plug-in…** installs the plug-in, and **Library → Plug-in Extras →
+    Apply PhotoSelect Selections…** applies the stars and keywords after a summary;
+  - matching is by file, then name and capture time, then a unique name, then a unique capture time
+    and file type;
+  - existing Lightroom stars are kept unless *Replace* is ticked.
+- Photo cards for camera-preview photos show the normal reason line. The CAMERA PREVIEW badge stays.
 
 ---
 
@@ -172,15 +199,22 @@ Planned items from BACKLOG.md, with the discussion behind each:
 | **Thresholds** | The combined scores that separate Keep, Consider and Drop. |
 | **Burst** | Frames taken close together in time (default within 2 s) that also look alike. They are compared and ranked together. From the next version, likeness is shown as a %. |
 | **Close to burst top** | A frame within 3 points of its burst's best frame. Worth comparing by eye. |
-| **Near-identical** *(planned)* | Frames at least about 90 % alike, even if several seconds apart. |
-| **Likeness %** *(planned)* | How alike two frames look, from 0 % (unrelated) to 100 % (identical). |
+| **Likeness %** | How alike two frames look, from 0 % (unrelated) to 100 % (identical). It compares a 16 × 12 grey-level version of each frame and its average colour. |
+| **Similarity ≥ %** | The minimum likeness for a frame to continue a burst (default 70 %). Replaces 1.2's "similarity tolerance"; the old default 14 equals 70 %. |
+| **Near-identical** | Frames at least the near-identical % alike (default 90 %) that are grouped even when shot up to the near-identical window apart (default 10 s), with other frames in between. Marked with a NEAR-IDENTICAL badge. |
+| **Burst average likeness** | The average likeness of a burst's frames to its top frame. Shown in the burst comparison title, the CSV and the diagnostic report. |
+| **Learn from my decisions** | Proposes the slider weights and thresholds whose suggestions best match the photos you marked (at least 30; ♥ liked counts as Keep). Applied only when you click Apply, and can be undone. |
+| **Settings profile** | A named set of slider weights and Keep / Consider thresholds (e.g. Sailing), saved on this Mac. |
+| **Folder settings** | Settings remembered for one folder and used automatically whenever that folder is analysed. |
+| **Send to Lightroom** | Saves the current selections for the Lightroom Classic plug-in, in ~/Library/Application Support/PhotoSelect/Lightroom (never in the photo folders). |
+| **Apply PhotoSelect Selections** | The Lightroom Classic command (Library → Plug-in Extras) that applies the stars and keywords after import, showing a summary first. |
 | **CAMERA PREVIEW** | The photo was analysed from the JPEG the camera stored inside the RAW file, because the RAW pixels could not be decoded (e.g. Nikon High Efficiency NEF). Its scores include the camera's own sharpening and noise reduction. |
 | **High Efficiency NEF (HE / HE★)** | A Nikon RAW compression that LibRaw cannot decode. To get full RAW analysis, shoot with NEF (RAW) compression set to Lossless compressed. |
 | **Could not be analysed** | A file that was listed but not scored, with a specific reason (damaged, empty, unreadable or unsupported). |
 | **Diagnostic report** | Help → Create Diagnostic Report…: a text file for troubleshooting, with no images and no full paths. |
-| **Lightroom stars** *(planned)* | How PhotoSelect results appear in Lightroom Classic: Keep 3★, Consider 2★, Drop 1★, Liked 5★. Your decision wins over the suggestion. |
-| **PhotoSelect keywords** *(planned)* | Keywords added in Lightroom under PhotoSelect › (Keep, Consider, Drop, Liked, Burst NN, Camera preview) for Smart Collections. |
-| **build_new** | The owner's keyword that authorises building and releasing a new version from the planned backlog items. |
+| **Lightroom stars** | How PhotoSelect results appear in Lightroom Classic: Keep 3★, Consider 2★, Drop 1★, Liked 5★. Your decision wins over the suggestion. |
+| **PhotoSelect keywords** | Keywords added in Lightroom under PhotoSelect › (Keep, Consider, Drop, Liked, Burst NNN, Near-identical, Camera preview) for Smart Collections. They are not included when exporting images. |
+| **build_new** | The owner's keyword that authorises building and releasing a new version from the planned backlog items. First used for 1.3.0. |
 
 ---
 

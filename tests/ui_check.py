@@ -69,6 +69,10 @@ def main():
         n = int(page.text_content('#total'))
         check('scan completes and fills grid', n > 0 and page.locator('.card').count() > 0,
               f'{n} analysed in {time.time() - t0:.1f}s')
+        status = page.text_content('#status')
+        check('status line shows results without the decoder version', 'photos analysed' in status and 'LibRaw' not in status, status)
+        accent = page.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--teal').trim()")
+        check('brighter teal accent colour', accent == '#4fe0c8', accent)
         if shots:
             page.screenshot(path=str(shots / 'grid.png'))
 
@@ -183,6 +187,71 @@ def main():
         check('CSV export', True, page.text_content('#notice'))
         failures = page.locator('#failureList').text_content()
         check('failed files listed with reasons', True, failures[:300].replace('\n', ' | '))
+        # 1.3: burst likeness settings
+        page.fill('#near_window', '12')
+        set_range('#likeness', 72)
+        page.click('#regroup')
+        wait("prefs.likeness===72 && prefs.near_window===12", 30_000)
+        check('burst similarity % and near-identical settings saved', True,
+              page.text_content('#likenessValue') + ' / ' + page.text_content('#near_identicalValue'))
+        bursts = page.evaluate("[...derived.groups.values()].filter(g=>g.length>1).length")
+        if bursts:
+            page.select_option('#sort', 'group')
+            page.evaluate("openViewer([...derived.groups.values()].find(g=>g.length>1)[1].id)")
+            page.wait_for_selector('#viewer[open]')
+            text = page.text_content('#reasons')
+            check('burst likeness % shown in the viewer', "like the burst's top frame" in text and '%' in text, text[-160:])
+            page.click('#burstCompare')
+            page.wait_for_selector('#comparison[open]')
+            check('likeness shown in burst comparison', 'alike #1' in page.text_content('#compare'),
+                  page.text_content('#compareTitle'))
+            page.click('[data-close="comparison"]')
+
+        # 1.3: card for camera-preview photos shows the normal reason line, not the long notice
+        long_notice = page.evaluate("[...document.querySelectorAll('.card .why')].some(e=>e.textContent.includes('not the RAW pixels'))")
+        check('cards omit the camera-preview sentence', not long_notice)
+
+        # 1.3: learn from my decisions (labels set in the page only, not saved)
+        analysed = page.evaluate("rows.filter(r=>r.status==='analysed').length")
+        if analysed >= 30:
+            page.evaluate("""() => { window.__saved = rows.map(r => [r.decision, r.liked]);
+                rows.filter(r => r.status === 'analysed').forEach(r => { r.decision = r.scores.focus >= 50 ? 'Keep' : 'Drop'; r.liked = false });
+                render(); renderLearn() }""")
+            page.click('#learn')
+            text = page.text_content('#proposalText')
+            check('learn proposes settings from decisions', 'of your' in text or 'already match' in text, text[:200])
+            if page.is_visible('#applyLearn'):
+                before = page.evaluate('JSON.stringify(settingsNow())')
+                page.click('#applyLearn')
+                applied = page.evaluate('JSON.stringify(settingsNow())')
+                page.click('#undoLearn')
+                check('learned settings apply and undo', applied != before and page.evaluate('JSON.stringify(settingsNow())') == before)
+            page.evaluate("() => { rows.forEach((r, i) => { [r.decision, r.liked] = window.__saved[i] }); render(); renderLearn() }")
+        else:
+            check('learn needs 30 marked photos', page.is_disabled('#learn'), page.text_content('#learnStatus'))
+
+        # 1.3: settings profiles and per-folder settings
+        if a.expect_persisted:
+            check('settings profile restored after relaunch', 'UI test' in page.evaluate('Object.keys(prefs.profiles)'))
+            page.select_option('#profileList', 'UI test')
+            page.click('#deleteProfile')
+            check('settings profile deleted', 'UI test' not in page.evaluate('Object.keys(prefs.profiles)'))
+        else:
+            page.fill('#profileName', 'UI test')
+            page.click('#saveProfile')
+            page.click('#loadProfile')
+            check('settings profile saved and loaded', 'Loaded profile' in page.text_content('#profileMessage'))
+        page.check('#folderRemember')
+        remembered = page.evaluate('Object.keys(prefs.folder_settings).includes(folderKey())')
+        page.uncheck('#folderRemember')
+        check('settings remembered for this folder', remembered and not page.evaluate('Object.keys(prefs.folder_settings).length'))
+
+        # 1.3: Adobe Lightroom Classic
+        page.evaluate('installLightroomPlugin()')
+        wait("document.getElementById('notice').textContent.includes('plug-in installed')", 30_000)
+        page.click('#lightroom')
+        wait("document.getElementById('notice').textContent.includes('ready for Lightroom Classic')", 30_000)
+        check('Lightroom plug-in installed and selections sent', True, page.text_content('#notice')[:120])
         check('no JavaScript errors', not errors, '; '.join(errors[:3]))
         browser.close()
 

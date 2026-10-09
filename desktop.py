@@ -106,10 +106,12 @@ def main():
             MenuAction('Cancel Analysis', lambda: run_js("document.getElementById('cancel').click()")),
             MenuSeparator(),
             MenuAction('Export Decisions…', lambda: run_js("document.getElementById('export').click()")),
+            MenuAction('Send to Lightroom', lambda: run_js("document.getElementById('lightroom').click()")),
         ]),
         Menu('Help', [
             MenuAction('About PhotoSelect', lambda: run_js("openAbout()")),
             MenuAction('Create Diagnostic Report…', lambda: run_js("createDiagnostics()")),
+            MenuAction('Install Lightroom Plug-in…', lambda: run_js("installLightroomPlugin()")),
             MenuAction('Open Log Folder', lambda: open_path(log_directory)),
             MenuAction('Third-Party Notices', lambda: open_path(notices)),
         ]),

@@ -159,7 +159,8 @@ def build(library, prefs, app_version):
 
     w('## Settings')
     w(f"- weights: {json.dumps(weights)}; keep ≥ {prefs['keep']}; consider ≥ {prefs['consider']}; "
-      f"burst gap {prefs['gap']} s; similarity tolerance {prefs['similarity']}")
+      f"burst gap {prefs['gap']} s; similarity ≥ {prefs['likeness']} %; near-identical ≥ {prefs['near_identical']} % "
+      f"within {prefs['near_window']} s")
     marks = library.store.marks([r['path'] for r in rows])
     decided = [m for m in marks.values() if m.get('decision')]
     w(f"- manual decisions: {len(decided)} ({dict(Counter(m['decision'] for m in decided))}); "
@@ -172,13 +173,17 @@ def build(library, prefs, app_version):
     bursts = sorted((g for g in groups.values() if len(g) > 1), key=lambda g: min(x['name'] for x in g))
     singles = sum(1 for g in groups.values() if len(g) == 1)
     w(f'- bursts: {len(bursts)}; single frames: {singles}; burst sizes: {dict(sorted(Counter(len(g) for g in bursts).items()))}')
-    w('- columns: burst · frames · time span · top frame (score) · runner-up (gap) · first … last file')
+    w(f"- bursts containing near-identical frames: {sum(1 for g in bursts if any(x.get('near_identical') for x in g))}")
+    w('- columns: burst · frames · time span · average likeness to top frame · near-identical frames · '
+      'top frame (score) · runner-up (gap) · first … last file')
     for g in bursts[:80]:
         g.sort(key=score, reverse=True)
         times = [x['timestamp'] for x in g if x['timestamp'] is not None]
         span = f'{max(times) - min(times):.2f}s' if times else '?'
         names = sorted(x['name'] for x in g)
-        w(f"  {g[0]['group']} · {len(g)} · {span} · {g[0]['name']} ({score(g[0]):.1f}) · "
+        alike = average_likeness(g)
+        w(f"  {g[0]['group']} · {len(g)} · {span} · {'-' if alike is None else f'{alike:.0f} %'} · "
+          f"{sum(1 for x in g if x.get('near_identical'))} · {g[0]['name']} ({score(g[0]):.1f}) · "
           f"{g[1]['name']} (−{score(g[0]) - score(g[1]):.1f}) · {names[0]} … {names[-1]}")
     if len(bursts) > 80:
         w(f'  … {len(bursts) - 80} more')
@@ -201,6 +206,13 @@ def build(library, prefs, app_version):
     problems = recent_log_problems()
     w('\n'.join(f'  {p}' for p in problems) if problems else '- none')
     return '\n'.join(out) + '\n'
+
+
+def average_likeness(burst):
+    """Mean % likeness of a burst's other frames to its first (top-ranked) frame, or None if unknown."""
+    top = burst[0]
+    values = [x['likeness'][top['id']] for x in burst[1:] if top['id'] in (x.get('likeness') or {})]
+    return sum(values) / len(values) if values else None
 
 
 def filename():

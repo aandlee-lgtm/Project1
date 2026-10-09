@@ -191,25 +191,78 @@ def frame_difference(a, b):
     return sum(x != y for x, y in zip(a['hash'], b['hash'])) / 64 * .5  # older cached results
 
 
-def group_bursts(rows, gap=2, similarity=14):
-    """Group consecutive frames shot within `gap` seconds of each other that also look alike.
+# A mean grey-level difference of 7 % or a colour shift of 0.18 each give 70 % likeness, the default
+# burst threshold (the same frames 1.2 grouped with its default tolerance of 14).
+LOOK_SCALE, COLOUR_SCALE = .07 / .3, .18 / .3
 
-    Each frame is compared with the previous frame (so a panning sequence chains together).
-    `similarity` 0-64 is the tolerance; 14 allows a mean grey-level difference of 7 %.
+
+def likeness(a, b):
+    """How alike two frames look, 0-100 %: 100 = identical small greyscale look and average colour."""
+    colour = float(np.linalg.norm(np.array(a['colour']) - np.array(b['colour'])))
+    distance = max(frame_difference(a, b) / LOOK_SCALE, colour / COLOUR_SCALE)
+    return round(100 * max(0.0, 1 - distance), 1)
+
+
+def similarity_to_likeness(similarity):
+    """Convert the 1.2 'similarity tolerance' (0-64) into the equivalent minimum likeness %."""
+    return int(round(max(0, min(100, 100 - 100 * (float(similarity) / 200) / LOOK_SCALE))))
+
+
+def group_bursts(rows, gap=2, min_likeness=70, near_identical=90, near_window=10):
+    """Group frames into bursts by capture time and % likeness.
+
+    A frame joins the previous frame's burst when it was shot within `gap` seconds of it and is at
+    least `min_likeness` % alike (consecutive comparison, so a panning sequence chains together).
+    Frames at least `near_identical` % alike are also grouped when up to `near_window` seconds apart,
+    even with other frames between them; such frames get `near_identical` = True.
     Frames without a capture time stay in their own group.
+
+    Sets row['group'], row['near_identical'] and row['likeness'] ({other row id (or name): %} for the other
+    frames of the same burst, up to LIKENESS_PAIRS_MAX frames per burst).
     """
-    tolerance = similarity / 200
     ordered = sorted(rows, key=lambda r: (r['timestamp'] if r['timestamp'] is not None else float('inf'), r['name']))
-    group = 0
-    previous = None
-    for row in ordered:
-        similar = False
-        if previous and row['timestamp'] is not None and previous['timestamp'] is not None:
-            dt = row['timestamp'] - previous['timestamp']
-            colour = np.linalg.norm(np.array(row['raw']['colour']) - previous['raw']['colour'])
-            similar = 0 <= dt <= gap and frame_difference(row['raw'], previous['raw']) <= tolerance and colour < .18
-        if not similar:
-            group += 1
-        row['group'] = group
-        previous = row
+    parent = list(range(len(ordered)))
+
+    def find(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    near = set()
+    timed = [i for i, r in enumerate(ordered) if r['timestamp'] is not None]
+    cache = {}
+
+    def alike(i, j):
+        if (i, j) not in cache:
+            cache[i, j] = likeness(ordered[i]['raw'], ordered[j]['raw'])
+        return cache[i, j]
+
+    for n, i in enumerate(timed):
+        t = ordered[i]['timestamp']
+        if n and 0 <= t - ordered[timed[n - 1]]['timestamp'] <= gap and alike(timed[n - 1], i) >= min_likeness:
+            parent[find(i)] = find(timed[n - 1])
+        if near_window > 0:
+            for m in range(n - 1, -1, -1):
+                j = timed[m]
+                dt = t - ordered[j]['timestamp']
+                if dt > near_window:
+                    break
+                if alike(j, i) >= near_identical:
+                    if find(i) != find(j):   # joined only by being near-identical, not as a normal burst
+                        near.update((i, j))
+                    parent[find(i)] = find(j)
+    numbers, members = {}, {}
+    for i, row in enumerate(ordered):
+        root = find(i)
+        row['group'] = numbers.setdefault(root, len(numbers) + 1)
+        members.setdefault(root, []).append(i)
+    for i, row in enumerate(ordered):
+        group = members[find(i)]
+        row['near_identical'] = len(group) > 1 and i in near
+        row['likeness'] = ({ordered[j].get('id', ordered[j]['name']): alike(min(i, j), max(i, j)) for j in group if j != i}
+                           if 1 < len(group) <= LIKENESS_PAIRS_MAX else {})
     return rows
+
+
+LIKENESS_PAIRS_MAX = 200

@@ -9,8 +9,10 @@ import io
 import logging
 import os
 import secrets
+import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 from flask import Flask, request, jsonify, send_file, abort, Response
@@ -20,13 +22,45 @@ import raw_io
 import store as store_module
 from engine import Library
 
-APP_VERSION = '1.2.0'
+APP_VERSION = '1.3.0'
 log = logging.getLogger('photoselect.app')
 
 
 def resource_dir():
     """Directory holding static/ both from source and inside a PyInstaller bundle."""
     return Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent))
+
+
+LIGHTROOM_PLUGIN = 'PhotoSelect.lrplugin'
+LIGHTROOM_FIELDS = ('path', 'name', 'capture', 'rating', 'keywords', 'decision', 'suggestion')
+
+
+def lightroom_dir():
+    """Where "Send to Lightroom" saves selections for the Lightroom Classic plug-in to read."""
+    return store_module.support_dir() / 'Lightroom'
+
+
+def lightroom_modules_dir():
+    """Lightroom Classic loads plug-ins placed here automatically (no Plug-in Manager step)."""
+    override = os.environ.get('PHOTOSELECT_LR_MODULES')
+    if override:
+        return Path(override)
+    return Path.home() / 'Library' / 'Application Support' / 'Adobe' / 'Lightroom' / 'Modules'
+
+
+def _tsv_field(value):
+    return ' '.join(str(value).replace('\t', ' ').splitlines())
+
+
+def lightroom_selections(folder, rows):
+    """Tab-separated selections file read by the plug-in's SelectionsCore.lua (format version 1)."""
+    lines = [f'# PhotoSelect selections\t1\t{time.time():.3f}\t{_tsv_field(folder)}', '\t'.join(LIGHTROOM_FIELDS)]
+    for r in rows:
+        rating = int(r['rating'])
+        keywords = '|'.join(_tsv_field(k).replace('|', '/') for k in r.get('keywords') or [])
+        lines.append('\t'.join(_tsv_field(v) for v in (r['path'], r['name'], r.get('capture') or '', rating, keywords,
+                                                         r.get('decision') or '', r.get('suggestion') or '')))
+    return '\n'.join(lines) + '\n'
 
 
 def _default_pick_folder():
@@ -216,7 +250,10 @@ def create_app(library=None, store=None, token=None):
     @app.post('/api/groups')
     def groups():
         data = request.get_json(force=True) or {}
-        library.regroup(data.get('gap', 2), data.get('similarity', 14))
+        settings = {k: data[k] for k in ('gap', 'likeness', 'near_identical', 'near_window') if k in data}
+        if 'likeness' not in settings and 'similarity' in data:   # 1.2 clients
+            settings['likeness'] = analysis.similarity_to_likeness(data['similarity'])
+        library.regroup(**settings)
         return jsonify(ok=True)
 
     def save_text(text, filename, encoding='utf-8'):
@@ -250,6 +287,49 @@ def create_app(library=None, store=None, token=None):
     def make_diagnostics():
         import diagnostics
         return save_text(diagnostics.build(library, store.prefs(), APP_VERSION), diagnostics.filename())
+
+    @app.post('/api/lightroom')
+    def lightroom():
+        data = request.get_json(force=True) or {}
+        table = data.get('rows')
+        if not isinstance(table, list) or not table:
+            return jsonify(error='No photos have a decision, suggestion or like to send to Lightroom.'), 400
+        try:
+            for r in table:
+                if not (isinstance(r, dict) and isinstance(r.get('path'), str) and isinstance(r.get('name'), str)
+                        and 0 <= int(r.get('rating')) <= 5):
+                    raise ValueError
+        except (TypeError, ValueError):
+            return jsonify(error='Invalid Lightroom selections.'), 400
+        folder = str(data.get('folder') or '')
+        target = lightroom_dir() / f'{store_module.path_id(folder or "-")}.tsv'
+        target.parent.mkdir(parents=True, exist_ok=True)
+        tmp = target.with_suffix('.tmp')
+        tmp.write_text(lightroom_selections(folder, table), encoding='utf-8')
+        os.replace(tmp, target)
+        log.info('Lightroom selections for %d photos saved to %s', len(table), target)
+        return jsonify(saved=str(target), count=len(table),
+                       plugin_installed=(lightroom_modules_dir() / LIGHTROOM_PLUGIN / 'Info.lua').exists())
+
+    @app.post('/api/lightroom/install')
+    def install_lightroom_plugin():
+        source = resource_dir() / 'lightroom' / LIGHTROOM_PLUGIN
+        target = lightroom_modules_dir() / LIGHTROOM_PLUGIN
+        try:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            if target.exists():
+                shutil.rmtree(target)
+            shutil.copytree(source, target)
+            selections = str(lightroom_dir())
+            (target / 'Config.lua').write_text(
+                '-- Written by PhotoSelect when the plug-in was installed.\n'
+                f'return {{ selectionsFolder = [==[{selections}]==] }}\n', encoding='utf-8')
+        except OSError as error:
+            log.exception('Lightroom plug-in install failed')
+            return jsonify(error=f'Could not install the Lightroom plug-in in {target.parent}: {error.strerror or error}'), 500
+        lightroom_dir().mkdir(parents=True, exist_ok=True)
+        log.info('Lightroom plug-in installed in %s', target)
+        return jsonify(installed=str(target))
 
     @app.get('/api/about')
     def about():

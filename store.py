@@ -58,8 +58,11 @@ def file_key(path, stat, version):
 
 DEFAULT_PREFS = {
     'weights': {'sharpness': 30, 'focus': 50, 'composition': 15, 'exposure': 5},
-    'keep': 75, 'consider': 45, 'gap': 2.0, 'similarity': 14, 'recursive': False,
-    'folder': '', 'page_size': 120,
+    'keep': 75, 'consider': 45, 'gap': 2.0, 'likeness': 70, 'near_identical': 90, 'near_window': 10.0,
+    'recursive': False, 'folder': '', 'page_size': 120,
+    # 1.3: named settings profiles, settings remembered per folder, and the settings before the last
+    # "learn from my decisions" change (for Undo).
+    'profiles': {}, 'folder_settings': {}, 'undo_settings': None,
 }
 
 
@@ -131,9 +134,13 @@ class Store:
     def prefs(self):
         out = json.loads(json.dumps(DEFAULT_PREFS))
         with self.lock:
-            for k, v in self.db.execute('SELECT key,value FROM prefs'):
-                if k in out:
-                    out[k] = json.loads(v)
+            stored = {k: json.loads(v) for k, v in self.db.execute('SELECT key,value FROM prefs')}
+        for k, v in stored.items():
+            if k in out:
+                out[k] = v
+        if 'likeness' not in stored and 'similarity' in stored:   # 1.2 'similarity tolerance' → likeness %
+            import analysis
+            out['likeness'] = analysis.similarity_to_likeness(stored['similarity'])
         return out
 
     def set_prefs(self, values):

@@ -1,4 +1,4 @@
-# PhotoSelect 1.0 — Apple silicon Mac app
+# PhotoSelect 1.3 — Apple silicon Mac app
 
 PhotoSelect helps you cull bursts of sailing and sports photos. Point it at a folder of Nikon
 (NEF/NRW), Olympus / OM System (ORF), other RAW, JPEG, PNG or TIFF files. It decodes each photo
@@ -30,6 +30,24 @@ nothing is deleted, renamed, moved, uploaded, or written to your photo folders.
    compare critical focus. **Compare liked photos** does the same for your shortlist.
 7. Mark Keep / Consider / Drop or ♥ Like (keys in the viewer: ← → K C D L F). Click the Keep, Consider or Drop tile above the grid to show only that group; click it again (or Photos analysed) to show all.
    **Export decisions** saves a CSV with paths, scores, decisions, reasons and burst results.
+8. **Learn from my decisions.** After marking at least 30 photos (♥ liked photos count as Keep), click
+   *Suggest settings from my decisions*. PhotoSelect proposes slider weights and thresholds that match
+   your choices, explains why, and shows how many of your decisions they match before and after.
+   Nothing changes until you click **Apply**, and **Undo learned settings** restores the previous ones.
+   Save settings as named **profiles** (e.g. Sailing), or tick *Use these settings whenever this folder
+   is analysed*.
+9. **Send to Lightroom** (Adobe Lightroom Classic). Install the plug-in once with **Help → Install
+   Lightroom Plug-in…** and restart Lightroom. Cull first, click **Send to Lightroom**, import the folder
+   in Lightroom, then choose **Library → Plug-in Extras → Apply PhotoSelect Selections…**:
+   * stars: Keep ★★★, Consider ★★, Drop ★, ♥ Liked ★★★★★ (your decision wins over the suggestion);
+   * keywords under *PhotoSelect*: Keep / Consider / Drop / Liked / Burst NNN / Near-identical /
+     Camera preview, for Smart Collections (not included when exporting images);
+   * photos are matched by file, then file name + capture time, then a unique capture time, so
+     copied or renamed imports still match. A summary is shown first. Star ratings already set in
+     Lightroom are kept unless you tick *Replace*.
+
+   The selections are saved in `~/Library/Application Support/PhotoSelect/Lightroom/`, never in your
+   photo folders, and no XMP sidecar files are written.
 
 Decisions, likes, focus regions, preferences and analysis results are saved automatically:
 
@@ -38,6 +56,8 @@ Decisions, likes, focus regions, preferences and analysis results are saved auto
 | Decisions, likes, regions, preferences, analysis results | `~/Library/Application Support/PhotoSelect/photoselect.db` |
 | Thumbnails and previews (safe to clear: Help → About → Clear analysis cache) | `~/Library/Caches/PhotoSelect/` |
 | Log file (Help → Open Log Folder) | `~/Library/Logs/PhotoSelect/` |
+| Selections sent to Lightroom | `~/Library/Application Support/PhotoSelect/Lightroom/` |
+| Lightroom plug-in (Help → Install Lightroom Plug-in…) | `~/Library/Application Support/Adobe/Lightroom/Modules/PhotoSelect.lrplugin` |
 
 Nothing is written inside the app bundle or the disk image.
 
@@ -60,11 +80,18 @@ marked Drop just for not winning its burst**. Frames within 3 points of the burs
 are flagged *close to burst top · compare*.
 
 **Not implemented:** eye or face detection, subject recognition, motion-blur detection, artistic
-judgement, XMP or Lightroom write-back.
+judgement, XMP sidecar files. The learning feature only fits the four slider weights and two
+thresholds to your decisions; it is not a trained image model.
 
-**Burst grouping** uses EXIF capture time (with sub-seconds when the camera records them),
-plus a small image fingerprint and average colour. Frames without capture times stay
-ungrouped. You can tune it under *Burst matching*.
+**Burst grouping** uses EXIF capture time (with sub-seconds when the camera records them) and
+**% likeness**: how alike two frames look, from a 16 × 12 grey-level version of each frame and its
+average colour (100 % = the same). A frame joins a burst when it was shot within the frame gap
+(default 2 s) of the previous frame and is at least *Similarity ≥* % alike (default 70 %), so panning
+sequences stay together. Frames at least *Near-identical ≥* % alike (default 90 %) are also grouped
+when shot up to the *near-identical window* apart (default 10 s), even with other frames between them,
+and are marked **NEAR-IDENTICAL**. The viewer shows each frame's likeness to its burst's top frame,
+the burst comparison shows likeness to #1, and the CSV and diagnostic report include it. Frames
+without capture times stay ungrouped.
 
 **RAW rendering:** LibRaw with the camera's white balance, sRGB output, the camera orientation
 flag, and no per-image auto-brightening, so a burst renders consistently. It will not match
@@ -94,6 +121,9 @@ smaller than 1,000 px on the long edge are not used. For full RAW analysis on a 
 * `raw_io.py`: decoding (rawpy/LibRaw for RAW, Pillow for JPEG/PNG/TIFF), EXIF capture times
   (including ORF's non-standard TIFF header), clear errors for damaged, empty, unsupported or
   unreadable files.
+* `lightroom/PhotoSelect.lrplugin`: the Lightroom Classic plug-in (Lua). `SelectionsCore.lua` holds
+  the matching logic and is unit-tested under Lua 5.1 (`tests/test_lightroom_plugin.py`, needs
+  `lupa`), including a run of the menu command against a simulated Lightroom catalog.
 * `analysis.py`: the metrics above and burst grouping. `store.py`: SQLite persistence and
   standard macOS locations. `app.py`: HTTP API. `static/index.html`: the interface.
 
