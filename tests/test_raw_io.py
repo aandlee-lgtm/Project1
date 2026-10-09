@@ -95,6 +95,34 @@ class RawFormatTests(unittest.TestCase):
                 raw_io.decode_photo(damaged)
         self.assertEqual(read.call_count, 1)
 
+    def _camera_file(self, name, preview=(2400, 1600), model=b'ILCE-7M5'):
+        """A TIFF-structured file naming its camera, with an embedded JPEG, that LibRaw will not open."""
+        import io as _io
+        buf = _io.BytesIO()
+        Image.new('RGB', preview, 'gray').save(buf, format='JPEG')
+        exif = Image.Exif()
+        exif[0x010F], exif[0x0110], exif[0x0112] = 'SONY', model.decode(), 6   # make, model, orientation 90° CW
+        path = self.dir / name
+        path.write_bytes(exif.tobytes()[6:] + os.urandom(3000) + buf.getvalue() + os.urandom(3000))
+        return path
+
+    def test_unrecognised_camera_file_falls_back_to_scanned_preview(self):
+        # Sony A7 V "compressed" ARW: LibRaw 0.22.1 does not open it, but the camera stored its JPEG.
+        path = self._camera_file('DSC00001.ARW')
+        with patch('rawpy.imread', side_effect=rawpy.LibRawFileUnsupportedError('unsupported')):
+            image, source, notice = raw_io.decode_photo(path)
+            self.assertEqual((source, image.size), ('camera_preview', (1600, 2400)))   # upright
+            self.assertEqual(raw_io.embedded_preview(path).size, (1600, 2400))
+            with self.assertRaisesRegex(DecodeError, 'does not recognise'):
+                raw_io.decode_photo(path, allow_preview=False)
+            small = self._camera_file('DSC00002.ARW', preview=(640, 480))
+            with self.assertRaisesRegex(DecodeError, 'no usable embedded preview'):
+                raw_io.decode_photo(small)
+            junk = self.dir / 'junk.ARW'          # no camera EXIF: never falls back, even with a JPEG inside
+            junk.write_bytes(os.urandom(2000) + path.read_bytes()[-200000:])
+            with self.assertRaisesRegex(DecodeError, 'does not recognise'):
+                raw_io.decode_photo(junk)
+
     def _contexts(self, preview_size=(1200, 800)):
         import io as _io
         buf = _io.BytesIO()

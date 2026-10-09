@@ -140,6 +140,16 @@ def decode_photo(path, allow_preview=True):
                     raise _PixelsUnsupported() from error
                 raise
         return Image.fromarray(rgb), 'decoded_raw', ''
+    except rawpy.LibRawFileUnsupportedError as error:
+        # LibRaw does not recognise the file at all: a camera model or RAW mode newer than the bundled
+        # decoder (e.g. Sony A7 V "compressed"), or not a RAW file. Only a genuine camera file with its own
+        # full-size JPEG falls back.
+        camera_file = allow_preview and bool(camera_model(path))
+        if camera_file:
+            preview = scanned_preview(path)
+            if preview is not None:
+                return preview, 'camera_preview', PREVIEW_NOTICE
+        raise _raw_error(path, error, preview_tried=camera_file) from error
     except _PixelsUnsupported as wrapped:
         original = wrapped.__cause__
         if allow_preview:
@@ -185,7 +195,55 @@ def embedded_preview(path):
             return None
         return im.transpose(_FLIP[flip]) if flip in _FLIP else im
     except Exception:
+        return scanned_preview(path)
+
+
+_ORIENT = {3: Image.Transpose.ROTATE_180, 6: Image.Transpose.ROTATE_270, 8: Image.Transpose.ROTATE_90}
+
+
+def scanned_preview(path, max_bytes=400 * 2 ** 20):
+    """Largest camera JPEG embedded anywhere in a RAW file that LibRaw cannot open (upright), or None.
+
+    For camera models or RAW modes newer than the bundled LibRaw (e.g. Sony A7 V "compressed"), the
+    camera still stores its own JPEG preview. Only genuine camera files qualify: the file must name its
+    camera model in EXIF, and the JPEG must be at least MIN_PREVIEW_EDGE pixels on its long edge.
+    """
+    path = Path(path)
+    if path.suffix.lower() not in RAW or not camera_model(path):
         return None
+    try:
+        if path.stat().st_size > max_bytes:
+            return None
+        data = path.read_bytes()
+    except OSError:
+        return None
+    best, start = None, 0
+    while True:
+        at = data.find(b'\xff\xd8\xff', start)
+        if at < 0:
+            break
+        start = at + 3
+        try:
+            with Image.open(io.BytesIO(data[at:at + 64 * 2 ** 20])) as candidate:
+                if candidate.format == 'JPEG' and (best is None or candidate.size[0] * candidate.size[1] > best[1]):
+                    best = (at, candidate.size[0] * candidate.size[1], max(candidate.size))
+        except Exception:
+            continue
+    if best is None or best[2] < MIN_PREVIEW_EDGE:
+        return None
+    try:
+        im = Image.open(io.BytesIO(data[best[0]:best[0] + 64 * 2 ** 20]))
+        im.load()
+        im = im.convert('RGB')
+    except Exception:
+        return None
+    try:
+        import exifread
+        tags = exifread.process_file(_exif_file(path), details=False, stop_tag='Orientation')
+        orientation = getattr(tags.get('Image Orientation'), 'values', [1])[0]
+    except Exception:
+        orientation = 1
+    return im.transpose(_ORIENT[orientation]) if orientation in _ORIENT else im
 
 
 def _exif_file(path):
