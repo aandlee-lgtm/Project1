@@ -1,0 +1,234 @@
+<title>PhotoSelect Field Tests</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a single working column, like a race-committee check sheet: summary bar, then one card per test. */
+:root{
+  --bg:#eef2f4; --paper:#ffffff; --ink:#14232e; --muted:#5b6b76; --line:#d3dce2;
+  --accent:#0f6b8f; --accent-ink:#ffffff; --pass:#1f7a4d; --issue:#b4561b; --skip:#7a8790; --field:#f6f8f9;
+  --display:"Barlow Condensed","Arial Narrow",sans-serif; --body:"Source Sans 3",-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e171d; --paper:#15222b; --ink:#e3ecf1; --muted:#97a8b3; --line:#2a3a45;
+  --accent:#4fb3d9; --accent-ink:#06202c; --pass:#5fc792; --issue:#f0a067; --skip:#8d9ba4; --field:#1b2b35; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e171d; --paper:#15222b; --ink:#e3ecf1; --muted:#97a8b3; --line:#2a3a45;
+  --accent:#4fb3d9; --accent-ink:#06202c; --pass:#5fc792; --issue:#f0a067; --skip:#8d9ba4; --field:#1b2b35; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:16px/1.55 var(--body);padding-inline:16px;padding-block:28px 80px}
+.wrap{max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+h1,h2,h3{font-family:var(--display);letter-spacing:.01em;text-wrap:balance;margin:0}
+h1{font-size:2.6rem;line-height:1.05;font-weight:700}
+h2{font-size:1.45rem;font-weight:600}
+.eyebrow{font:500 .78rem var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+p{margin:0;max-width:68ch}
+.muted{color:var(--muted)}
+code,.mono{font-family:var(--mono);font-size:.88em}
+a{color:var(--accent)}
+.intro{display:grid;gap:12px}
+.how{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.how div{background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:14px;min-width:0}
+.how b{display:block;font-family:var(--display);font-size:1.1rem;font-weight:600;margin-bottom:4px}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:10px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;border-bottom:1px solid var(--line)}
+.tally{display:flex;gap:14px;font:500 .85rem var(--mono);font-variant-numeric:tabular-nums;flex:1;flex-wrap:wrap}
+.tally span::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;vertical-align:1px;background:var(--c)}
+button{font:600 .95rem var(--body);border-radius:6px;border:1px solid var(--line);background:var(--paper);color:var(--ink);padding:8px 14px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.test{background:var(--paper);border:1px solid var(--line);border-left:5px solid var(--state,var(--line));border-radius:8px;padding:18px;display:grid;gap:14px;min-width:0}
+.test header{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:baseline}
+.test header .id{font:500 .85rem var(--mono);color:var(--muted)}
+.test header h2{flex:1;min-width:200px}
+.why{color:var(--muted)}
+ol.steps{margin:0;padding-left:22px;display:grid;gap:4px}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px 16px}
+.fields label{display:grid;gap:4px;font-size:.9rem;font-weight:600;min-width:0}
+.fields label.wide{grid-column:1/-1}
+input,select,textarea{font:400 .95rem var(--body);color:var(--ink);background:var(--field);border:1px solid var(--line);border-radius:6px;padding:8px 10px;width:100%;min-width:0}
+textarea{min-height:64px;resize:vertical}
+.expect{display:grid;gap:6px;font-size:.92rem;border-top:1px dashed var(--line);padding-top:12px}
+.expect b{font-family:var(--display);font-weight:600;font-size:1rem;letter-spacing:.02em}
+.status{display:flex;gap:6px;flex-wrap:wrap}
+.status button{padding:6px 12px;font-size:.85rem}
+.status button[aria-pressed="true"]{color:var(--paper);background:var(--c);border-color:var(--c)}
+.out{display:grid;gap:10px}
+#output{font:400 .82rem/1.5 var(--mono);min-height:180px;white-space:pre;overflow-x:auto}
+.confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+@media (prefers-reduced-motion:no-preference){.test{transition:border-color .2s}}
+</style>
+
+<div class="wrap">
+  <section class="intro">
+    <div class="eyebrow">PhotoSelect 1.0.1 · on your own Mac</div>
+    <h1>Field tests for your M2</h1>
+    <p>Run these on your Mac with your own Nikon and Olympus files. Nothing needs uploading: fill in the boxes as you go, attach the diagnostic report the app creates, then press <b>Copy results</b> and paste the text into our chat. Your answers are kept in this browser as you type, so you can stop and come back.</p>
+    <div class="how">
+      <div><b>1 · Get the app</b><span id="dmgLine">Download <a href="https://github.com/aandlee-lgtm/Project1/actions/runs/37870705344/artifacts/11590241898" target="_blank" rel="noopener">PhotoSelect-AppleSilicon-dmg (v1.0.1)</a> while signed in to GitHub. Unzip it, open the DMG and drag PhotoSelect to Applications.</span></div>
+      <div><b>2 · Run the tests</b>Do them in order; T4 and T5 matter most. Mark each one Pass, Issue or Skipped. Skipping is fine, just say why.</div>
+      <div><b>3 · Report back</b>Help → <i>Create Diagnostic Report…</i> after T2 and T8. Copy the results below and paste them in chat, with the report files attached or pasted.</div>
+    </div>
+  </section>
+
+  <div class="bar" role="region" aria-label="Progress">
+    <div class="tally" id="tally"></div>
+    <button id="jump" type="button">Go to results</button>
+  </div>
+
+  <div id="tests"></div>
+
+  <section class="test out" id="results" style="--state:var(--accent)">
+    <h2>Results to paste back</h2>
+    <p class="muted">Press <b>Copy results</b>, then paste into the chat. If copying is blocked, click into the box, select all and copy.</p>
+    <label class="fields"><span class="wide" style="font-weight:600">Anything else: confusing screens, wishes, things that felt slow</span>
+      <textarea id="general" class="wide" placeholder="e.g. I'd like a keyboard shortcut to jump to the next burst"></textarea></label>
+    <div class="confirm"><button class="primary" id="copy" type="button">Copy results</button><span id="copied" class="muted" role="status"></span></div>
+    <textarea id="output" readonly aria-label="Results text"></textarea>
+    <div class="confirm" id="resetRow"><button id="reset" type="button">Clear all answers</button></div>
+  </section>
+</div>
+
+<script>
+const YN=['','Yes','No'];
+const TESTS=[
+ {id:'T1',title:'Install and first launch',why:'Confirms the DMG installs on your Mac and that the one-time Gatekeeper step is clear.',
+  steps:['Download and unzip the artifact; open PhotoSelect-AppleSilicon.dmg.','Drag PhotoSelect to Applications, eject the disk image.','Open PhotoSelect. If macOS blocks it, go to System Settings → Privacy & Security → Open Anyway.','Note how long the window takes to appear on the second launch.'],
+  fields:[['mac','Mac model, chip and memory','text','MacBook Air M2, 8 GB'],['macos','macOS version (Apple menu → About This Mac)','text','15.6'],
+    ['source','How you got the DMG','select',['','Downloaded from GitHub Actions','Built with scripts/build_mac.sh']],
+    ['blocked','Did macOS block the first launch?','select',YN],['openanyway','Did Open Anyway let it start?','select',['','Yes','No','Not needed']],
+    ['launch','Seconds to window on second launch','number','2']],
+  expect:'Blocked once if downloaded; opens after Open Anyway. Window in a few seconds.',
+  react:'If it still will not open, I will look at your log (Help → Open Log Folder) and the macOS message you saw. A failure on your macOS version but not on 14/15 means a compatibility fix in the build.'},
+ {id:'T2',title:'First small mixed folder',why:'Checks that your own camera files decode and that errors are explained.',
+  steps:['Copy 20–50 RAW files from your Nikon and Olympus cameras into one folder on the Mac (mix them if you can).','Choose folder → Analyse photos. Watch whether embedded previews appear before scores.','Open "Files that could not be analysed" if it appears and note the reasons.','Help → Create Diagnostic Report… and save it (Desktop is fine).'],
+  fields:[['cameras','Camera models and file types used','text','Nikon Z6 II NEF, OM-1 ORF'],['count','Number of files','number','40'],
+    ['previews','Thumbnails appeared before analysis finished?','select',YN],['time','Seconds until "photos analysed"','number',''],
+    ['failed','Files listed as not analysable','number','0'],['reasons','Reasons shown (copy the text)','text',''],
+    ['modes','Special modes in the set (HE/HE* NEF, high-res, Pro Capture, 14-bit lossless…)','text','']],
+  expect:'Every normal file decodes. Unsupported modes are listed with a reason, never scored.',
+  react:'A camera or mode that fails becomes a decoder issue: I check LibRaw support for it and either update the decoder or add a clear fallback. Your diagnostic report tells me which model and mode.'},
+ {id:'T3',title:'Colour, orientation and detail',why:'The decode is what scores are measured on, so it must look right.',
+  steps:['Open three RAW files, including at least one portrait (vertical) shot.','Click Inspect full resolution; try Fit and 100%.','Compare with the camera JPEG or Lightroom at default settings.'],
+  fields:[['portrait','Portrait shots shown upright?','select',['','Yes','No','No portrait shots tested']],
+    ['colour','Colour and brightness versus camera JPEG','select',['','Close enough','Darker','Brighter','Colour cast','Very different']],
+    ['artefacts','Odd patterns, colour fringes or banding?','select',YN],['files3','Files used (names)','text','DSC_1042.NEF, P8120033.ORF']],
+  expect:'Upright, plausible colour. Often slightly darker and flatter than the camera JPEG, because PhotoSelect does not apply picture styles or auto-brightening.',
+  react:'Wrong orientation is a bug I will fix (send the file name; the report\'s orientation cross-check also shows it). A strong cast or artefacts may need a different LibRaw setting for your camera, so I may ask for that one file.'},
+ {id:'T4',title:'Burst grouping',why:'Bursts must be grouped the way you shot them before ranking makes sense.',
+  steps:['Analyse a folder with at least three real bursts (5–20 frames each), ideally sailing.','Sort by Burst order. Each burst\'s top frame shows a "BURST n · TOP OF k" badge.','For three bursts, compare the frames you shot with what PhotoSelect grouped.','If grouping is wrong, try Maximum frame gap and Similarity tolerance, then Regroup bursts.'],
+  fields:[['fps','Frames per second you shot at','text','10 fps'],
+    ['b1','Burst A: frames shot / frames grouped / result','text','12 / 12 / correct'],['b2','Burst B: frames shot / frames grouped / result','text','8 / 5+3 / split'],
+    ['b3','Burst C: frames shot / frames grouped / result','text',''],
+    ['groupfix','Did changing gap or similarity fix it? Values used','text','gap 2, similarity 20 fixed it']],
+  expect:'One group per burst. Panning while shooting should still keep a burst together.',
+  react:'Splits mean the similarity default is too strict for your scenes; merges mean the gap is too long. I will retune the defaults from your numbers.'},
+ {id:'T5',title:'Burst ranking quality',why:'The main question: does it put the frame you would choose at or near the top?',
+  steps:['Use the same bursts as T4 with the default weights (focus 50, sharpness 30, composition 15, exposure 5).','Pick the frame you would keep in each burst before looking at the scores.','Note the rank PhotoSelect gave your pick (Compare this burst shows ranks).','Open your pick, drag a rectangle over the sailors or boat, then note the new rank.'],
+  fields:[['r1','Burst A: your pick / its rank / rank after region','text','DSC_2213 / 3 / 1'],['r2','Burst B: your pick / its rank / rank after region','text',''],
+    ['r3','Burst C: your pick / its rank / rank after region','text',''],
+    ['topok','Was PhotoSelect\'s top frame acceptable?','select',['','Yes, usually','Close, I would compare','No, usually wrong']],
+    ['whywrong','When wrong, what fooled it?','select',['','Sharp water or waves','Sharp background or rigging','Motion blur not noticed','Composition','Exposure','Moment or expression','Other']],
+    ['weights','Weights that worked best for you','text','focus 70, sharpness 10, composition 15, exposure 5']],
+  expect:'Your pick in the top two most of the time once a region is drawn. Close scores flagged "close to burst top".',
+  react:'If water or background fools it, I will strengthen the subject-region approach (for example, measuring several regions or down-weighting uniform texture). If motion blur slips through, that is a new measure to add. Your best weights may become the sailing defaults.'},
+ {id:'T6',title:'Decisions survive a restart',why:'Your work must not be lost between sessions.',
+  steps:['Mark 5 photos Keep, 3 Skip, like 3, and draw one focus region.','Quit with ⌘Q, reopen PhotoSelect, analyse the same folder again.'],
+  fields:[['restored','Decisions, likes, region and sliders all restored?','select',YN],['missing','Anything missing?','text',''],['rescan','Seconds to re-analyse (cached)','number','']],
+  expect:'Everything restored; re-analysis takes about a second because results are cached.',
+  react:'Anything missing is a bug I will fix; tell me exactly what was lost.'},
+ {id:'T7',title:'Memory card or external drive',why:'You often cull straight from a card or drive.',
+  steps:['Insert an SD card or connect a drive with photos.','Choose folder → pick a folder on it → Analyse photos.','Allow access if macOS asks.'],
+  fields:[['drive','Card or drive type and format (exFAT, APFS…)','text','SD card, exFAT'],['prompt','Did macOS ask to allow access to a removable volume?','select',YN],
+    ['worked','Analysis worked from the drive?','select',YN],['odd','Anything odd (._ files listed, errors)?','text','']],
+  expect:'A one-time permission prompt, then normal analysis. "._" files that macOS creates on exFAT are ignored.',
+  react:'Permission errors mean the app\'s privacy text or access flow needs fixing; I will need the exact message shown.'},
+ {id:'T8',title:'Large folder and responsiveness',why:'Checks real speed and memory with your file sizes on your M2.',
+  steps:['Analyse a full shoot (500–2,000 RAW files).','While it runs, scroll the grid, move a slider and open a photo.','Optional: start a second large folder and press Cancel, noting how fast it stops.','Optional: in Activity Monitor → Memory, note the memory-pressure colour.','When finished, Help → Create Diagnostic Report… again.'],
+  fields:[['count8','Number of files','number','1200'],['total8','Minutes for the whole folder','number',''],
+    ['smooth','How the app felt while analysing','select',['','Smooth','Sluggish but usable','Froze at times']],
+    ['cancel','Seconds for Cancel to stop','number',''],['pressure','Memory pressure','select',['','Green','Yellow','Red','Not checked']],
+    ['heat','Fans loud or Mac hot?','select',YN]],
+  expect:'Usable throughout; Cancel stops within a few seconds; memory pressure green or yellow. First passes over thousands of high-resolution files take tens of minutes.',
+  react:'If it is too slow, I will look at the per-file decode times in the report and at adding workers for your RAM; if memory pressure goes red, I will reduce workers or preview sizes.'},
+ {id:'T9',title:'Checking critical focus',why:'The 100% view is how you confirm the winner is truly sharp.',
+  steps:['Open a burst winner → Inspect full resolution → 100%.','Click a spot to zoom there. Try Compare this burst with "100% crops of the focus region".'],
+  fields:[['enough','Good enough to judge critical focus?','select',YN],['wait','Seconds to show full resolution','number',''],['wish9','What would make it better?','text','synchronised zoom across frames']],
+  expect:'Native pixels shown 1:1 within a few seconds per RAW file.',
+  react:'Slow loading means caching full-resolution renders; feature wishes such as synchronised zoom I can add.'},
+ {id:'T10',title:'CSV export',why:'Your decisions need to leave the app.',
+  steps:['Export decisions → save to the Desktop.','Open it in Numbers or Excel.'],
+  fields:[['opened','Saved and opened correctly?','select',YN],['cols','Columns you would add or remove','text','']],
+  expect:'One row per photo with path, scores, decision, burst and reasons.',
+  react:'I will change the columns to suit your editing workflow (for example a Lightroom-friendly keyword list).'},
+ {id:'T11',title:'Closing the app',why:'Nothing should keep running after you finish.',
+  steps:['Close the window with the red button.','Open Activity Monitor and search "PhotoSelect".','Reopen the app and quit with ⌘Q; check again.'],
+  fields:[['closeok','After the red button: app gone from Dock and Activity Monitor?','select',YN],['quitok','After ⌘Q: gone from both?','select',YN]],
+  expect:'Gone within a second in both cases.',
+  react:'A lingering process is a shutdown bug I will fix; tell me which way you closed it.'},
+ {id:'T12',title:'Originals untouched',why:'PhotoSelect must never change your photos.',
+  steps:['Before T2, note the Date Modified of a few files in Finder (or keep Lightroom open on that folder).','After testing, compare.'],
+  fields:[['dates','Dates modified unchanged?','select',['','Yes','No','Not checked']],['newfiles','Any new files in your photo folders?','select',['','No','Yes','Not checked']]],
+  expect:'Unchanged dates and no new files: PhotoSelect only reads originals.',
+  react:'Any change is a serious bug. Stop using it on originals and tell me which file changed.'}
+];
+const KEY='photoselect-field-tests-v1';
+let state={};
+try{state=JSON.parse(localStorage.getItem(KEY)||'{}')||{}}catch(e){state={}}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const COLORS={Pass:'var(--pass)',Issue:'var(--issue)',Skipped:'var(--skip)'};
+
+function render(){
+  document.getElementById('tests').innerHTML=TESTS.map(t=>{
+    const s=state[t.id]||{};
+    const fields=t.fields.map(([k,label,type,opt])=>{
+      const id=`${t.id}-${k}`,v=esc(s[k]??'');
+      const control=type==='select'?`<select id="${id}" data-t="${t.id}" data-k="${k}">${opt.map(o=>`<option ${o===s[k]?'selected':''} value="${esc(o)}">${o||'Choose…'}</option>`).join('')}</select>`
+        :`<input id="${id}" data-t="${t.id}" data-k="${k}" type="${type==='number'?'number':'text'}" ${type==='number'?'inputmode="decimal" min="0" step="any"':''} placeholder="${esc(opt||'')}" value="${v}">`;
+      return `<label for="${id}">${esc(label)}${control}</label>`}).join('');
+    return `<article class="test" id="${t.id}" style="--state:${COLORS[s.status]||'var(--line)'}">
+      <header><span class="id">${t.id}</span><h2>${esc(t.title)}</h2>
+        <div class="status" role="group" aria-label="Result for ${t.id}">${['Pass','Issue','Skipped'].map(x=>`<button type="button" data-status="${x}" data-t="${t.id}" style="--c:${COLORS[x]}" aria-pressed="${s.status===x}">${x}</button>`).join('')}</div></header>
+      <p class="why">${esc(t.why)}</p>
+      <ol class="steps">${t.steps.map(x=>`<li>${esc(x)}</li>`).join('')}</ol>
+      <div class="fields">${fields}<label class="wide" for="${t.id}-notes">Notes${'<textarea id="'+t.id+'-notes" data-t="'+t.id+'" data-k="notes" placeholder="What you saw, especially anything unexpected">'+esc(s.notes||'')+'</textarea>'}</label></div>
+      <div class="expect"><div><b>Expected:</b> ${esc(t.expect)}</div><div class="muted"><b>If not:</b> ${esc(t.react)}</div></div>
+    </article>`}).join('');
+  document.getElementById('general').value=state.general||'';
+  update();
+}
+function update(){
+  const c={Pass:0,Issue:0,Skipped:0};TESTS.forEach(t=>{const st=(state[t.id]||{}).status;if(st)c[st]++});
+  const open=TESTS.length-c.Pass-c.Issue-c.Skipped;
+  document.getElementById('tally').innerHTML=`<span style="--c:var(--pass)">${c.Pass} pass</span><span style="--c:var(--issue)">${c.Issue} issue</span><span style="--c:var(--skip)">${c.Skipped} skipped</span><span style="--c:var(--line)">${open} to do</span>`;
+  document.getElementById('output').value=report();
+}
+function report(){
+  const lines=['PhotoSelect 1.0.1 field test results',''];
+  TESTS.forEach(t=>{const s=state[t.id]||{};lines.push(`${t.id} ${t.title}: ${s.status||'not done'}`);
+    t.fields.forEach(([k,label])=>{if(s[k])lines.push(`  ${label}: ${s[k]}`)});
+    if(s.notes)lines.push(`  Notes: ${s.notes.replace(/\n/g,' / ')}`);lines.push('')});
+  if(state.general)lines.push('General: '+state.general.replace(/\n/g,' / '));
+  lines.push('Diagnostic reports: attach or paste the PhotoSelect-diagnostics-*.txt files.');
+  return lines.join('\n');
+}
+document.addEventListener('input',e=>{const el=e.target;
+  if(el.id==='general'){state.general=el.value}else if(el.dataset.t){(state[el.dataset.t]??={})[el.dataset.k]=el.value}else return;
+  save();document.getElementById('output').value=report()});
+document.addEventListener('click',e=>{const b=e.target.closest('[data-status]');if(!b)return;
+  const s=(state[b.dataset.t]??={});s.status=s.status===b.dataset.status?undefined:b.dataset.status;save();
+  const card=document.getElementById(b.dataset.t);card.style.setProperty('--state',COLORS[s.status]||'var(--line)');
+  card.querySelectorAll('[data-status]').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.status===s.status)));update()});
+document.getElementById('jump').onclick=()=>document.getElementById('results').scrollIntoView({behavior:'smooth'});
+document.getElementById('copy').onclick=async()=>{const out=document.getElementById('output'),msg=document.getElementById('copied');
+  try{await navigator.clipboard.writeText(out.value);msg.textContent='Copied. Paste it into the chat.'}
+  catch(e){out.focus();out.select();msg.textContent='Copy was blocked. The text is selected: press ⌘C.'}};
+function askReset(){const row=document.getElementById('resetRow');
+  row.innerHTML='<span>Clear every answer on this page?</span><button type="button" id="yes">Clear answers</button><button type="button" id="no">Keep them</button>';
+  row.querySelector('#yes').onclick=()=>{state={};save();render();restoreReset()};
+  row.querySelector('#no').onclick=restoreReset}
+function restoreReset(){const row=document.getElementById('resetRow');row.innerHTML='<button id="reset" type="button">Clear all answers</button>';document.getElementById('reset').onclick=askReset}
+restoreReset();
+render();
+</script>

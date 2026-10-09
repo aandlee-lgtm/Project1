@@ -8,6 +8,9 @@ nothing is deleted, renamed, moved, uploaded, or written to your photo folders.
 
 * **Install:** see [INSTALL.md](INSTALL.md) (drag from the DMG to Applications).
 * **What was tested, and what wasn't:** [VALIDATION_REPORT.md](VALIDATION_REPORT.md).
+* **Testing on your own Mac:** open [docs/field-tests.html](docs/field-tests.html) in a browser and use
+  **Help → Create Diagnostic Report…** in the app. The report has timings, decode results, bursts and
+  errors, with no image data and no full paths.
 
 ## Using it
 
