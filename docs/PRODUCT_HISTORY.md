@@ -355,6 +355,8 @@ Built when the owner sent **build_new** after items 13 and 14 were discussed (be
 18. **Review passes in Lightroom.** The plug-in creates Smart Collections for the owner's passes: 1 Rescue
     (1★), 2 Confirm (3★), 3 Decide (2★) and Liked (5★). Photos close to a threshold get a Borderline
     keyword. Nothing is added to PhotoSelect, and all groups are sent once.
+19. **Title bar label.** The owner likes the version shown at the top of the app, but asked to remove
+    "LOCAL PROCESSING" and "ORIGINALS UNTOUCHED" there. Those facts stay in Help → About and the docs.
 
 ---
 
