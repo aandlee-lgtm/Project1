@@ -20,7 +20,7 @@ import raw_io
 import store as store_module
 from engine import Library
 
-APP_VERSION = '1.1.0'
+APP_VERSION = '1.2.0'
 log = logging.getLogger('photoselect.app')
 
 
@@ -203,9 +203,10 @@ def create_app(library=None, store=None, token=None):
         row = row_or_404(data.get('id'))
         fields = {}
         if 'decision' in data:
-            if data['decision'] not in (None, 'Keep', 'Consider', 'Skip'):
+            decision = 'Drop' if data['decision'] == 'Skip' else data['decision']   # 'Skip' was renamed 'Drop' in 1.2
+            if decision not in (None, 'Keep', 'Consider', 'Drop'):
                 return jsonify(error='Unknown decision.'), 400
-            fields['decision'] = data['decision']
+            fields['decision'] = decision
         if 'liked' in data:
             fields['liked'] = bool(data['liked'])
         store.set_mark(row['path'], **fields)

@@ -71,7 +71,7 @@ lowers the correlation without indicating a decoding error.
   one screen pixel on a 2× display. PASS
 
 **Workflow (UI driven in WebKit against the packaged app's own server)**
-- Weight sliders re-rank immediately. Thresholds change the Keep/Consider/Skip counts. PASS
+- Weight sliders re-rank immediately. Thresholds change the Keep/Consider/Drop (then called Skip) counts. PASS
 - Manual Keep + Like applied. After quitting and relaunching: decisions, likes, weights,
   thresholds and the drawn focus region are all restored, and the region is re-applied
   without a re-decode. PASS

@@ -3,7 +3,7 @@
 PhotoSelect helps you cull bursts of sailing and sports photos. Point it at a folder of Nikon
 (NEF/NRW), Olympus / OM System (ORF), other RAW, JPEG, PNG or TIFF files. It decodes each photo
 on your Mac, groups bursts, ranks frames with transparent scores you can weight, and lets you
-mark Keep / Consider / Skip and likes, then export a CSV. Originals are only ever read:
+mark Keep / Consider / Drop and likes, then export a CSV. Originals are only ever read:
 nothing is deleted, renamed, moved, uploaded, or written to your photo folders.
 
 * **Install:** see [INSTALL.md](INSTALL.md) (drag from the DMG to Applications).
@@ -28,7 +28,7 @@ nothing is deleted, renamed, moved, uploaded, or written to your photo folders.
    (one image pixel per screen pixel) or 200%. Click to zoom to a point.
 6. **Compare this burst** ranks the burst side by side. Tick *100% crops of the focus region* to
    compare critical focus. **Compare liked photos** does the same for your shortlist.
-7. Mark Keep / Consider / Skip or ♥ Like (keys in the viewer: ← → K C S L F).
+7. Mark Keep / Consider / Drop or ♥ Like (keys in the viewer: ← → K C D L F). Click the Keep, Consider or Drop tile above the grid to show only that group; click it again (or Photos analysed) to show all.
    **Export decisions** saves a CSV with paths, scores, decisions, reasons and burst results.
 
 Decisions, likes, focus regions, preferences and analysis results are saved automatically:
@@ -56,7 +56,7 @@ probabilities or absolute quality. Even a folder of soft photos has a top frame.
 Each photo lists the **reasons** behind its suggestion: threshold comparison, weighted
 contributions, where focus was measured, clipping, a *high noise* warning when the frame is
 among the noisiest in the folder, and its rank and gap within its burst. A frame is **never
-marked Skip just for not winning its burst**. Frames within 3 points of the burst's top frame
+marked Drop just for not winning its burst**. Frames within 3 points of the burst's top frame
 are flagged *close to burst top · compare*.
 
 **Not implemented:** eye or face detection, subject recognition, motion-blur detection, artistic

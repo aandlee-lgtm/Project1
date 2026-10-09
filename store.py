@@ -78,6 +78,8 @@ class Store:
                 roi TEXT, roi_key TEXT, roi_focus REAL, updated REAL);
             CREATE TABLE IF NOT EXISTS prefs(key TEXT PRIMARY KEY, value TEXT);
         ''')
+        # 1.2: the Skip bucket was renamed Drop; carry over decisions saved by earlier versions.
+        self.db.execute("UPDATE marks SET decision='Drop' WHERE decision='Skip'")
 
     def close(self):
         with self.lock:

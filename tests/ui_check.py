@@ -72,11 +72,29 @@ def main():
         if shots:
             page.screenshot(path=str(shots / 'grid.png'))
 
+        # Summary tiles act as filters: each shows exactly its bucket in the grid.
+        tile_ok = []
+        for bucket, count_id in (('Keep', 'kept'), ('Consider', 'considered'), ('Drop', 'dropped')):
+            page.click(f'[data-bucket="{bucket}"]')
+            page.wait_for_timeout(300)
+            shown = page.eval_on_selector_all('.card .pill', 'els => els.map(e => e.textContent.split(" ")[0])')
+            expected = int(page.text_content(f'#{count_id}'))
+            tile_ok.append((bucket, expected, len(shown), set(shown) <= {bucket},
+                            page.get_attribute(f'[data-bucket="{bucket}"]', 'aria-pressed') == 'true'))
+        page.click('[data-bucket="Drop"]')
+        page.wait_for_timeout(300)
+        if shots:
+            page.screenshot(path=str(shots / 'drop-filter.png'))
+        page.click('[data-bucket="all"]')
+        page.wait_for_timeout(300)
+        check('summary tiles filter the grid to Keep / Consider / Drop',
+              all(e == n and same and pressed for _, e, n, same, pressed in tile_ok)
+              and page.locator('.card').count() == min(n, 120), tile_ok)
         def order():
             return page.eval_on_selector_all('.card .filename', 'els => els.map(e => e.textContent)')
 
         def counts():
-            return [page.text_content(f'#{i}') for i in ('kept', 'considered', 'skipped')]
+            return [page.text_content(f'#{i}') for i in ('kept', 'considered', 'dropped')]
 
         if a.expect_persisted:
             check('weights and thresholds restored after relaunch',
@@ -102,7 +120,7 @@ def main():
         page.dispatch_event('#keep', 'input')
         page.fill('#consider', '10')
         page.dispatch_event('#consider', 'input')
-        check('thresholds change Keep/Consider/Skip counts', counts() != base_counts or n < 2, f'{base_counts} -> {counts()}')
+        check('thresholds change Keep/Consider/Drop counts', counts() != base_counts or n < 2, f'{base_counts} -> {counts()}')
 
         first = page.locator('.card').first
         name = first.locator('.filename').text_content()

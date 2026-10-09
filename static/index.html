@@ -1,5 +1,5 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PhotoSelect</title><link rel="icon" href="data:,"><style>
-:root{--bg:#111518;--panel:#1a2024;--line:#30383d;--muted:#9eabb4;--text:#edf2f5;--mint:#ade1c5;--amber:#e8c786;--rose:#e4a5a5}
+:root{--bg:#111518;--panel:#1a2024;--line:#30383d;--muted:#9eabb4;--text:#edf2f5;--mint:#ade1c5;--amber:#e8c786;--rose:#e4a5a5;--orange:#f59a4a;--orange-bg:#4a2c16}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px -apple-system,system-ui,sans-serif}
 button,input,select{font:inherit}button,select,input[type=text],input[type=number]{background:#232c32;color:var(--text);border:1px solid var(--line);border-radius:7px;padding:9px 10px}
 button{cursor:pointer}button:hover{border-color:var(--mint)}button.primary{background:var(--mint);color:#153325;font-weight:700}button:disabled{opacity:.4;cursor:default}
@@ -11,7 +11,9 @@ h1{font-size:24px;letter-spacing:-.6px;margin:0 0 8px}h2{font-size:14px;margin:2
 .weight input{width:100%;accent-color:var(--mint);margin:10px 0 0}.weight small{color:var(--muted);font-size:11px}
 .workspace{padding:24px;min-width:0}.import{display:flex;gap:8px;margin:18px 0 10px}.import input{flex:1;min-width:100px}
 .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:20px 0 14px}.toolbar .spacer{flex:1}
-.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:20px}.stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:20px}.stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;text-align:left;font:inherit;color:var(--text);cursor:pointer;width:100%}
+.stat:hover{border-color:var(--muted)}.stat[aria-pressed="true"]{border-color:var(--c,var(--mint));box-shadow:inset 0 0 0 1px var(--c,var(--mint))}.stat small{display:block;color:var(--muted);font-size:11px;margin-top:4px}
+.actions button.active[data-value="Drop"],.detailtools button.active[data-vdec="Drop"]{border-color:var(--orange);color:var(--orange)}
 .stat strong{font-size:24px;display:block;margin-bottom:4px}.stat span{color:var(--muted)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
 .photo{height:190px;background:#090c0e;position:relative;cursor:pointer}.photo img{width:100%;height:100%;object-fit:contain}
@@ -19,7 +21,7 @@ h1{font-size:24px;letter-spacing:-.6px;margin:0 0 8px}h2{font-size:14px;margin:2
 .badge.warn{border-color:#6b5a33;color:var(--amber)}.badge.dim{border-color:var(--line);color:var(--muted)}
 .cardbody{padding:13px}.filename{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}.score{font-size:26px;font-weight:650}
 .topline{display:flex;justify-content:space-between;align-items:center;margin:8px 0}.pill{padding:5px 8px;border-radius:5px;font-size:11px;background:#25372e;color:var(--mint)}
-.Consider{background:#493c24;color:var(--amber)}.Skip{background:#3b292b;color:var(--rose)}.Pending{background:#262d32;color:var(--muted)}
+.Consider{background:#493c24;color:var(--amber)}.Drop{background:var(--orange-bg);color:var(--orange)}.Pending{background:#262d32;color:var(--muted)}
 .bars{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:11px;color:var(--muted)}.bar{height:3px;background:#384249;margin-top:4px}.bar i{display:block;height:100%;background:#95bba8}
 .why{font-size:11px;color:var(--muted);margin-top:10px;line-height:1.45;min-height:16px}
 .actions{display:flex;gap:5px;margin-top:12px}.actions button{padding:6px 7px;font-size:11px;flex:1}.actions button.active,.detailtools button.active{border-color:var(--mint);color:var(--mint)}
@@ -45,7 +47,7 @@ a{color:var(--mint)}kbd{border:1px solid var(--line);border-radius:4px;padding:0
 <div class="section"><h2>Recommendation thresholds</h2>
 <label class="weight"><span class="row">Keep from <output id="keepValue">75</output></span><input id="keep" type="range" min="50" max="95" value="75"></label>
 <label class="weight"><span class="row">Consider from <output id="considerValue">45</output></span><input id="consider" type="range" min="10" max="49" value="45"></label>
-<p class="hint">Suggestions only. Nothing is deleted or moved, and a frame is never marked Skip just because another frame in its burst scored higher.</p></div>
+<p class="hint">Suggestions only. Nothing is deleted or moved, and a frame is never marked Drop just because another frame in its burst scored higher.</p></div>
 <div class="section"><h2>Burst matching</h2>
 <label class="hint">Maximum frame gap (seconds)<br><input id="gap" type="number" min="0.1" max="10" step="0.1" value="2" style="width:100%;margin-top:8px"></label>
 <label class="weight"><span class="row">Similarity tolerance <output id="similarityValue">14</output></span><input id="similarity" type="range" min="0" max="32" value="14"></label>
@@ -63,9 +65,9 @@ a{color:var(--mint)}kbd{border:1px solid var(--line);border-radius:4px;padding:0
 <div class="import"><input id="folder" type="text" placeholder="Full folder path, e.g. /Volumes/Card/DCIM/100NIKON" aria-label="Photo folder path"><button id="browse">Choose folder</button><button id="scan" class="primary">Analyse photos</button><button id="cancel" hidden>Cancel</button></div>
 <label class="hint"><input id="recursive" type="checkbox"> Include subfolders</label><span class="hint"> · Nikon NEF / NRW · Olympus &amp; OM System ORF · other RAW · JPEG / PNG / TIFF</span>
 <div id="status">Ready when you are. Start with one small shoot to tune your preferences.</div><div class="progress"><i id="progress"></i></div><div id="error" role="alert"></div><div id="notice" class="hint" role="status"></div>
-<div class="summary"><div class="stat"><strong id="total">0</strong><span>Photos analysed</span></div><div class="stat"><strong id="kept" style="color:var(--mint)">0</strong><span>Keep</span></div><div class="stat"><strong id="considered" style="color:var(--amber)">0</strong><span>Consider</span></div><div class="stat"><strong id="skipped">0</strong><span>Skip suggestion</span></div></div>
+<div class="summary" role="group" aria-label="Show photos by recommendation"><button type="button" class="stat" data-bucket="all" style="--c:var(--mint)" aria-pressed="true"><strong id="total">0</strong><span>Photos analysed</span><small>Show all</small></button><button type="button" class="stat" data-bucket="Keep" style="--c:var(--mint)" aria-pressed="false"><strong id="kept" style="color:var(--mint)">0</strong><span>Keep</span><small>Show only Keep</small></button><button type="button" class="stat" data-bucket="Consider" style="--c:var(--amber)" aria-pressed="false"><strong id="considered" style="color:var(--amber)">0</strong><span>Consider</span><small>Show only Consider</small></button><button type="button" class="stat" data-bucket="Drop" style="--c:var(--orange)" aria-pressed="false"><strong id="dropped" style="color:var(--orange)">0</strong><span>Drop</span><small>Show only Drop</small></button></div>
 <div class="toolbar">
-<select id="filter" aria-label="Filter photos"><option value="all">All photos</option><option>Keep</option><option>Consider</option><option>Skip</option><option value="liked">Liked photos</option><option value="manual">Decided manually</option><option value="close">Close burst contenders</option><option value="pending">Not yet analysed</option></select>
+<select id="filter" aria-label="Filter photos"><option value="all">All photos</option><option>Keep</option><option>Consider</option><option>Drop</option><option value="liked">Liked photos</option><option value="manual">Decided manually</option><option value="close">Close burst contenders</option><option value="pending">Not yet analysed</option></select>
 <select id="formatFilter" aria-label="Filter camera formats"><option value="all">All file formats</option><option value="nikon">Nikon NEF / NRW</option><option value="olympus">Olympus / OM System ORF</option><option value="raw">All RAW files</option><option value="other">JPEG / PNG / TIFF</option></select>
 <select id="sort" aria-label="Sort photos"><option value="score">Best score first</option><option value="name">Filename</option><option value="group">Burst order</option><option value="time">Capture time</option></select>
 <label class="hint"><input id="winners" type="checkbox"> Burst winners only</label><span class="spacer"></span>
@@ -76,9 +78,9 @@ a{color:var(--mint)}kbd{border:1px solid var(--line);border-radius:4px;padding:0
 </section></main>
 
 <dialog id="viewer"><div class="dialoghead"><div><strong id="viewTitle"></strong><div id="viewScores" class="hint"></div></div><button data-close="viewer">Close</button></div>
-<p class="hint">Drag a rectangle over the sailors, boat or other subject to measure focus there (measured on the full-resolution decode). Keys: <kbd>←</kbd><kbd>→</kbd> move · <kbd>K</kbd> keep · <kbd>C</kbd> consider · <kbd>S</kbd> skip · <kbd>L</kbd> like · <kbd>F</kbd> full resolution.</p>
+<p class="hint">Drag a rectangle over the sailors, boat or other subject to measure focus there (measured on the full-resolution decode). Keys: <kbd>←</kbd><kbd>→</kbd> move · <kbd>K</kbd> keep · <kbd>C</kbd> consider · <kbd>D</kbd> drop · <kbd>L</kbd> like · <kbd>F</kbd> full resolution.</p>
 <div class="stage" id="stage"><img id="viewImage" draggable="false" alt="Selected photo"><div id="region" class="region" hidden></div></div>
-<div class="detailtools"><button id="vLike">♡ Like</button><button data-vdec="Keep">Keep</button><button data-vdec="Consider">Consider</button><button data-vdec="Skip">Skip</button><button id="vAuto" title="Clear manual decision">↺ Auto</button>
+<div class="detailtools"><button id="vLike">♡ Like</button><button data-vdec="Keep">Keep</button><button data-vdec="Consider">Consider</button><button data-vdec="Drop">Drop</button><button id="vAuto" title="Clear manual decision">↺ Auto</button>
 <span style="flex:1"></span><button id="resetROI">Reset focus region</button><button id="full" class="primary">Inspect full resolution</button><button id="burstCompare">Compare this burst</button><button id="reveal" hidden>Show in Finder</button><button id="prev">←</button><button id="next">→</button></div>
 <ul id="reasons" class="reasons hint"></ul><p id="viewMessage" class="hint"></p></dialog>
 
@@ -110,7 +112,7 @@ function showError(e){$('error').textContent=e?(e.message||String(e)):''}
 // ---------- scoring (client side so sliders respond instantly) ----------
 function weightSum(){return KEYS.reduce((a,k)=>a+(+prefs.weights[k]||0),0)}
 function score(r){if(r.status!=='analysed')return null;const s=weightSum();return s?KEYS.reduce((a,k)=>a+prefs.weights[k]*(r.scores[k]||0),0)/s:0}
-function autoDecision(r){const s=score(r);if(s===null)return 'Pending';return s>=+prefs.keep?'Keep':s>=+prefs.consider?'Consider':'Skip'}
+function autoDecision(r){const s=score(r);if(s===null)return 'Pending';return s>=+prefs.keep?'Keep':s>=+prefs.consider?'Consider':'Drop'}
 function decision(r){return r.decision||autoDecision(r)}
 function derive(){const groups=new Map();for(const r of rows){if(r.status!=='analysed')continue;if(!groups.has(r.group))groups.set(r.group,[]);groups.get(r.group).push(r)}
   const info=new Map();for(const [g,list] of groups){list.sort((a,b)=>score(b)-score(a));const top=score(list[0]);
@@ -146,13 +148,14 @@ async function mark(r,fields){Object.assign(r,fields);render();if(current&&curre
 // ---------- grid ----------
 function matches(r){const f=$('filter').value,ff=$('formatFilter').value;
   if(f==='liked'&&!r.liked)return false;if(f==='manual'&&!r.decision)return false;if(f==='close'&&!isClose(r))return false;if(f==='pending'&&r.status==='analysed')return false;
-  if(['Keep','Consider','Skip'].includes(f)&&decision(r)!==f)return false;
+  if(['Keep','Consider','Drop'].includes(f)&&decision(r)!==f)return false;
   if(ff==='nikon'&&!/^Nikon /.test(r.format))return false;if(ff==='olympus'&&!/^Olympus/.test(r.format))return false;if(ff==='raw'&&!r.is_raw)return false;if(ff==='other'&&r.is_raw)return false;
   if($('winners').checked&&!isWinner(r))return false;return true}
 function sourceLabel(r){if(r.status==='preview')return 'embedded camera preview · analysis pending';if(r.status!=='analysed')return 'waiting';const c=r.source==='cache'?' (cached result)':'';if(r.basis==='camera_preview')return 'CAMERA PREVIEW · RAW pixels not decodable'+c;return r.is_raw?'RAW decoded'+c:'decoded'+c}
 function pager(pages){if(pages<=1)return '';return `<button data-page="${page-1}" ${page<=0?'disabled':''}>← Previous</button><span class="hint">Page ${page+1} of ${pages} · ${visible.length} photos</span><button data-page="${page+1}" ${page>=pages-1?'disabled':''}>Next →</button>`}
 function render(){derive();const analysed=rows.filter(r=>r.status==='analysed');$('total').textContent=analysed.length;
-  for(const [id,v] of [['kept','Keep'],['considered','Consider'],['skipped','Skip']])$(id).textContent=analysed.filter(r=>decision(r)===v).length;
+  for(const [id,v] of [['kept','Keep'],['considered','Consider'],['dropped','Drop']])$(id).textContent=analysed.filter(r=>decision(r)===v).length;
+  document.querySelectorAll('[data-bucket]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.bucket===$('filter').value)));
   visible=rows.filter(matches);const sort=$('sort').value,sc=r=>score(r)??-1;
   visible.sort((a,b)=>sort==='score'?sc(b)-sc(a)||a.name.localeCompare(b.name):sort==='group'?a.group-b.group||sc(b)-sc(a):sort==='time'?(a.timestamp??1e18)-(b.timestamp??1e18)||a.name.localeCompare(b.name):a.name.localeCompare(b.name));
   const size=+prefs.page_size||120,pages=Math.max(1,Math.ceil(visible.length/size));page=Math.min(page,pages-1);
@@ -164,7 +167,7 @@ function render(){derive();const analysed=rows.filter(r=>r.status==='analysed');
 <div class="topline"><span class="score">${s===null?'—':s.toFixed(0)}<small style="font-size:12px;color:var(--muted)"> / 100</small></span><span class="pill ${d}">${d}${r.decision?' · manual':''}</span></div>
 <div class="bars">${KEYS.map(k=>`<div>${k==='focus'&&r.roi?'Region focus':LABEL[k]} ${r.scores[k]??'—'}<div class="bar"><i style="width:${r.scores[k]||0}%"></i></div></div>`).join('')}</div>
 <div class="why">${esc(r.basis==='camera_preview'?'Scored from the embedded camera JPEG (camera sharpening and noise reduction included), not the RAW pixels.':why.length>1&&r.status==='analysed'?why[0]+' '+(why.find(w=>/burst/.test(w))||''):why[0])}</div>
-<div class="actions"><button data-like="${r.id}" class="${r.liked?'active':''}">${r.liked?'♥ Liked':'♡ Like'}</button>${['Keep','Consider','Skip'].map(v=>`<button data-decision="${r.id}" data-value="${v}" class="${r.decision===v?'active':''}">${v}</button>`).join('')}<button data-auto="${r.id}" title="Clear manual decision">↺</button></div></div></article>`}).join('')}
+<div class="actions"><button data-like="${r.id}" class="${r.liked?'active':''}">${r.liked?'♥ Liked':'♡ Like'}</button>${['Keep','Consider','Drop'].map(v=>`<button data-decision="${r.id}" data-value="${v}" class="${r.decision===v?'active':''}">${v}</button>`).join('')}<button data-auto="${r.id}" title="Clear manual decision">↺</button></div></div></article>`}).join('')}
 document.addEventListener('click',e=>{const t=e.target.closest('button,[data-open]');if(!t)return;
   if(t.dataset.page!==undefined){page=+t.dataset.page;render();window.scrollTo(0,0)}
   else if(t.dataset.open)openViewer(t.dataset.open);
@@ -199,6 +202,7 @@ $('scan').onclick=async()=>{try{showError();$('notice').textContent='';prefs.rec
 $('cancel').onclick=()=>api('cancel',{}).catch(showError);
 for(const id of ['keep','consider'])$(id).oninput=()=>{prefs[id]=+$(id).value;$(id+'Value').textContent=$(id).value;savePrefs();render()};
 for(const id of ['filter','formatFilter','sort','winners'])$(id).onchange=()=>{page=0;render()};
+document.querySelectorAll('[data-bucket]').forEach(b=>b.onclick=()=>{const f=$('filter');f.value=b.dataset.bucket!=='all'&&f.value===b.dataset.bucket?'all':b.dataset.bucket;page=0;render();$('grid').scrollIntoView({behavior:'smooth',block:'start'})});
 $('similarity').oninput=()=>$('similarityValue').textContent=$('similarity').value;
 $('regroup').onclick=async()=>{try{prefs.gap=+$('gap').value;prefs.similarity=+$('similarity').value;await api('groups',{gap:prefs.gap,similarity:prefs.similarity});await loadRows()}catch(e){showError(e)}};
 
@@ -226,7 +230,7 @@ $('reveal').onclick=()=>api('reveal',{id:current.id}).catch(e=>$('viewMessage').
 for(const [id,delta] of [['prev',-1],['next',1]])$(id).onclick=()=>step(delta);
 function step(delta){const i=visible.findIndex(r=>r.id===current.id);if(visible.length)openViewer(visible[(i+delta+visible.length)%visible.length].id)}
 $('viewer').addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;const k=e.key.toLowerCase();
-  if(k==='arrowleft')step(-1);else if(k==='arrowright')step(1);else if(k==='k')mark(current,{decision:'Keep'});else if(k==='c')mark(current,{decision:'Consider'});else if(k==='s')mark(current,{decision:'Skip'});else if(k==='l')mark(current,{liked:!current.liked});else if(k==='f')$('full').click();else return;e.preventDefault()});
+  if(k==='arrowleft')step(-1);else if(k==='arrowright')step(1);else if(k==='k')mark(current,{decision:'Keep'});else if(k==='c')mark(current,{decision:'Consider'});else if(k==='d'||k==='s')mark(current,{decision:'Drop'});else if(k==='l')mark(current,{liked:!current.liked});else if(k==='f')$('full').click();else return;e.preventDefault()});
 
 // ---------- full-resolution inspector ----------
 let zoom='fit';
@@ -250,7 +254,7 @@ function renderCompare(){const crops=$('cropMode').checked,ref=current,dpr=windo
   $('compare').innerHTML=compareList.map((r,i)=>{const s=score(r),gap=top-s;return `<div class="comparephoto ${i===0?'top':''}"><strong>#${i+1} · ${s===null?'—':s.toFixed(1)}/100</strong> <span class="hint">${i===0?'top of this set':gap<=CLOSE?gap.toFixed(1)+' behind · close':gap.toFixed(1)+' behind'}</span>
 ${crops?`<div class="cropbox"><img data-crop="${r.id}" src="${img('crop',r,'&roi='+cropRegion(r,ref).join(','))}" alt="100% crop of ${esc(r.name)}"></div>`:`<img class="fit" src="${img('preview',r)}" alt="${esc(r.name)}">`}
 <div class="filename" title="${esc(r.path)}">${esc(r.name)}</div><p class="hint">${r.basis==='camera_preview'?'<b>Camera preview</b> · ':''}${KEYS.map(k=>LABEL[k]+' '+(r.scores[k]??'—')).join(' · ')}<br>${esc(decision(r))}${r.decision?' (manual)':''}</p>
-<div class="actions"><button data-like="${r.id}" class="${r.liked?'active':''}">${r.liked?'♥':'♡'}</button>${['Keep','Consider','Skip'].map(v=>`<button data-decision="${r.id}" data-value="${v}" class="${r.decision===v?'active':''}">${v}</button>`).join('')}<button data-inspect="${r.id}">Inspect</button></div></div>`}).join('');
+<div class="actions"><button data-like="${r.id}" class="${r.liked?'active':''}">${r.liked?'♥':'♡'}</button>${['Keep','Consider','Drop'].map(v=>`<button data-decision="${r.id}" data-value="${v}" class="${r.decision===v?'active':''}">${v}</button>`).join('')}<button data-inspect="${r.id}">Inspect</button></div></div>`}).join('');
   document.querySelectorAll('[data-crop]').forEach(el=>el.onload=()=>{el.style.width=el.naturalWidth/dpr+'px'});
   document.querySelectorAll('[data-inspect]').forEach(el=>el.onclick=()=>{$('comparison').close();openViewer(el.dataset.inspect)})}
 function compare(list,title){list=list.filter(r=>r.status==='analysed');if(!list.length){showError('Like a few analysed photos first.');return}compareList=list;compareTitle=title;renderCompare();if(!$('comparison').open)$('comparison').showModal()}
