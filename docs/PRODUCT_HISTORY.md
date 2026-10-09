@@ -215,6 +215,11 @@ and discussed first, then shipped together. Each item says what was decided and,
         `PhotoSelect.lrplugin` folder.
       - Then restart Lightroom, import, and run Library → Plug-in Extras → Apply PhotoSelect Selections….
     - Planned (backlog 10): a confirmation dialog with plug-in status, an Install button and the next steps.
+    - The owner could not find `PhotoSelect.lrplugin` on their Mac. ~/Library is hidden in Finder, and
+      the folder may not exist if Help → Install Lightroom Plug-in… was never run. They were sent the
+      plug-in as `PhotoSelect-Lightroom-plugin.zip` (identical to the one in 1.3.0) to unzip and add
+      through Lightroom's Plug-in Manager. Backlog 10 now also covers a release .zip and a Show in
+      Finder action.
 
 ---
 
