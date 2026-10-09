@@ -221,6 +221,15 @@ and discussed first, then shipped together. Each item says what was decided and,
       through Lightroom's Plug-in Manager. Backlog 10 now also covers a release .zip and a Show in
       Finder action.
 
+11. **First real Lightroom run: "0 of 1 photos match … (27 photos available)".** The owner asked whether
+    something must be done in PhotoSelect first.
+    - Explained: no. Send to Lightroom had worked, because the plug-in found 27 photos' selections. But
+      Lightroom passed the command only one photo, the one selected in the grid, and its name and capture
+      time did not match any of the 27. The next step is to select all imported photos (⌘A) and run it
+      again. If they still don't match, check whether the import renamed the files or used Copy as DNG.
+    - Planned (backlog 11): explain the selection in the summary, list unmatched names, match DNG copies,
+      and tolerate time-zone offsets.
+
 ---
 
 ## 2. Definitions (draft glossary for the user instructions)
