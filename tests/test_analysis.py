@@ -71,9 +71,29 @@ class AnalysisTests(unittest.TestCase):
         self.assertEqual(rows[0]['group'], rows[1]['group'])
         self.assertNotEqual(rows[1]['group'], rows[2]['group'])
         self.assertNotEqual(rows[2]['group'], rows[3]['group'])
-        rows[1]['raw'] = {**raw, 'hash': [1 - v for v in raw['hash']]}
+        rows[1]['raw'] = {**raw, 'look': [0.05] * 96 + [0.95] * 96}   # dark top, bright bottom
         group_bursts(rows)
         self.assertNotEqual(rows[0]['group'], rows[1]['group'])
+
+    def test_low_contrast_burst_frames_group_together(self):
+        # Near-identical frames of fine texture (like water) must not be split by noise.
+        rng = np.random.default_rng(3)
+        y, x = np.mgrid[:1000, :1500]
+        base = ((x // 15 + y // 15) % 2 * 140 + 50).astype(np.float32)
+        rows = []
+        for k, blur in enumerate([0, 0, 3, 1]):
+            im = Image.fromarray((base + rng.normal(0, 3, base.shape)).clip(0, 255).astype('uint8')).convert('RGB')
+            if blur:
+                im = im.filter(ImageFilter.GaussianBlur(blur))
+            rows.append({'name': str(k), 'timestamp': 100 + k * .1, 'raw': metrics(im)})
+        group_bursts(rows)
+        self.assertEqual(len({r['group'] for r in rows}), 1)
+        # a genuinely different scene 0.1 s later starts a new group
+        other = np.full((1000, 1500), 230, np.uint8)
+        other[:, :500] = 20                         # different composition: dark third on the left
+        rows.append({'name': 'x', 'timestamp': 100.5, 'raw': metrics(Image.fromarray(other).convert('RGB'))})
+        group_bursts(rows)
+        self.assertNotEqual(rows[-1]['group'], rows[0]['group'])
 
     def test_valid_region(self):
         self.assertTrue(analysis.valid_region([0, 0, .5, .5]))

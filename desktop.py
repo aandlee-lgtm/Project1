@@ -9,6 +9,7 @@ import json
 import logging
 import logging.handlers
 import os
+import signal
 import subprocess
 import sys
 import threading
@@ -123,6 +124,21 @@ def main():
             with open(os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), 'w') as f:
                 json.dump(info, f)
             os.replace(tmp, automation)
+
+    # SIGTERM (logout, `kill`, process managers) closes the window, which runs the normal
+    # shutdown below. A dedicated thread waits for the signal because the main thread is inside
+    # the Cocoa run loop, where Python signal handlers would not run promptly.
+    signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGTERM})
+
+    def on_sigterm():
+        signal.sigwait({signal.SIGTERM})
+        log.info('SIGTERM received; closing')
+        try:
+            window.destroy()
+        except Exception:
+            pass
+        threading.Timer(10, lambda: (library.shutdown(), os._exit(0))).start()
+    threading.Thread(target=on_sigterm, name='sigterm', daemon=True).start()
 
     try:
         webview.start(ready, menu=menu, private_mode=True)

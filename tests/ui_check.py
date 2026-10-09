@@ -52,10 +52,10 @@ def main():
         page.fill('#folder', a.folder)
         if a.recursive:
             page.check('#recursive')
-        before = page.evaluate('status.started || 0')
+        before = page.evaluate('scan.started || 0')
         page.click('#scan')
         t0 = time.time()
-        page.wait_for_function(f"status.phase==='complete' && status.started > {before} && rowsVersion===status.version",
+        page.wait_for_function(f"scan.phase==='complete' && scan.started > {before} && rowsVersion===scan.version",
                                timeout=1_800_000)
         page.wait_for_timeout(500)
         n = int(page.text_content('#total'))

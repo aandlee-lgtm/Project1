@@ -50,7 +50,7 @@ a{color:var(--mint)}kbd{border:1px solid var(--line);border-radius:4px;padding:0
 <label class="hint">Maximum frame gap (seconds)<br><input id="gap" type="number" min="0.1" max="10" step="0.1" value="2" style="width:100%;margin-top:8px"></label>
 <label class="weight"><span class="row">Similarity tolerance <output id="similarityValue">14</output></span><input id="similarity" type="range" min="0" max="32" value="14"></label>
 <button id="regroup">Regroup bursts</button>
-<p class="hint">Uses capture time (with sub-seconds when the camera records them) plus a small image fingerprint and average colour. Frames without capture times stay ungrouped.</p></div>
+<p class="hint">Groups consecutive frames by capture time (with sub-seconds when the camera records them), a small grey-level thumbnail and average colour; each frame is compared with the previous one, so panning sequences stay together. Frames without capture times stay ungrouped.</p></div>
 <div class="section"><h2>Understand the scores</h2>
 <p class="hint"><b>Scores are relative to this folder</b>, not probabilities or absolute quality: even a folder of soft photos has a top frame.</p>
 <p class="hint"><b>Sharpness</b>: edge detail across the frame. <b>Subject focus</b>: edge detail in the central region, or the region you draw, measured on the full-resolution RAW decode. Noise, waves, foliage and a sharp background can inflate both; a noise warning appears when this folder's noise estimate is high.</p>
@@ -98,7 +98,7 @@ const LABEL={sharpness:'Sharpness',focus:'Subject focus',composition:'Compositio
 const DESCRIPTION={sharpness:'Edge detail across the frame',focus:'Edge detail in the subject region',composition:'Placement and border-clutter cues',exposure:'Clipped shadows and highlights'};
 const CLOSE=3, DEFAULT_CROP=[0.375,0.375,0.25,0.25];
 let rows=[],errors=[],byId=new Map(),prefs={weights:{sharpness:30,focus:50,composition:15,exposure:5},keep:75,consider:45,gap:2,similarity:14,recursive:false,folder:'',page_size:120};
-let status={running:false,version:-1},rowsVersion=-1,lastRowsFetch=0,current=null,visible=[],page=0,derived=null,saveTimer=null;
+let scan={running:false,version:-1},rowsVersion=-1,lastRowsFetch=0,current=null,visible=[],page=0,derived=null,saveTimer=null;
 
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 async function api(path,body){const r=await fetch('/api/'+path,{method:body===undefined?'GET':'POST',headers:{'X-Session':TOKEN,'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});
@@ -185,11 +185,11 @@ async function loadRows(){const p=await api('rows');rows=p.rows;errors=p.errors;
   if(current)current=byId.get(current.id)||current;
   $('failures').hidden=!errors.length;$('failureCount').textContent=errors.length;$('failureList').textContent=errors.map(e=>`${e.name}\n   ${e.error}`).join('\n');
   render();if($('viewer').open&&current)updateViewer()}
-async function poll(){try{status=await api('state');const run=status.running;
-    $('scan').disabled=run;$('browse').disabled=run;$('regroup').disabled=run;$('cancel').hidden=!run;$('cancel').disabled=status.phase==='cancelling';
-    $('status').textContent=statusText(status);$('progress').style.width=status.total?Math.min(100,status.done/status.total*100)+'%':'0';
-    if(status.version!==rowsVersion&&(!run||Date.now()-lastRowsFetch>1500))await loadRows();
-  }catch(e){showError(e)}setTimeout(poll,status.running?700:1500)}
+async function poll(){try{scan=await api('state');const run=scan.running;
+    $('scan').disabled=run;$('browse').disabled=run;$('regroup').disabled=run;$('cancel').hidden=!run;$('cancel').disabled=scan.phase==='cancelling';
+    $('status').textContent=statusText(scan);$('progress').style.width=scan.total?Math.min(100,scan.done/scan.total*100)+'%':'0';
+    if(scan.version!==rowsVersion&&(!run||Date.now()-lastRowsFetch>1500))await loadRows();
+  }catch(e){showError(e)}setTimeout(poll,scan.running?700:1500)}
 
 // ---------- actions ----------
 $('browse').onclick=async()=>{try{showError();$('status').textContent='Choose a folder in the system dialog…';const r=await api('pick',{});if(r.folder)$('folder').value=r.folder;$('status').textContent=r.folder?'Folder selected. Click Analyse photos.':'No folder chosen.'}catch(e){showError(e)}};

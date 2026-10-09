@@ -282,8 +282,9 @@ def serve(app, port=0):
     from waitress.server import create_server
     server = create_server(app, host='127.0.0.1', port=port, threads=8, ident='PhotoSelect',
                            clear_untrusted_proxy_headers=True, channel_timeout=60)
-    app.config['PORT'] = server.effective_port
-    return server, server.effective_port
+    port = int(server.effective_port)
+    app.config['PORT'] = port
+    return server, port
 
 
 if __name__ == '__main__':  # development mode: serve and open the default browser

@@ -263,6 +263,7 @@ class Library:
         row['raw'] = {k: data[k] for k in METRIC_KEYS if k in data}
         row['raw']['hash'] = data['hash']
         row['raw']['colour'] = data['colour']
+        row['raw']['look'] = data.get('look')
         row['size'] = data.get('size')
         row['timestamp'] = data.get('timestamp')
         row['camera'] = data.get('camera')

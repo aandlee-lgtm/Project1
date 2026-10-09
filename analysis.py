@@ -18,7 +18,7 @@ None of these measures is a trained model. They are relative cues:
 import numpy as np
 from PIL import Image
 
-ANALYSIS_VERSION = 2
+ANALYSIS_VERSION = 3
 PREVIEW_EDGE = 1600
 FOCUS_SCALE = 4000
 DEFAULT_REGION = (0.25, 0.25, 0.5, 0.5)
@@ -131,6 +131,9 @@ def frame_metrics(preview):
     low = float((gray < .015).mean())
     high = float((gray > .985).mean())
     small = np.asarray(preview.resize((9, 8)).convert('L'))
+    # 16x12 area-averaged grayscale "look" of the frame, used to match burst frames. More robust
+    # than a difference hash on low-contrast or finely textured scenes (water, sky).
+    look = np.asarray(preview.convert('L').resize((16, 12), Image.Resampling.BOX), dtype=np.float32) / 255
     return {
         'sharpness': round(_detail(gray), 6),
         'composition': round(composition, 1),
@@ -139,6 +142,7 @@ def frame_metrics(preview):
         'clip_high': round(100 * high, 2),
         'noise': round(noise_sigma(gray), 3),
         'hash': (small[:, 1:] > small[:, :-1]).flatten().astype(int).tolist(),
+        'look': [round(float(v), 3) for v in look.flatten()],
         'colour': [round(float(v), 4) for v in rgb.mean(axis=(0, 1))],
         'centre': [round(cx, 4), round(cy, 4)],
     }
@@ -180,24 +184,32 @@ def normalise(rows):
         r['noise_flag'] = bool(r['raw'].get('noise', 0) >= high_noise and r['raw'].get('noise', 0) > 2.0)
 
 
-def group_bursts(rows, gap=2, similarity=14):
-    """Group frames shot within `gap` seconds that also look alike (hash + mean colour).
+def frame_difference(a, b):
+    """Mean absolute difference (0-1) between two frames' 16x12 grayscale looks."""
+    if a.get('look') and b.get('look'):
+        return float(np.mean(np.abs(np.array(a['look']) - np.array(b['look']))))
+    return sum(x != y for x, y in zip(a['hash'], b['hash'])) / 64 * .5  # older cached results
 
+
+def group_bursts(rows, gap=2, similarity=14):
+    """Group consecutive frames shot within `gap` seconds of each other that also look alike.
+
+    Each frame is compared with the previous frame (so a panning sequence chains together).
+    `similarity` 0-64 is the tolerance; 14 allows a mean grey-level difference of 7 %.
     Frames without a capture time stay in their own group.
     """
+    tolerance = similarity / 200
     ordered = sorted(rows, key=lambda r: (r['timestamp'] if r['timestamp'] is not None else float('inf'), r['name']))
     group = 0
-    previous = anchor = None
+    previous = None
     for row in ordered:
         similar = False
         if previous and row['timestamp'] is not None and previous['timestamp'] is not None:
             dt = row['timestamp'] - previous['timestamp']
-            distance = sum(a != b for a, b in zip(row['raw']['hash'], anchor['raw']['hash']))
-            colour = np.linalg.norm(np.array(row['raw']['colour']) - anchor['raw']['colour'])
-            similar = 0 <= dt <= gap and distance <= similarity and colour < .18
+            colour = np.linalg.norm(np.array(row['raw']['colour']) - previous['raw']['colour'])
+            similar = 0 <= dt <= gap and frame_difference(row['raw'], previous['raw']) <= tolerance and colour < .18
         if not similar:
             group += 1
-            anchor = row
         row['group'] = group
         previous = row
     return rows
