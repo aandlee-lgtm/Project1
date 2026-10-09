@@ -1,5 +1,37 @@
 # PhotoSelect releases
 
+## 1.5.0
+- **Stars appear in Lightroom by themselves.** The 1.5 plug-in rates photos once they are in your
+  catalog, with no command to run.
+  - This works however you import: through Open in Lightroom Import, or by importing the folder in
+    Lightroom yourself (Add, Copy, renamed or as DNG), within 14 days of sending.
+  - Each photo is rated once, stars you set in Lightroom are kept, and Lightroom shows "PhotoSelect:
+    stars applied to N imported photos".
+  - PhotoSelect's Lightroom window shows whether the plug-in is running, its version and what it
+    last did. It tells you if an older plug-in is loaded or Lightroom needs a restart.
+  - Update once: Send to Lightroom… → Reinstall plug-in, remove any other PhotoSelect entry in
+    Lightroom's Plug-in Manager, then restart Lightroom.
+- **About twice as fast.** On the test Mac, 250 RAW files took 4 minutes instead of 8–11.
+  - Analysis now decodes each RAW only as large as the scores need: half size for 33 MP and larger,
+    a fast demosaic for smaller files. On 13 cameras this was 2.9× faster per photo: 45–61 MP photos
+    take 0.6–1.6 s instead of 2.8–4.4 s.
+  - Rankings are essentially unchanged: rank correlation 0.995, scores within 2–3 points.
+  - Inspection still uses the full-quality decode.
+- **Lighter on your Mac:**
+  - each photo needs about a quarter less memory while being analysed;
+  - analysis runs at background priority, with up to 6 workers depending on your Mac (4 on an
+    8 GB M2);
+  - capture time and camera are read without loading 8 MB of every file, which matters on cards and
+    drives.
+- **Bursts sooner:** photos are analysed in capture order, so each burst completes together.
+- **Instant inspection:** after you first open full resolution, the next and previous photos are
+  prepared in the background. Use ← → inside the inspector to step at the same zoom. Full-size
+  renders are cached on disk (up to 1.5 GB).
+- The diagnostic report shows the time to the first analysed photo, CPU time per file and the
+  worker count.
+- Existing folders are re-analysed once with the new decode (scores change by a few points at most).
+- Tested: the installed DMG passed all 105 acceptance checks on macOS 14.8 and 15.7 (run 37935799010).
+
 ## 1.4.0
 - **Send to Lightroom…** now opens a window with:
   - whether the plug-in is installed, with **Install plug-in** and **Show plug-in in Finder** buttons;

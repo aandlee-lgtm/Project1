@@ -1,4 +1,49 @@
-# PhotoSelect validation report (1.0.0, updated for 1.4.0)
+# PhotoSelect validation report (1.0.0, updated for 1.5.0)
+
+## 1.5.0 results
+Build and acceptance run: https://github.com/aandlee-lgtm/Project1/actions/runs/37935799010. The installed
+DMG passed on clean macOS 14.8 and 15.7 runners: 105 passed or informational, 0 failed, on each.
+
+**Speed and resources, 250-RAW-file folder** (same files and runner type as 1.4.0: virtual M1, 3 cores,
+7 GB):
+
+| | 1.4.0 (runs 37895394093, 37922521013) | 1.5.0 macOS 14 | 1.5.0 macOS 15 |
+|---|---|---|---|
+| Analysis workers | 1 | 2 | 2 |
+| Whole folder | 457–685 s (0.33–0.49 files/s) | 235 s (0.95 files/s) | 243 s (0.92 files/s) |
+| CPU time per file | not measured | 1.46 s | 1.59 s |
+| All camera previews shown | not measured | 41 s | 37 s |
+| First photo fully analysed | not measured | 42 s | 38 s |
+| App peak memory | 1.1–1.5 GB | 1.3 GB | 1.9 GB |
+| Interface during analysis (p95 / max) | 15–32 / 180–410 ms | 152 / 447 ms | 65 / 207 ms |
+| Cancel → stopped | 2.1–2.7 s | 1.6 s | 0.8 s |
+
+Peak memory for the whole app is higher with two photos analysed at once, although each needs less.
+On an 8 GB M2, 4 workers are expected to peak at about 2.5–3 GB (estimated, not measured).
+
+**Analysis decode benchmark** (run 37931855801: Apple silicon, 13 genuine RAW files, 5–61 MP; each file
+decoded and analysed in a fresh process):
+- 45–61 MP (Nikon D850, Z7, Z7 II, Z9; Sony A1, A7R IV, A7R V, A7CR), half-size decode: 2.8–4.4 s →
+  0.6–1.6 s per photo, peak memory 640–810 → 480–620 MB.
+- 5–24 MP, fast demosaic: 1.6–1.8 s → 1.2 s for 24 MP.
+- Overall 2.86× faster. Rank correlation with 1.4.0's scores: sharpness 0.995, focus 0.995,
+  composition 1.0, exposure 1.0. Folder scores differ by 2.2 (sharpness) and 3.3 (focus) points on
+  average out of 100.
+- Rejected alternative: half size for every file would be 3.41× faster but changes focus rankings
+  (rank correlation 0.77).
+- The analysis preview is now made without copying the full image (0.42 → 0.24 s for 24 MP,
+  identical metrics). This was measured locally after the benchmark run.
+
+**New checks:**
+- The inspector steps to the next photo at the same zoom, before and after relaunch.
+- Plug-in status is reported to PhotoSelect (unit tests).
+- Automatic rating runs after any import: path, capture-date and DNG matching, once per photo,
+  expiry. Tested in the Lua 5.1 plug-in tests against a simulated catalog (15 plug-in tests, 67 in
+  total).
+
+**Not tested:** the 1.5 plug-in inside a real Lightroom Classic. In particular, whether Lightroom's
+catalog search by capture date behaves as in the simulation, and how quickly stars appear. Field test
+T15 covers this. Speed on your M2 with 4 workers is covered by field test T17.
 
 ## 1.4.0 results
 Build and acceptance run: https://github.com/aandlee-lgtm/Project1/actions/runs/37922521013. The installed
