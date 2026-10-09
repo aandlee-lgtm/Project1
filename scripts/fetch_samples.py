@@ -2,7 +2,7 @@
 
 Source: raw.pixls.us, a public archive of camera RAW files (mostly CC0), used by darktable,
 RawSpeed and LibRaw developers. Picks several Nikon NEF, one Nikon NRW and several Olympus /
-OM System ORF files, verifies SHA-1, and writes manifest.json. Files supplied by the user can be
+OM System ORF files, verifies SHA-256, and writes manifest.json. Files supplied by the user can be
 placed in the output folder too; they are included in the manifest as 'user'.
 """
 import argparse
@@ -61,33 +61,6 @@ def pick(entries, ext, makes, count):
     return chosen
 
 
-def discover(out=None):
-    """Print the archive's link structure so the download scheme can be confirmed from CI logs."""
-    import re
-    import builtins
-    log = open(out, 'w') if out else None
-
-    def print(*a):  # noqa: A001 - also copy discovery lines to a file
-        builtins.print(*a)
-        if log:
-            builtins.print(*a, file=log, flush=True)
-    for url in ('https://raw.pixls.us/', 'https://raw.pixls.us/data/', 'https://raw.pixls.us/data-unique/'):
-        try:
-            r = get(url, timeout=60)
-            html = r.read().decode('utf-8', 'replace')
-            print(f'DISCOVER {url} -> {r.status}, {len(html)} bytes')
-            links = sorted(set(re.findall(r'(?:href|src)=["\']([^"\']+)', html)))
-            print('DISCOVER links:', links[:80])
-            for m in sorted(set(re.findall(r'[\w./-]*(?:\.php|\.json|getfile|data/)[\w./?=&%-]*', html)))[:60]:
-                print('DISCOVER ref:', m)
-            for src in [l for l in links if l.endswith('.js')][:6]:
-                js = get(urllib.parse.urljoin(url, src), timeout=60).read().decode('utf-8', 'replace')
-                for m in sorted(set(re.findall(r'["\'][^"\']*(?:\.php|\.json|getfile|/data)[^"\']*["\']', js)))[:40]:
-                    print(f'DISCOVER js {src}:', m)
-        except Exception as error:
-            print(f'DISCOVER {url} failed: {error}')
-
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('out')
@@ -98,14 +71,13 @@ def main():
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     manifest = []
-    discover(out / 'discovery.txt')
     try:
-        listing = get(BASE + 'filelist.sha1').read().decode('utf-8', 'replace').splitlines()
+        listing = get(BASE + 'filelist.sha256').read().decode('utf-8', 'replace').splitlines()
         entries = []
         for line in listing:
             parts = line.strip().split(None, 1)
             if len(parts) == 2:
-                entries.append({'sha1': parts[0], 'path': parts[1].lstrip('*').lstrip('./')})
+                entries.append({'sha256': parts[0], 'path': parts[1].lstrip('*').lstrip('./')})
         print(f'raw.pixls.us listing: {len(entries)} files; first: {listing[:2]}')
         plan = (pick(entries, 'nef', ['nikon'], a.nef) + pick(entries, 'nrw', ['nikon'], a.nrw) +
                 pick(entries, 'orf', ['olympus', 'om digital', 'om system'], a.orf))
@@ -113,13 +85,13 @@ def main():
             make, model, name = e['path'].split('/')[:3]
             target = out / f"{model.replace(' ', '_')}__{name}"
             data = get(BASE + urllib.parse.quote(e['path'])).read()
-            digest = hashlib.sha1(data).hexdigest()
-            if digest != e['sha1']:
+            digest = hashlib.sha256(data).hexdigest()
+            if digest != e['sha256']:
                 print(f'checksum mismatch for {e["path"]}; skipped')
                 continue
             target.write_bytes(data)
-            manifest.append({'file': target.name, 'make': make, 'model': model, 'source': 'raw.pixls.us',
-                             'sha1': digest, 'bytes': len(data)})
+            manifest.append({'file': target.name, 'make': make, 'model': model, 'source': 'raw.pixls.us (CC0 sample archive)',
+                             'sha256': digest, 'bytes': len(data)})
             print(f'  {make} / {model}: {name} ({len(data) / 2**20:.1f} MB)')
     except Exception as error:
         print(f'raw.pixls.us unavailable: {error}')
