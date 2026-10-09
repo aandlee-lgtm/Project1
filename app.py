@@ -20,7 +20,7 @@ import raw_io
 import store as store_module
 from engine import Library
 
-APP_VERSION = '1.0.1'
+APP_VERSION = '1.0.2'
 log = logging.getLogger('photoselect.app')
 
 

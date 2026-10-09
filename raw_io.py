@@ -56,9 +56,23 @@ def _check_readable(path):
         raise DecodeError('The file is empty (0 bytes). It may be an incomplete copy.')
 
 
+def is_nikon_high_efficiency(path):
+    """Nikon HE / HE* NEFs store the sensor data as an intoPIX TicoRAW codestream."""
+    try:
+        with open(path, 'rb') as f:
+            return b'CONTACT_INTOPIX' in f.read(8 * 1024 * 1024)
+    except OSError:
+        return False
+
+
 def _raw_error(path, error):
     import rawpy
     name = format_name(path)
+    if isinstance(error, rawpy.LibRawFileUnsupportedError) and Path(path).suffix.lower() == '.nef' \
+            and is_nikon_high_efficiency(path):
+        return DecodeError('Nikon High Efficiency (HE / HE★) NEF: this compression uses a licensed codec that the '
+                           'bundled LibRaw decoder cannot read. Set the camera to NEF (RAW) compression → Lossless '
+                           'compressed for shoots you want to cull here. The file has not been changed.')
     if isinstance(error, rawpy.LibRawFileUnsupportedError):
         return DecodeError(f'{name}: the bundled LibRaw {libraw_version()} decoder does not recognise this file. It may be '
                            'damaged or incomplete, or come from a camera model or RAW mode that LibRaw does not support. '

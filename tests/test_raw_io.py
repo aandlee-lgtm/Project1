@@ -58,6 +58,19 @@ class RawFormatTests(unittest.TestCase):
             with self.assertRaises(DecodeError):
                 decode(path)
 
+    def test_nikon_high_efficiency_nef_named_in_error(self):
+        # Nikon HE/HE* NEFs carry an intoPIX TicoRAW codestream (marker as found in a Z6III HE* file).
+        path = self.dir / 'DSC_2094.NEF'
+        path.write_bytes(b'MM\x00*' + os.urandom(5000) + b'\xff\x10\xffP\x00"CONTACT_INTOPIX_' + os.urandom(5000))
+        with patch('rawpy.imread', side_effect=rawpy.LibRawFileUnsupportedError('unsupported')):
+            with self.assertRaisesRegex(DecodeError, 'High Efficiency.*Lossless compressed'):
+                decode(path)
+        other = self.dir / 'plain.NEF'
+        other.write_bytes(os.urandom(6000))
+        with patch('rawpy.imread', side_effect=rawpy.LibRawFileUnsupportedError('unsupported')):
+            with self.assertRaisesRegex(DecodeError, 'does not recognise'):
+                decode(other)
+
     def test_empty_file(self):
         path = self.dir / 'empty.NEF'
         path.write_bytes(b'')
