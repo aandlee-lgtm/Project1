@@ -131,6 +131,8 @@ def build(library, prefs, app_version):
     for (fmt, cam), n in sorted(by.items()):
         sizes = {tuple(r['size']) for r in analysed if r['format'] == fmt and (r.get('camera') or '(no camera EXIF)') == cam and r.get('size')}
         w(f'- {fmt} · {cam}: {n} file(s), decoded size {", ".join(f"{a}×{b}" for a, b in sorted(sizes)[:3])}')
+    basis = Counter(r.get('basis') or '?' for r in analysed)
+    w(f"- analysed from: {dict(basis)}  (camera_preview = embedded camera JPEG, RAW pixels not decodable)")
     exts = Counter(Path(r['name']).suffix for r in rows)
     w(f'- extensions seen: {dict(exts)}')
     no_time = [r for r in analysed if r['timestamp'] is None]

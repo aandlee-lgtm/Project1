@@ -115,6 +115,11 @@ PASS
 
 ## Not tested / known limitations
 
+- **Nikon Z6III High Efficiency NEF (v1.1.0).** LibRaw 0.22.1 cannot decode these. This was confirmed on
+  your DSC_2094.NEF and on raw.pixls.us Z6III HE/HE★ samples, while the Lossless compressed samples decode.
+  They are analysed from the full-size embedded camera JPEG and labelled CAMERA PREVIEW. This is
+  verified end to end on DSC_2094.NEF from source, and on a raw.pixls.us Z6III HE sample in the
+  packaged-app acceptance run.
 - **Your cameras and your photos.** Genuine Nikon (D7200, D5600, D3S) and Olympus (XZ-1) files
   were tested. No **NRW** file and no current Nikon Z or OM System body (OM-1, etc.) was obtained
   from the public archive in these runs. Your own bodies, your bursts and special modes were not tested (e.g. Nikon High Efficiency

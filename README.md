@@ -70,6 +70,16 @@ ungrouped. You can tune it under *Burst matching*.
 flag, and no per-image auto-brightening, so a burst renders consistently. It will not match
 your Lightroom edits.
 
+**When RAW pixels can't be decoded — camera preview fallback.** Some RAW files can be opened but not
+decoded by LibRaw, notably **Nikon High Efficiency (HE / HE★) NEF**, such as the Z6III's, which uses
+a licensed codec. If the camera stored a usable JPEG inside the file (Nikon stores a full-size one,
+6048 × 4032 on the Z6III), PhotoSelect analyses that JPEG instead. Such photos are labelled
+**CAMERA PREVIEW** on the card, in the viewer, in comparisons and in the CSV (`analysis_source`,
+`source_notice`). Their scores include the camera's sharpening, noise reduction and Picture Control,
+so they are not measurements of the RAW pixels. Damaged or non-RAW files never fall back. Previews
+smaller than 1,000 px on the long edge are not used. For full RAW analysis on a Nikon Z, shoot NEF
+(RAW) compression → Lossless compressed.
+
 ## Architecture
 
 * `desktop.py`: entry point. A native window (WKWebView via pywebview) shows the interface,

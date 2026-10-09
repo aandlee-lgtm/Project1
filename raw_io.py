@@ -65,14 +65,19 @@ def is_nikon_high_efficiency(path):
         return False
 
 
-def _raw_error(path, error):
+def _raw_error(path, error, preview_tried=False):
     import rawpy
     name = format_name(path)
+    no_preview = ' No usable embedded camera preview was found either.' if preview_tried else ''
     if isinstance(error, rawpy.LibRawFileUnsupportedError) and Path(path).suffix.lower() == '.nef' \
             and is_nikon_high_efficiency(path):
         return DecodeError('Nikon High Efficiency (HE / HE★) NEF: this compression uses a licensed codec that the '
-                           'bundled LibRaw decoder cannot read. Set the camera to NEF (RAW) compression → Lossless '
-                           'compressed for shoots you want to cull here. The file has not been changed.')
+                           f'bundled LibRaw decoder cannot read.{no_preview} Set the camera to NEF (RAW) compression → '
+                           'Lossless compressed for shoots you want to cull here. The file has not been changed.')
+    if isinstance(error, rawpy.LibRawFileUnsupportedError) and preview_tried:
+        return DecodeError(f'{name}: this camera model or RAW encoding is unsupported by the bundled LibRaw '
+                           f'{libraw_version()} decoder, and no usable embedded preview was available. '
+                           'The file has not been changed.')
     if isinstance(error, rawpy.LibRawFileUnsupportedError):
         return DecodeError(f'{name}: the bundled LibRaw {libraw_version()} decoder does not recognise this file. It may be '
                            'damaged or incomplete, or come from a camera model or RAW mode that LibRaw does not support. '
@@ -84,43 +89,74 @@ def _raw_error(path, error):
     return DecodeError(f'{name} could not be decoded: {error}. Check that the file is complete and readable.')
 
 
-def decode(path):
-    """Fully decode an image to an upright 8-bit sRGB PIL image."""
+PREVIEW_NOTICE = ('RAW pixels could not be decoded. Scores and inspection use the embedded camera JPEG, including '
+                  'camera sharpening and noise reduction; they do not measure the original RAW pixels.')
+MIN_PREVIEW_EDGE = 1000   # a thumbnail-sized preview is not useful for judging focus
+
+
+class _PixelsUnsupported(Exception):
+    """LibRaw recognised the RAW container but cannot decode its pixel data (e.g. Nikon HE/HE*)."""
+
+
+def decode_photo(path, allow_preview=True):
+    """Decode a photo. Returns (upright 8-bit sRGB image, source, notice).
+
+    source is 'decoded_raw' (LibRaw demosaic), 'image' (JPEG/PNG/TIFF) or 'camera_preview': the
+    camera's embedded JPEG, used only when LibRaw recognises the file as RAW but cannot decode its
+    pixels and the camera stored a usable preview. Damaged or non-RAW files never fall back.
+    """
     path = Path(path)
     _check_readable(path)
-    if path.suffix.lower() in RAW:
+    if path.suffix.lower() not in RAW:
         try:
-            import rawpy
-        except ImportError as error:  # pragma: no cover - packaging fault
-            raise DecodeError('The RAW decoder is missing from this build of PhotoSelect.') from error
-        try:
-            with rawpy.imread(str(path)) as raw:
+            with Image.open(path) as im:
+                im = ImageOps.exif_transpose(im)
+                if im.mode in ('I;16', 'I;16B', 'I;16L', 'I'):
+                    im = im.point(lambda v: v / 256).convert('L')
+                return im.convert('RGB'), 'image', ''
+        except Image.DecompressionBombError as error:
+            raise DecodeError('The image is larger than 400 megapixels and was skipped.') from error
+        except OSError as error:
+            raise DecodeError(f'{format_name(path)} could not be decoded: {error}. The file may be damaged or use an '
+                              'unsupported encoding.') from error
+    try:
+        import rawpy
+    except ImportError as error:  # pragma: no cover - packaging fault
+        raise DecodeError('The RAW decoder is missing from this build of PhotoSelect.') from error
+    try:
+        with rawpy.imread(str(path)) as raw:
+            try:
                 # Camera white balance, sRGB output, no per-image auto brightening so that
                 # exposure is rendered consistently across a burst. LibRaw applies orientation.
                 rgb = raw.postprocess(use_camera_wb=True, no_auto_bright=True, output_bps=8,
                                       output_color=rawpy.ColorSpace.sRGB)
-            return Image.fromarray(rgb)
-        except DecodeError:
-            raise
-        except Exception as error:
-            raise _raw_error(path, error) from error
-    try:
-        with Image.open(path) as im:
-            im = ImageOps.exif_transpose(im)
-            if im.mode in ('I;16', 'I;16B', 'I;16L', 'I'):
-                im = im.point(lambda v: v / 256).convert('L')
-            return im.convert('RGB')
-    except Image.DecompressionBombError as error:
-        raise DecodeError('The image is larger than 400 megapixels and was skipped.') from error
-    except OSError as error:
-        raise DecodeError(f'{format_name(path)} could not be decoded: {error}. The file may be damaged or use an '
-                          'unsupported encoding.') from error
+            except rawpy.LibRawFileUnsupportedError as error:
+                raise _PixelsUnsupported() from error
+        return Image.fromarray(rgb), 'decoded_raw', ''
+    except _PixelsUnsupported as wrapped:
+        original = wrapped.__cause__
+        if allow_preview:
+            # A failed decode leaves LibRaw unusable for this handle; embedded_preview reopens the file.
+            preview = embedded_preview(path)
+            if preview is not None and max(preview.size) >= MIN_PREVIEW_EDGE:
+                return preview, 'camera_preview', PREVIEW_NOTICE
+        raise _raw_error(path, original, preview_tried=allow_preview) from original
+    except DecodeError:
+        raise
+    except Exception as error:
+        raise _raw_error(path, error) from error
+
+
+def decode(path):
+    """Upright 8-bit sRGB image of a photo (embedded camera JPEG for undecodable RAW, see decode_photo)."""
+    return decode_photo(path)[0]
 
 
 def embedded_preview(path):
     """Return the camera's embedded preview of a RAW file (upright), or None.
 
-    Used only for fast initial thumbnails, never for scoring.
+    Used for fast initial thumbnails, and by decode_photo as a labelled fallback when LibRaw
+    cannot decode the RAW pixels.
     """
     path = Path(path)
     if path.suffix.lower() not in RAW:
@@ -194,5 +230,5 @@ def libraw_version():
         return 'unavailable'
 
 
-__all__ = ['RAW', 'RAW_FORMATS', 'FORMATS', 'DecodeError', 'format_name', 'is_raw', 'decode',
+__all__ = ['RAW', 'RAW_FORMATS', 'FORMATS', 'DecodeError', 'format_name', 'is_raw', 'decode', 'decode_photo',
            'embedded_preview', 'capture_time', 'camera_model', 'is_hidden', 'libraw_version']

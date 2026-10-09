@@ -287,7 +287,7 @@ def make_photos(samples, out):
     Image.fromarray((base[:800, :1200]).astype('uint8')).convert('RGB').save(shoot / 'scan8.tif')
     Image.fromarray((base[:800, :1200] * 200).astype('uint16')).save(shoot / 'scan16.TIFF')
     # Damaged, empty, unreadable and junk files
-    first = next((r for r in real if r['file'].lower().endswith('.nef')), real[0])
+    first = next((r for r in real if r['file'].lower().endswith('.nef') and r.get('kind') != 'nikon_he'), real[0])
     data = Path(first['path']).read_bytes()
     (shoot / 'truncated.NEF').write_bytes(data[: len(data) * 2 // 5])
     (shoot / 'garbage.orf').write_bytes(os.urandom(300_000))
@@ -322,6 +322,13 @@ def inspect_decodes(app, rows, real, out):
         row = by_path.get(s['path'])
         if not row:
             record(f'decode {s["model"]} {name}', 'FAIL', 'missing from results')
+            continue
+        if s.get('kind') == 'nikon_he':
+            check(f'Nikon Z6III High Efficiency NEF analysed from the camera preview and labelled ({name})',
+                  row['status'] == 'analysed' and row.get('basis') == 'camera_preview' and max(row['size']) >= 6000
+                  and 'do not measure the original RAW' in (row.get('notice') or ''),
+                  {'basis': row.get('basis'), 'size': row['size'], 'scores': row['scores']})
+            report.append({'file': name, 'model': s['model'], 'decoded': False, 'basis': row.get('basis'), 'size': row['size']})
             continue
         full = app.call('full/' + row['id'], raw=True, timeout=600)
         target = dec / (Path(name).stem + '.jpg')
@@ -511,6 +518,8 @@ def main():
         shutil.rmtree(d, ignore_errors=True)
 
     kinds = {Path(m['file']).suffix.lower() for m in json.loads((Path(a.samples) / 'manifest.json').read_text())}
+    if not any(m.get('kind') == 'nikon_he' for m in json.loads((Path(a.samples) / 'manifest.json').read_text())):
+        record('Nikon High Efficiency NEF camera-preview fallback', 'NOT TESTED', 'no HE sample could be downloaded')
     for ext, label in (('.nef', 'Nikon NEF'), ('.nrw', 'Nikon NRW'), ('.orf', 'Olympus / OM System ORF')):
         if ext not in kinds:
             record(f'genuine {label} decode', 'NOT TESTED', 'no genuine sample file was available to this run')

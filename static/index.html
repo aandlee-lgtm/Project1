@@ -55,6 +55,7 @@ a{color:var(--mint)}kbd{border:1px solid var(--line);border-radius:4px;padding:0
 <p class="hint"><b>Scores are relative to this folder</b>, not probabilities or absolute quality: even a folder of soft photos has a top frame.</p>
 <p class="hint"><b>Sharpness</b>: edge detail across the frame. <b>Subject focus</b>: edge detail in the central region, or the region you draw, measured on the full-resolution RAW decode. Noise, waves, foliage and a sharp background can inflate both; a noise warning appears when this folder's noise estimate is high.</p>
 <p class="hint"><b>Composition</b>: edge placement near thirds and border clutter. It is not a trained aesthetic model and cannot judge expressions, the decisive moment or a cropped rig. <b>Exposure</b>: share of unclipped pixels in the rendered image.</p>
+<p class="hint">If a RAW file's pixels cannot be decoded (for example Nikon High Efficiency NEF) but the camera stored a full-size JPEG inside it, that JPEG is analysed instead and the photo is labelled <b>CAMERA PREVIEW</b>. Its scores include in-camera sharpening and noise reduction.</p>
 <p class="hint">Not included: eye or face detection, subject recognition, motion-blur detection, artistic judgement.</p></div>
 </aside>
 <section class="workspace"><div class="tag">THE REVIEW ROOM</div><h1 style="margin-top:8px">Find the frames worth your time.</h1>
@@ -120,6 +121,7 @@ function isClose(r){const i=derived.info.get(r.id);return i&&i.size>1&&i.rank>1&
 function reasons(r){
   if(r.status!=='analysed')return [r.status==='preview'?'Showing the camera\'s embedded preview. Full RAW decode and scoring are still pending.':'Waiting for analysis.'];
   const out=[],s=score(r),d=decision(r),i=derived.info.get(r.id),sum=weightSum();
+  if(r.basis==='camera_preview')out.push(r.notice||'Scored from the embedded camera JPEG, not the RAW pixels.');
   if(r.decision)out.push(`Your decision: ${r.decision} (automatic suggestion would be ${autoDecision(r)}).`);
   else out.push(`${d}: weighted score ${s.toFixed(1)} ${d==='Keep'?'≥ Keep threshold '+prefs.keep:d==='Consider'?'≥ Consider threshold '+prefs.consider+' and < '+prefs.keep:'< Consider threshold '+prefs.consider}.`);
   if(sum){const parts=KEYS.filter(k=>prefs.weights[k]>0).map(k=>({k,c:prefs.weights[k]*(r.scores[k]||0)/sum})).sort((a,b)=>b.c-a.c);
@@ -147,7 +149,7 @@ function matches(r){const f=$('filter').value,ff=$('formatFilter').value;
   if(['Keep','Consider','Skip'].includes(f)&&decision(r)!==f)return false;
   if(ff==='nikon'&&!/^Nikon /.test(r.format))return false;if(ff==='olympus'&&!/^Olympus/.test(r.format))return false;if(ff==='raw'&&!r.is_raw)return false;if(ff==='other'&&r.is_raw)return false;
   if($('winners').checked&&!isWinner(r))return false;return true}
-function sourceLabel(r){if(r.status==='preview')return 'embedded camera preview · analysis pending';if(r.status!=='analysed')return 'waiting';return r.is_raw?(r.source==='cache'?'RAW decoded (cached result)':'RAW decoded'):(r.source==='cache'?'decoded (cached)':'decoded')}
+function sourceLabel(r){if(r.status==='preview')return 'embedded camera preview · analysis pending';if(r.status!=='analysed')return 'waiting';const c=r.source==='cache'?' (cached result)':'';if(r.basis==='camera_preview')return 'CAMERA PREVIEW · RAW pixels not decodable'+c;return r.is_raw?'RAW decoded'+c:'decoded'+c}
 function pager(pages){if(pages<=1)return '';return `<button data-page="${page-1}" ${page<=0?'disabled':''}>← Previous</button><span class="hint">Page ${page+1} of ${pages} · ${visible.length} photos</span><button data-page="${page+1}" ${page>=pages-1?'disabled':''}>Next →</button>`}
 function render(){derive();const analysed=rows.filter(r=>r.status==='analysed');$('total').textContent=analysed.length;
   for(const [id,v] of [['kept','Keep'],['considered','Consider'],['skipped','Skip']])$(id).textContent=analysed.filter(r=>decision(r)===v).length;
@@ -156,12 +158,12 @@ function render(){derive();const analysed=rows.filter(r=>r.status==='analysed');
   const size=+prefs.page_size||120,pages=Math.max(1,Math.ceil(visible.length/size));page=Math.min(page,pages-1);
   $('pagerTop').innerHTML=$('pagerBottom').innerHTML=pager(pages);$('empty').hidden=rows.length>0;
   $('grid').innerHTML=visible.slice(page*size,(page+1)*size).map(r=>{const s=score(r),d=decision(r),i=derived.info.get(r.id),why=reasons(r);
-    const badges=[i&&i.size>1&&i.rank===1?`<span class="badge">BURST ${r.group} · TOP OF ${i.size}</span>`:'',isClose(r)?`<span class="badge warn">CLOSE TO BURST TOP · COMPARE</span>`:'',r.status==='preview'?'<span class="badge dim">EMBEDDED PREVIEW · NOT YET SCORED</span>':'',r.noise_flag?'<span class="badge warn">HIGH NOISE</span>':''].join('');
+    const badges=[i&&i.size>1&&i.rank===1?`<span class="badge">BURST ${r.group} · TOP OF ${i.size}</span>`:'',isClose(r)?`<span class="badge warn">CLOSE TO BURST TOP · COMPARE</span>`:'',r.status==='preview'?'<span class="badge dim">EMBEDDED PREVIEW · NOT YET SCORED</span>':'',r.basis==='camera_preview'?'<span class="badge warn">CAMERA PREVIEW</span>':'',r.noise_flag?'<span class="badge warn">HIGH NOISE</span>':''].join('');
     return `<article class="card"><div class="photo" data-open="${r.id}" tabindex="0" role="button" aria-label="Inspect ${esc(r.name)}">${r.status==='pending'?'':`<img loading="lazy" src="${img('thumb',r)}" alt="${esc(r.name)}">`}<div class="badges">${badges}</div></div>
 <div class="cardbody"><div class="filename" title="${esc(r.path)}">${esc(r.name)}</div><div class="hint" style="font-size:10px;margin-top:4px">${esc(r.format)} · ${sourceLabel(r)}</div>
 <div class="topline"><span class="score">${s===null?'—':s.toFixed(0)}<small style="font-size:12px;color:var(--muted)"> / 100</small></span><span class="pill ${d}">${d}${r.decision?' · manual':''}</span></div>
 <div class="bars">${KEYS.map(k=>`<div>${k==='focus'&&r.roi?'Region focus':LABEL[k]} ${r.scores[k]??'—'}<div class="bar"><i style="width:${r.scores[k]||0}%"></i></div></div>`).join('')}</div>
-<div class="why">${esc(why.length>1&&r.status==='analysed'?why[0]+' '+(why.find(w=>/burst/.test(w))||''):why[0])}</div>
+<div class="why">${esc(r.basis==='camera_preview'?'Scored from the embedded camera JPEG (camera sharpening and noise reduction included), not the RAW pixels.':why.length>1&&r.status==='analysed'?why[0]+' '+(why.find(w=>/burst/.test(w))||''):why[0])}</div>
 <div class="actions"><button data-like="${r.id}" class="${r.liked?'active':''}">${r.liked?'♥ Liked':'♡ Like'}</button>${['Keep','Consider','Skip'].map(v=>`<button data-decision="${r.id}" data-value="${v}" class="${r.decision===v?'active':''}">${v}</button>`).join('')}<button data-auto="${r.id}" title="Clear manual decision">↺</button></div></div></article>`}).join('')}
 document.addEventListener('click',e=>{const t=e.target.closest('button,[data-open]');if(!t)return;
   if(t.dataset.page!==undefined){page=+t.dataset.page;render();window.scrollTo(0,0)}
@@ -179,7 +181,7 @@ function statusText(s){const n=rows.filter(r=>r.status==='analysed').length,grou
     case 'analysing':return `Analysing ${s.done} of ${s.total} files (${s.cached} reused from cache) with ${s.workers} workers. Scores are provisional until the scan finishes.`;
     case 'cancelling':return 'Cancelling… finishing the files already being decoded.';
     case 'cancelled':return `Cancelled: ${n} of ${s.total} photos analysed. Results so far are kept and reused when you analyse this folder again.`;
-    case 'complete':return `${n} photos analysed in ${s.elapsed}s (${s.cached} from cache) · ${groups} bursts / single frames · ${s.errors} could not be analysed · LibRaw ${s.libraw}`;
+    case 'complete':{const cp=rows.filter(r=>r.basis==='camera_preview').length;return `${n} photos analysed in ${s.elapsed}s (${s.cached} from cache)${cp?` · ${cp} using camera previews (RAW not decodable)`:''} · ${groups} bursts / single frames · ${s.errors} could not be analysed · LibRaw ${s.libraw}`}
     default:return 'Ready when you are. Start with one small shoot to tune your preferences.'}}
 async function loadRows(){const p=await api('rows');rows=p.rows;errors=p.errors;rowsVersion=p.version;lastRowsFetch=Date.now();byId=new Map(rows.map(r=>[r.id,r]));
   if(current)current=byId.get(current.id)||current;
@@ -188,7 +190,7 @@ async function loadRows(){const p=await api('rows');rows=p.rows;errors=p.errors;
 async function poll(){try{scan=await api('state');const run=scan.running;
     $('scan').disabled=run;$('browse').disabled=run;$('regroup').disabled=run;$('cancel').hidden=!run;$('cancel').disabled=scan.phase==='cancelling';
     $('status').textContent=statusText(scan);$('progress').style.width=scan.total?Math.min(100,scan.done/scan.total*100)+'%':'0';
-    if(scan.version!==rowsVersion&&(!run||Date.now()-lastRowsFetch>1500))await loadRows();
+    if(scan.version!==rowsVersion&&(!run||Date.now()-lastRowsFetch>1500)){await loadRows();$('status').textContent=statusText(scan)}
   }catch(e){showError(e)}setTimeout(poll,scan.running?700:1500)}
 
 // ---------- actions ----------
@@ -207,7 +209,8 @@ function updateViewer(){const r=current;if(!r)return;const s=score(r);$('viewTit
   document.querySelectorAll('[data-vdec]').forEach(b=>b.classList.toggle('active',r.decision===b.dataset.vdec));
   $('reasons').innerHTML=reasons(r).map(x=>`<li>${esc(x)}</li>`).join('');
   if(r.roi){const [x,y,w,h]=r.roi;Object.assign($('region').style,{left:x*100+'%',top:y*100+'%',width:w*100+'%',height:h*100+'%'});$('region').hidden=false}else $('region').hidden=true;
-  $('full').disabled=$('burstCompare').disabled=r.status==='pending'}
+  $('full').disabled=$('burstCompare').disabled=r.status==='pending';
+  $('full').textContent=r.basis==='camera_preview'?'Inspect full-size camera preview':'Inspect full resolution'}
 function openViewer(id){current=byId.get(id);if(!current)return;$('viewMessage').textContent='';
   $('viewImage').src=current.status==='pending'?'':img('preview',current);$('reveal').hidden=!DESKTOP;updateViewer();if(!$('viewer').open)$('viewer').showModal()}
 let start=null;const stage=$('stage');
@@ -233,7 +236,7 @@ function applyZoom(cx=.5,cy=.5){const im=$('inspectImage'),box=$('inspectBox');i
     box.scrollLeft=cx*w-box.clientWidth/2;box.scrollTop=cy*(im.naturalHeight/dpr*(+zoom))-box.clientHeight/2}
   document.querySelectorAll('[data-zoom]').forEach(b=>b.classList.toggle('active',b.dataset.zoom===zoom))}
 $('full').onclick=()=>{const r=current;zoom='fit';$('inspectTitle').textContent=r.name;$('inspectInfo').textContent='Decoding the full-resolution image… RAW files can take a few seconds.';
-  const im=$('inspectImage');im.removeAttribute('src');im.onload=()=>{$('inspectInfo').textContent=`${im.naturalWidth} × ${im.naturalHeight} pixels · ${r.format}${r.is_raw?' · decoded from RAW by LibRaw':''}`;applyZoom()};
+  if(r.basis==='camera_preview')$('inspectInfo').textContent='Loading the full-size embedded camera JPEG…';const im=$('inspectImage');im.removeAttribute('src');im.onload=()=>{$('inspectInfo').textContent=`${im.naturalWidth} × ${im.naturalHeight} pixels · ${r.format}${r.basis==='camera_preview'?' · embedded camera JPEG — RAW pixel decoding is unavailable for this file':r.is_raw?' · decoded from RAW by LibRaw':''}`;applyZoom()};
   im.onerror=async()=>{let msg='Could not decode the full-resolution image.';try{await fetch(img('full',r)).then(x=>x.json()).then(j=>msg=j.error||msg)}catch(e){}$('inspectInfo').textContent=msg};
   im.src=img('full',r);$('inspector').showModal()};
 document.querySelectorAll('[data-zoom]').forEach(b=>b.onclick=()=>{zoom=b.dataset.zoom;applyZoom()});
@@ -246,7 +249,7 @@ function renderCompare(){const crops=$('cropMode').checked,ref=current,dpr=windo
   const top=score(compareList[0]);$('compareTitle').textContent=compareTitle;
   $('compare').innerHTML=compareList.map((r,i)=>{const s=score(r),gap=top-s;return `<div class="comparephoto ${i===0?'top':''}"><strong>#${i+1} · ${s===null?'—':s.toFixed(1)}/100</strong> <span class="hint">${i===0?'top of this set':gap<=CLOSE?gap.toFixed(1)+' behind · close':gap.toFixed(1)+' behind'}</span>
 ${crops?`<div class="cropbox"><img data-crop="${r.id}" src="${img('crop',r,'&roi='+cropRegion(r,ref).join(','))}" alt="100% crop of ${esc(r.name)}"></div>`:`<img class="fit" src="${img('preview',r)}" alt="${esc(r.name)}">`}
-<div class="filename" title="${esc(r.path)}">${esc(r.name)}</div><p class="hint">${KEYS.map(k=>LABEL[k]+' '+(r.scores[k]??'—')).join(' · ')}<br>${esc(decision(r))}${r.decision?' (manual)':''}</p>
+<div class="filename" title="${esc(r.path)}">${esc(r.name)}</div><p class="hint">${r.basis==='camera_preview'?'<b>Camera preview</b> · ':''}${KEYS.map(k=>LABEL[k]+' '+(r.scores[k]??'—')).join(' · ')}<br>${esc(decision(r))}${r.decision?' (manual)':''}</p>
 <div class="actions"><button data-like="${r.id}" class="${r.liked?'active':''}">${r.liked?'♥':'♡'}</button>${['Keep','Consider','Skip'].map(v=>`<button data-decision="${r.id}" data-value="${v}" class="${r.decision===v?'active':''}">${v}</button>`).join('')}<button data-inspect="${r.id}">Inspect</button></div></div>`}).join('');
   document.querySelectorAll('[data-crop]').forEach(el=>el.onload=()=>{el.style.width=el.naturalWidth/dpr+'px'});
   document.querySelectorAll('[data-inspect]').forEach(el=>el.onclick=()=>{$('comparison').close();openViewer(el.dataset.inspect)})}
@@ -258,9 +261,9 @@ $('burstCompare').onclick=()=>{const g=current.group;$('viewer').close();compare
 
 // ---------- export ----------
 $('export').onclick=async()=>{if(!rows.length){showError('Analyse a folder before exporting.');return}derive();
-  const data=[['filename','original_path','file_format','camera','analysis_state','raw_decoded','capture_time','recommendation','manual_decision','liked','score','sharpness','focus','composition','exposure','highlights_clipped_pct','shadows_clipped_pct','noise_warning','burst','burst_size','burst_rank','points_below_burst_top','burst_winner','focus_region','focus_region_measured','weights','keep_threshold','consider_threshold','reasons']];
-  for(const r of rows){const i=derived.info.get(r.id)||{},s=score(r);data.push([r.name,r.path,r.format,r.camera||'',r.status==='analysed'?'analysed':'not analysed',r.is_raw&&r.status==='analysed',r.timestamp?new Date(r.timestamp*1000).toISOString():'',r.status==='analysed'?autoDecision(r):'',r.decision||'',!!r.liked,s===null?'':s.toFixed(1),r.scores.sharpness??'',r.scores.focus??'',r.scores.composition??'',r.scores.exposure??'',r.metrics.clip_high??'',r.metrics.clip_low??'',!!r.noise_flag,r.status==='analysed'?r.group:'',i.size||'',i.rank||'',i.gap!==undefined?i.gap.toFixed(1):'',i.rank===1,r.roi?JSON.stringify(r.roi):'',r.roi_state==='full',JSON.stringify(prefs.weights),prefs.keep,prefs.consider,reasons(r).join(' | ')])}
-  for(const e of errors)data.push([e.name,e.path,'','','failed: '+e.error,'','','','','','','','','','','','','','','','','','','','','','','','']);
+  const data=[['filename','original_path','file_format','camera','analysis_state','raw_decoded','analysis_source','source_notice','capture_time','recommendation','manual_decision','liked','score','sharpness','focus','composition','exposure','highlights_clipped_pct','shadows_clipped_pct','noise_warning','burst','burst_size','burst_rank','points_below_burst_top','burst_winner','focus_region','focus_region_measured','weights','keep_threshold','consider_threshold','reasons']];
+  for(const r of rows){const i=derived.info.get(r.id)||{},s=score(r);data.push([r.name,r.path,r.format,r.camera||'',r.status==='analysed'?'analysed':'not analysed',r.basis==='decoded_raw'&&r.status==='analysed',r.status==='analysed'?(r.basis||''):'',r.notice||'',r.timestamp?new Date(r.timestamp*1000).toISOString():'',r.status==='analysed'?autoDecision(r):'',r.decision||'',!!r.liked,s===null?'':s.toFixed(1),r.scores.sharpness??'',r.scores.focus??'',r.scores.composition??'',r.scores.exposure??'',r.metrics.clip_high??'',r.metrics.clip_low??'',!!r.noise_flag,r.status==='analysed'?r.group:'',i.size||'',i.rank||'',i.gap!==undefined?i.gap.toFixed(1):'',i.rank===1,r.roi?JSON.stringify(r.roi):'',r.roi_state==='full',JSON.stringify(prefs.weights),prefs.keep,prefs.consider,reasons(r).join(' | ')])}
+  for(const e of errors)data.push([e.name,e.path,'','','failed: '+e.error,'','','','','','','','','','','','','','','','','','','','','','','','','','']);
   try{const r=await api('export',{rows:data});
     if(r.text!==undefined)download(r.text,r.filename,'text/csv',true)
     else if(r.saved)$('notice').textContent='Decisions exported to '+r.saved;}catch(e){showError(e)}};

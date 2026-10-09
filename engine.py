@@ -202,7 +202,7 @@ class Library:
                 key = file_key(path, stat, analysis.ANALYSIS_VERSION)
                 row = {'id': path_id(path), 'name': str(path.relative_to(folder)), 'path': str(path),
                        'format': raw_io.format_name(path), 'is_raw': raw_io.is_raw(path), 'key': key,
-                       'status': 'pending', 'source': None, 'timestamp': None, 'camera': None, 'size': None,
+                       'status': 'pending', 'source': None, 'basis': None, 'notice': '', 'timestamp': None, 'camera': None, 'size': None,
                        'raw': None, 'scores': {}, 'group': 0, 'roi': None, 'roi_state': None, 'noise_flag': False}
                 cached = self.store.get_analysis(key)
                 if cached and (self.cache / 'thumbs' / f'{key}.jpg').exists() and \
@@ -271,6 +271,9 @@ class Library:
         row['timing'] = data.get('timing')
         row['status'] = 'analysed'
         row['source'] = source
+        # What the scores were measured on: 'decoded_raw', 'image' or 'camera_preview' (embedded JPEG).
+        row['basis'] = data.get('basis') or ('decoded_raw' if row['is_raw'] else 'image')
+        row['notice'] = data.get('notice', '')
 
     def _embedded(self, row, cancel):
         if cancel.is_set() or row['status'] != 'pending':
@@ -293,14 +296,16 @@ class Library:
         path = Path(row['path'])
         try:
             t0 = time.perf_counter()
-            full = raw_io.decode(path)
+            full, basis, notice = raw_io.decode_photo(path)
             t1 = time.perf_counter()
             region = row['roi']
             preview, m = analysis.analyse(full, region)
             data = {k: v for k, v in m.items() if k != 'focus'}
             data['focus'] = m['focus_default']
             data.update(size=list(full.size), timestamp=raw_io.capture_time(path), camera=raw_io.camera_model(path),
-                        decoder=('LibRaw ' + raw_io.libraw_version()) if row['is_raw'] else 'Pillow',
+                        decoder={'decoded_raw': 'LibRaw ' + raw_io.libraw_version(), 'image': 'Pillow',
+                                 'camera_preview': 'embedded camera JPEG'}[basis],
+                        basis=basis, notice=notice,
                         timing={'decode': round(t1 - t0, 3), 'analyse': round(time.perf_counter() - t1, 3)})
             thumb = preview.copy()
             thumb.thumbnail((THUMB_EDGE, THUMB_EDGE))
@@ -370,6 +375,7 @@ class Library:
                     'status': r['status'], 'source': r['source'], 'timestamp': r['timestamp'], 'camera': r['camera'],
                     'size': r['size'], 'scores': r['scores'], 'group': r['group'], 'roi': r['roi'],
                     'roi_state': r['roi_state'], 'noise_flag': r['noise_flag'],
+                    'basis': r.get('basis'), 'notice': r.get('notice', ''),
                     'metrics': {k: r['raw'][k] for k in METRIC_KEYS if r['raw'] and k in r['raw']},
                     'decision': mark.get('decision'), 'liked': bool(mark.get('liked')),
                 })

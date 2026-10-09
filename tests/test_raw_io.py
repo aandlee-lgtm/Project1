@@ -71,6 +71,56 @@ class RawFormatTests(unittest.TestCase):
             with self.assertRaisesRegex(DecodeError, 'does not recognise'):
                 decode(other)
 
+    def _contexts(self, preview_size=(1200, 800)):
+        import io as _io
+        buf = _io.BytesIO()
+        Image.new('RGB', preview_size, 'white').save(buf, format='JPEG')
+        failed = MagicMock()
+        failed.postprocess.side_effect = rawpy.LibRawFileUnsupportedError('unsupported')
+        preview = MagicMock()
+        preview.sizes.flip = 0
+        preview.extract_thumb.return_value = type('Thumb', (), {'format': rawpy.ThumbFormat.JPEG, 'data': buf.getvalue()})()
+        first, second = MagicMock(), MagicMock()
+        first.__enter__.return_value = failed
+        second.__enter__.return_value = preview
+        return failed, first, second
+
+    def test_preview_fallback_reopens_and_reports_source(self):
+        path = self.dir / 'a.NEF'
+        path.write_bytes(os.urandom(4000))
+        failed, first, second = self._contexts()
+        with patch('rawpy.imread', side_effect=[first, second]) as read:
+            image, source, notice = raw_io.decode_photo(path)
+        self.assertEqual(read.call_count, 2)               # reopened after the failed decode
+        failed.extract_thumb.assert_not_called()
+        self.assertEqual((image.size, source), ((1200, 800), 'camera_preview'))
+        self.assertIn('do not measure the original RAW', notice)
+
+    def test_strict_decode_disallows_preview(self):
+        path = self.dir / 'a.NEF'
+        path.write_bytes(os.urandom(4000))
+        failed, first, second = self._contexts()
+        with patch('rawpy.imread', side_effect=[first, second]) as read:
+            with self.assertRaises(DecodeError):
+                raw_io.decode_photo(path, allow_preview=False)
+        self.assertEqual(read.call_count, 1)
+
+    def test_thumbnail_sized_preview_is_not_used(self):
+        path = self.dir / 'a.ORF'
+        path.write_bytes(os.urandom(4000))
+        failed, first, second = self._contexts((160, 120))
+        with patch('rawpy.imread', side_effect=[first, second]):
+            with self.assertRaisesRegex(DecodeError, 'no usable embedded preview'):
+                raw_io.decode_photo(path)
+
+    def test_unrecognised_file_never_falls_back(self):
+        path = self.dir / 'garbage.NEF'
+        path.write_bytes(os.urandom(4000))
+        with patch('rawpy.imread', side_effect=rawpy.LibRawFileUnsupportedError('not raw')) as read:
+            with self.assertRaises(DecodeError):
+                raw_io.decode_photo(path)
+        self.assertEqual(read.call_count, 1)
+
     def test_empty_file(self):
         path = self.dir / 'empty.NEF'
         path.write_bytes(b'')

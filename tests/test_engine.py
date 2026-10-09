@@ -70,8 +70,8 @@ class EngineTests(unittest.TestCase):
         self.make_burst()
         self.scan()
         calls = []
-        real = raw_io.decode
-        with patch('raw_io.decode', side_effect=lambda p: calls.append(p) or real(p)):
+        real = raw_io.decode_photo
+        with patch('raw_io.decode_photo', side_effect=lambda p, allow_preview=True: calls.append(p) or real(p)):
             p = self.scan()
             self.assertEqual(calls, [])
             self.assertTrue(all(r['source'] == 'cache' for r in p['rows']))
@@ -90,14 +90,14 @@ class EngineTests(unittest.TestCase):
     def test_cancellation_keeps_partial_results(self):
         for i in range(40):
             make_jpeg(self.photos / f'IMG_{i:03}.jpg', seed=i, size=(200, 150))
-        real = raw_io.decode
+        real = raw_io.decode_photo
         gate = threading.Event()
 
-        def slow(p):
+        def slow(p, allow_preview=True):
             gate.wait(5)
             time.sleep(.05)
             return real(p)
-        with patch('raw_io.decode', side_effect=slow):
+        with patch('raw_io.decode_photo', side_effect=slow):
             self.library.start(self.photos, False)
             time.sleep(.2)
             self.assertTrue(self.library.snapshot()['running'])
@@ -151,6 +151,24 @@ class EngineTests(unittest.TestCase):
         self.assertEqual((r['status'], r['source'], r['is_raw']), ('analysed', 'decoded', True))
         self.assertEqual(sorted(r['size']), [800, 1200])
         self.assertTrue(self.library.full_jpeg(self.library.row(r['id'])).startswith(b'\xff\xd8'))
+
+    def test_camera_preview_basis_is_labelled_and_cached(self):
+        make_jpeg(self.photos / 'tmp.jpg', seed=1, size=(1500, 1000))
+        os.replace(self.photos / 'tmp.jpg', self.photos / 'DSC_0001.NEF')   # stands in for an HE NEF
+        real = raw_io.decode_photo
+
+        def fake(path, allow_preview=True):
+            if str(path).endswith('.NEF'):
+                from PIL import Image
+                return Image.open(path).convert('RGB'), 'camera_preview', raw_io.PREVIEW_NOTICE
+            return real(path, allow_preview)
+        with patch('raw_io.decode_photo', side_effect=fake):
+            p = self.scan()
+        r = p['rows'][0]
+        self.assertEqual((r['status'], r['basis'], r['is_raw']), ('analysed', 'camera_preview', True))
+        self.assertIn('embedded camera JPEG', r['notice'])
+        p = self.scan()                                    # restored from cache with the same label
+        self.assertEqual((p['rows'][0]['source'], p['rows'][0]['basis']), ('cache', 'camera_preview'))
 
     @unittest.skipIf(os.name != 'posix' or os.geteuid() == 0, 'permissions are not enforced for root')
     def test_unreadable_subfolder_reported(self):

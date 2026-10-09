@@ -101,6 +101,17 @@ def main():
                 got += 1
     except Exception as error:
         print(f'raw.pixls.us unavailable: {error}')
+    # A Nikon High Efficiency NEF (LibRaw cannot decode the pixels; the app falls back to the camera JPEG).
+    try:
+        url = 'https://raw.pixls.us/data/NIKON%20CORPORATION/NIKON%20Z6_3/Nikon_Z6__3_High_Efficiency_FX.NEF'
+        data = download(url)
+        if data:
+            (out / 'Z6_3_HE__Nikon_Z6__3_High_Efficiency_FX.NEF').write_bytes(data)
+            manifest.append({'file': 'Z6_3_HE__Nikon_Z6__3_High_Efficiency_FX.NEF', 'make': 'Nikon', 'model': 'Z6_3 (HE)',
+                             'source': 'raw.pixls.us (CC0 sample archive)', 'kind': 'nikon_he', 'bytes': len(data)})
+            print(f'  Nikon / Z6_3: High Efficiency FX ({len(data) / 2**20:.1f} MB)')
+    except Exception as error:
+        print(f'HE sample unavailable: {error}')
     if not any(m['file'].lower().endswith('.nef') for m in manifest):
         try:
             data = get(FALLBACK_NEF[0]).read()
