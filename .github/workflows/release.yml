@@ -1,8 +1,9 @@
 name: Publish release
 
-# When docs/RELEASES.md changes on the branch, publish the DMG from the latest successful
-# "Build and test macOS app" run as a GitHub Release named after APP_VERSION in app.py.
-# Reuses the tested DMG (no rebuild); does nothing if that release already exists.
+# When docs/RELEASES.md changes on the branch, publish the DMG from the newest successful
+# "Build and test macOS app" run of the same APP_VERSION as a GitHub Release named after it.
+# Reuses the tested DMG (no rebuild). Does nothing until that version has a successful build and
+# release notes; a release that was published from a different build is replaced.
 on:
   push:
     branches: ['claude/**']
@@ -21,17 +22,32 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
-      - name: Decide version
+        with:
+          fetch-depth: 0
+      - name: Decide version and the tested build to publish
         run: |
           VERSION=$(python3 -c "import re;print(re.search(r\"APP_VERSION = '([^']+)'\", open('app.py').read()).group(1))")
           echo "TAG=v$VERSION" >> "$GITHUB_ENV"
-          if gh release view "v$VERSION" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then echo "EXISTS=1" >> "$GITHUB_ENV"; fi
+          # The newest successful build whose commit carries this APP_VERSION (never an older version's DMG).
+          RUN=""
+          for row in $(gh run list -R "$GITHUB_REPOSITORY" --workflow build-mac.yml --branch "$GITHUB_REF_NAME" \
+                         --status success --limit 40 --json databaseId,headSha -q '.[] | "\(.databaseId):\(.headSha)"'); do
+            if git show "${row#*:}:app.py" 2>/dev/null | grep -q "APP_VERSION = '$VERSION'"; then RUN=${row%%:*}; break; fi
+          done
+          if [ -z "$RUN" ]; then echo "No successful build of $VERSION yet: nothing to publish."; echo "SKIP=1" >> "$GITHUB_ENV"; exit 0; fi
+          if ! grep -qx "## $VERSION" docs/RELEASES.md; then echo "No release notes for $VERSION yet: nothing to publish."; echo "SKIP=1" >> "$GITHUB_ENV"; exit 0; fi
+          echo "RUN=$RUN" >> "$GITHUB_ENV"
+          echo "Publishing $VERSION from build run $RUN"
+          if gh release view "v$VERSION" -R "$GITHUB_REPOSITORY" --json body -q .body > existing.txt 2>/dev/null; then
+            if grep -q "actions/runs/$RUN" existing.txt; then echo "v$VERSION is already published from run $RUN."; echo "SKIP=1" >> "$GITHUB_ENV"
+            else echo "v$VERSION exists but was published from another build: replacing it."; echo "REPLACE=1" >> "$GITHUB_ENV"; fi
+          fi
+      - name: Remove a release that was published from a different build
+        if: env.SKIP != '1' && env.REPLACE == '1'
+        run: gh release delete "$TAG" -R "$GITHUB_REPOSITORY" --cleanup-tag --yes
       - name: Fetch the tested DMG
-        if: env.EXISTS != '1'
+        if: env.SKIP != '1'
         run: |
-          RUN=$(gh run list -R "$GITHUB_REPOSITORY" --workflow build-mac.yml --branch "$GITHUB_REF_NAME" \
-                --status success --limit 1 --json databaseId -q '.[0].databaseId')
-          echo "Using build run $RUN"
           gh run download "$RUN" -R "$GITHUB_REPOSITORY" -n PhotoSelect-AppleSilicon-dmg -D dist
           (cd dist && shasum -a 256 -c PhotoSelect-AppleSilicon.dmg.sha256)
           {
@@ -46,10 +62,10 @@ jobs:
             awk -v v="## ${TAG#v}" '$0==v{on=1;next} /^## /{on=0} on' docs/RELEASES.md
           } > notes.md
       - name: Lightroom plug-in as a separate download
-        if: env.EXISTS != '1'
+        if: env.SKIP != '1'
         run: (cd lightroom && zip -qr ../dist/PhotoSelect-Lightroom-plugin.zip PhotoSelect.lrplugin -x '*.DS_Store')
       - name: Create release
-        if: env.EXISTS != '1'
+        if: env.SKIP != '1'
         run: |
           gh release create "$TAG" -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
             --title "PhotoSelect ${TAG#v} (Apple silicon)" --notes-file notes.md \
