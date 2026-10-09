@@ -336,6 +336,18 @@ Built when the owner sent **build_new** after items 13 and 14 were discussed (be
     - Planned (backlog 15): a sticky top bar with the brand, the folder (shortened), Choose folder,
       Analyse / Cancel, Send to Lightroom…, a thin progress bar and a one-line status. The toolbar keeps
       the filters and Export.
+16. **Guided review passes.** After using the app, the owner described their workflow: send 1★ to
+    Lightroom and rescue any that deserve 3★; then send 3★ and demote any to 1★; then send 2★ and
+    promote any to 3★. That is three round trips between the apps.
+    - Explained: until a new version, everything can be sent once and reviewed by star level in
+      Lightroom with the Library filter bar (Attribute → stars), or with Smart Collections on the
+      PhotoSelect keywords.
+    - Planned (backlog 16): a Review mode in PhotoSelect with Rescue (Drop, most promising first),
+      Confirm (Keep, weakest first) and Decide (Consider, best first) passes. Keys 3 / 2 / 1 match
+      Lightroom's stars and advance automatically. Progress is shown and remembered, and everything
+      is sent to Lightroom once at the end.
+17. **Lightroom changes flow back.** Star changes made in Lightroom on PhotoSelect-rated photos update
+    PhotoSelect's decisions, are not undone by the next send, and count as decisions for learning.
 
 ---
 
