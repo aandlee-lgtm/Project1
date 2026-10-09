@@ -1,70 +1,111 @@
-# PhotoSelect v0.3 — Nikon NEF and Olympus ORF
+# PhotoSelect 1.0 — Apple silicon Mac app
 
-A working first version for importing a folder, ranking photo quality, comparing burst frames, and exporting a shortlist. All image decoding happens on your computer. Originals are read only; no deletion, moving or uploading is implemented.
+PhotoSelect helps you cull bursts of sailing and sports photos. Point it at a folder of Nikon
+(NEF/NRW), Olympus / OM System (ORF), other RAW, JPEG, PNG or TIFF files. It decodes each photo
+on your Mac, groups bursts, ranks frames with transparent scores you can weight, and lets you
+mark Keep / Consider / Skip and likes, then export a CSV. Originals are only ever read:
+nothing is deleted, renamed, moved, uploaded, or written to your photo folders.
 
-## Start on a current Apple Mac
+* **Install:** see [INSTALL.md](INSTALL.md) (drag from the DMG to Applications).
+* **What was tested, and what wasn't:** [VALIDATION_REPORT.md](VALIDATION_REPORT.md).
 
-This package targets **Apple silicon Macs (M1 and later), macOS 11 or newer**, with native ARM64 Python 3.12–3.14. Use the macOS 64-bit universal2 installer from https://www.python.org/downloads/macos/. An Intel or Rosetta Python installation is deliberately rejected rather than attempting to compile a RAW decoder.
+## Using it
 
-1. Unzip the package into a writable folder such as your home folder.
-2. Double-click `Start-Mac.command`. If compatible Python is missing, it opens the official Python downloads page and explains what to install.
-3. First-time setup downloads prebuilt dependencies. Subsequent launches reuse the dedicated app environment without reinstalling.
-4. Your default browser opens http://127.0.0.1:8765. Keep the Terminal window open; press Control+C to stop.
+1. **Choose folder** (native macOS dialog; external drives work). Tick *Include subfolders* if needed.
+2. **Analyse photos.** RAW files first show the camera's embedded preview, labelled
+   *"embedded camera preview · analysis pending"*. Each file is then fully decoded by LibRaw
+   and scored. Scores are provisional until the scan finishes. **Cancel** keeps everything
+   analysed so far, and analysing the same folder again reuses it.
+3. Adjust the **importance sliders** (sharpness, subject focus, composition, exposure) and the
+   **Keep / Consider thresholds**. Rankings update immediately.
+4. Open a frame. **Drag a rectangle over the sailors or boat** so focus is measured there rather
+   than on textured water. The region is measured on the full-resolution decode and is
+   remembered for that file.
+5. **Inspect full resolution** shows the decoded original inside the app at fit, 100%
+   (one image pixel per screen pixel) or 200%. Click to zoom to a point.
+6. **Compare this burst** ranks the burst side by side. Tick *100% crops of the focus region* to
+   compare critical focus. **Compare liked photos** does the same for your shortlist.
+7. Mark Keep / Consider / Skip or ♥ Like (keys in the viewer: ← → K C S L F).
+   **Export decisions** saves a CSV with paths, scores, decisions, reasons and burst results.
 
-If macOS blocks the launcher, open Terminal, type `bash ` (with a trailing space), drag `Start-Mac.command` into Terminal, and press Return. The launcher never removes macOS quarantine flags or disables Gatekeeper.
+Decisions, likes, focus regions, preferences and analysis results are saved automatically:
 
-The Mac folder chooser uses the native macOS Choose Folder dialog via AppleScript, without requiring Tkinter. For an external drive, allow macOS file access when prompted. If access is blocked, review System Settings → Privacy & Security → Files and Folders for Terminal. You can also paste the full folder path into the app.
+| What | Where |
+|---|---|
+| Decisions, likes, regions, preferences, analysis results | `~/Library/Application Support/PhotoSelect/photoselect.db` |
+| Thumbnails and previews (safe to clear: Help → About → Clear analysis cache) | `~/Library/Caches/PhotoSelect/` |
+| Log file (Help → Open Log Folder) | `~/Library/Logs/PhotoSelect/` |
 
-This is a local browser app with a launcher, **not a signed standalone .app or DMG**. It still requires one Python installation. Mac hardware execution has not been tested in the Linux development environment; dependency-wheel availability is checked separately.
+Nothing is written inside the app bundle or the disk image.
 
-## Windows / Linux
+## What the scores mean (and don't)
 
-Windows: install Python 3.11 or 3.12, then double-click `Start-Windows.bat`.
-Linux: in this folder run `python3 -m venv .venv`, `.venv/bin/python -m pip install -r requirements.txt`, then `.venv/bin/python app.py`.
+All scores are **relative to the current folder** (folder 10th–90th percentile → 15–95), not
+probabilities or absolute quality. Even a folder of soft photos has a top frame.
 
-If the native folder picker is unavailable (some Python installations omit Tk), paste the full folder path. On Mac you can drag a folder into Terminal to obtain its path; remove shell quotation marks or backslash escaping before pasting into the app.
+| Score | How it is measured | Known weaknesses |
+|---|---|---|
+| Sharpness | Laplacian edge detail of the whole frame at 1,600 px, divided by contrast | Waves, foliage, rigging, a sharp background and noise all count as "detail" |
+| Subject focus | Same idea in the subject region (default: central half; or the region you draw), cropped from the **full-resolution decode**, resampled to a common 4,000 px-long-edge scale, lightly low-pass filtered, with the variance expected from **estimated sensor noise subtracted** | Real texture (water, foliage) inside the region still counts. Frames smaller than 4,000 px are measured at native size. Not autofocus-point or eye detection |
+| Composition | Edge-energy centre near rule-of-thirds points minus border clutter | A heuristic, not a trained aesthetic model. Can under-rate centred subjects. Cannot see cropped masts, expressions or the decisive moment |
+| Exposure | Share of pixels not clipped to near-black/near-white in the rendered image | Does not measure RAW highlight headroom |
 
-## Review a shoot
+Each photo lists the **reasons** behind its suggestion: threshold comparison, weighted
+contributions, where focus was measured, clipping, a *high noise* warning when the frame is
+among the noisiest in the folder, and its rank and gap within its burst. A frame is **never
+marked Skip just for not winning its burst**. Frames within 3 points of the burst's top frame
+are flagged *close to burst top · compare*.
 
-- Start with 20–50 photos. Choose a folder, optionally include subfolders, then Analyse photos. RAW decoding can take several seconds per image. Images are processed sequentially to limit memory use.
-- Adjust sharpness, subject focus, composition and exposure weights. Weight values are normalised; their effective percentages appear when adjusted. All weights at zero yield a score of zero.
-- Keep / Consider / Skip are suggestions based on your thresholds. Nothing is removed.
-- Open a frame and drag a rectangle over the subject. This replaces the default central focus region and recalculates focus rankings across the folder. Regions are session-only; exported CSV records them.
-- Use full-resolution detail to check critical focus at native image size. This opens a decoded JPEG in another browser tab. It is not an embedded camera preview. Colour is a basic camera-white-balance rendering, not your Lightroom edits.
-- Burst matching requires EXIF capture time and combines time gap, a perceptual difference hash and mean colour. Subsecond timestamps are used if present. Frames without usable capture times remain separate. Matching is heuristic; review the groups, especially when panning or subject motion changes the frame.
-- Burst winners only shows the highest weighted score in each group. Like photos and compare liked photos to rank a shortlist across groups.
-- Override any recommendation with Keep / Consider / Skip; use ↺ to restore automatic scoring.
-- Export decisions downloads a CSV containing original paths, scores, decisions, weights, focus regions and burst winners. Importing this CSV into Lightroom is not implemented.
+**Not implemented:** eye or face detection, subject recognition, motion-blur detection, artistic
+judgement, XMP or Lightroom write-back.
 
-Manual decisions, likes, weights and thresholds are stored in your browser's local storage by folder and original path, and return after reopening and rescanning the same folder. RAW pixels and analysis previews are not stored in browser local storage. Other analysis results and focus regions are rebuilt each session. Do not clear browser storage if you want to retain these preferences. Export CSV before changing browser or moving files.
+**Burst grouping** uses EXIF capture time (with sub-seconds when the camera records them),
+plus a small image fingerprint and average colour. Frames without capture times stay
+ungrouped. You can tune it under *Burst matching*.
 
-## What scores mean
+**RAW rendering:** LibRaw with the camera's white balance, sRGB output, the camera orientation
+flag, and no per-image auto-brightening, so a burst renders consistently. It will not match
+your Lightroom edits.
 
-Sharpness: variance of a Laplacian edge response, divided by local contrast, on a decoded image resized to a maximum 1,600-pixel long edge.
-Focus: the same measurement inside the central half of the image or a user-selected subject region. This is a detail proxy, not autofocus-point detection or a trained subject model.
-Sharpness and focus are normalised against the folder's 10th and 90th percentiles. These are relative rankings, not calibrated probabilities. Even a folder of uniformly soft photographs can contain a high-ranking frame. Noise, waves, foliage, exposure, lens rendering and shallow depth of field can influence scores.
-Composition: an edge-energy centroid's proximity to rule-of-thirds intersections, penalised for detail near borders. This is a transparent heuristic, not an aesthetic model. It may undervalue centred compositions and cannot reliably detect cropped masts, sailor expressions, clean backgrounds or decisive sporting moments.
-Exposure: fraction of pixels outside near-black / near-white thresholds in the rendered image; it does not measure RAW highlight recovery.
+## Architecture
 
-For sailing, start with focus 50 / sharpness 30 / composition 15 / exposure 5. Select a region containing the sailors or boat details so sharp water is less likely to win. Treat the automatic shortlist as a starting point and inspect close contenders at full resolution.
+* `desktop.py`: entry point. A native window (WKWebView via pywebview) shows the interface,
+  served by an in-process Waitress server bound to `127.0.0.1` on an OS-assigned port. Every API
+  call needs a per-launch random token, and the Host header must match (DNS-rebinding
+  protection). The window, server and analysis threads share one process. Closing the window
+  or quitting ends it, so nothing keeps running.
+* `engine.py`: scanning, bounded worker pool, progressive previews, cancellation, caching.
+  rawpy/LibRaw, NumPy and Pillow release Python's GIL during heavy work, so threads give real
+  parallelism without child processes. The worker count is limited by CPU count and RAM
+  (about 4 GB per worker, at most 4).
+* `raw_io.py`: decoding (rawpy/LibRaw for RAW, Pillow for JPEG/PNG/TIFF), EXIF capture times
+  (including ORF's non-standard TIFF header), clear errors for damaged, empty, unsupported or
+  unreadable files.
+* `analysis.py`: the metrics above and burst grouping. `store.py`: SQLite persistence and
+  standard macOS locations. `app.py`: HTTP API. `static/index.html`: the interface.
 
-## Nikon and Olympus / OM System RAW support
+## Building
 
-- Nikon: `.nef` and `.nrw`.
-- Olympus / OM System: `.orf`.
-- Lowercase, uppercase and mixed-case extensions work (for example `.NEF`, `.ORF` and `.Orf`).
-- Mixed folders of Nikon, Olympus and other images are supported. Use the new camera-format filter to review Nikon or Olympus frames separately.
-- RAW files are demosaiced by rawpy / LibRaw; scoring does not use an embedded JPEG thumbnail. Each card identifies its format and whether it was RAW decoded.
-- Unsupported camera encodings and damaged RAW files are reported individually, while the scan continues.
+On an Apple silicon Mac with python.org CPython 3.12 (needed by the build machine only):
 
-Extension recognition and decoder routing were tested. Genuine Nikon/Olympus RAW samples were not available, so successful decoding on your exact cameras is not yet verified. Accepted extensions do not guarantee all camera models or special shooting modes are supported.
+```
+bash scripts/build_mac.sh            # → dist/PhotoSelect.app, dist/PhotoSelect-AppleSilicon.dmg
+```
 
-## RAW support and limits
+The script installs exact pinned wheels for macOS 11+ arm64 (`requirements-mac.txt`,
+`requirements-build.txt`) and runs the unit tests. It then builds with PyInstaller
+(`packaging/PhotoSelect.spec`), thins all binaries to arm64, and checks that no binary links
+outside the bundle or OS. It sets `LSMinimumSystemVersion` from the highest minimum OS version
+found in the bundled binaries, ad-hoc signs and verifies the app, and creates the DMG with an
+Applications shortcut.
 
-Uses rawpy / LibRaw for actual RAW decoding. NEF, NRW, ARW, CR2, CR3, DNG, RAF, ORF, RW2, PEF and SRW extensions are accepted, plus JPEG, PNG and TIFF. Support depends on the camera, encoding and the installed LibRaw build; an accepted extension is not a guarantee. Unsupported files appear in the error list. No camera-specific RAW files were available during development, so your Nikon/Fuji files need validation on your computer.
+To sign with the hardened runtime, set `CODESIGN_IDENTITY="Developer ID Application: …"`. To
+also notarise and staple, set `NOTARY_PROFILE=<notarytool keychain profile>`.
 
-This is source software, not a signed standalone installer. Full-resolution decoding can consume substantial RAM for large sensors. Preview files are written into an OS temporary folder outside your photo folder. The server binds only to localhost and guards API requests with a session token. No external service is called while reviewing photos. No semantic AI model, automatic eye detection, motion-blur classifier, XMP writeback, cancellation or background scan resumption is included in this first version.
+`.github/workflows/build-mac.yml` builds the DMG on a GitHub Apple-silicon runner. It then
+installs that DMG on separate clean macOS 14 and 15 runners and runs
+`scripts/acceptance_mac.py` against the installed app (see the validation report).
 
-## Development checks
-
-Run `python -m unittest test_analysis.py`. Tests cover blur discrimination, subject-region behaviour, missing timestamps, similarity-based burst separation, and app routes using generated JPEGs. See `TEST_RESULTS.txt` for checks performed when packaged.
+Development from source on any OS: `pip install -r requirements.txt && python app.py`, which
+opens the interface in your browser. Unit tests: `cd tests && python -m unittest`. The DNG
+tests need the `pidng` package.
