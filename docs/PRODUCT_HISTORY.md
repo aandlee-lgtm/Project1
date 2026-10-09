@@ -282,7 +282,8 @@ at the end lists what was built.
   checked. It matches Copy as DNG imports and capture times that are whole hours apart. Its summary
   lists unmatched names and the range of PhotoSelect names, with a hint to import that folder first.
 
-### After 1.4.0 (planned for the next version: waiting for build_new)
+### 1.5.0: stars applied automatically after any import; faster, lighter analysis
+Built when the owner sent **build_new** after items 13 and 14 were discussed (below).
 13. **Automate star rating after import.** The owner still has to import and then run the plug-in
     command before stars appear.
     - Explained: 1.4.0 rates automatically only after **Open in Lightroom Import**, with the automatic
@@ -304,6 +305,29 @@ at the end lists what was built.
       - prefetched full-resolution renders for instant ← → and 100% zoom;
       - a faster grid;
       - before / after measurements in the validation and diagnostic reports.
+
+**Shipped in 1.5.0.**
+- (13) Plug-in 1.5 rates matching photos by itself once they are in the catalog. It looks them up by
+  capture date about every 30 s, so any import works (Add, Copy, renamed, DNG):
+  - for selections sent in the last 14 days with automatic rating ticked;
+  - every few seconds for photos handed over with Open in Lightroom Import.
+
+  Each photo is rated once (applied.txt), existing stars are kept, and Lightroom shows a "stars
+  applied" message. The plug-in writes plugin-status.txt, and PhotoSelect's Lightroom window shows:
+  running, version, last rated, waiting, or warnings for an older plug-in or a needed restart.
+- (14) Performance, measured on an Apple silicon test Mac with 13 cameras:
+  - analysis decodes at the size the scores need (half size for 33 MP+, fast demosaic below): 2.86×
+    faster decode + analysis, peak memory per photo 806 → 617 MB, rankings unchanged (rank
+    correlation 0.995). Decoding half size for every photo was rejected: it changed focus rankings
+    (0.77);
+  - the analysis preview is made without copying the full image (about 1.8× faster);
+  - one lazy EXIF read instead of two 4 MB reads per photo;
+  - up to 6 workers at background (utility) priority;
+  - analysis in capture-time order, so bursts finish together;
+  - full-resolution renders prefetched and cached on disk (1.5 GB);
+  - ← → inside the inspector;
+  - slider redraws batched;
+  - new timings in the diagnostic report and the acceptance tests.
 
 ---
 
@@ -336,7 +360,9 @@ at the end lists what was built.
 | **Folder settings** | Settings remembered for one folder and used automatically whenever that folder is analysed. |
 | **Send to Lightroom…** | Opens the Lightroom window: the plug-in status, the star groups to import, **Open in Lightroom Import** and **Only save selections**. Selections are saved in ~/Library/Application Support/PhotoSelect/Lightroom (never in the photo folders). |
 | **Open in Lightroom Import** | Starts Lightroom Classic and opens its Import window with only the photos in the ticked star groups; you choose Add or Copy and click Import. |
-| **Automatic star rating** | After an Open in Lightroom Import, the plug-in adds the stars and keywords a few seconds after the photos appear in the catalog (for up to 3 hours). Stars already set in Lightroom are kept. |
+| **Automatic star rating** | The plug-in adds the stars and keywords by itself a few seconds after photos with PhotoSelect selections are in the catalog, however they were imported (within 14 days of Send to Lightroom; 3 hours for Open in Lightroom Import). Each photo is rated once; stars already set in Lightroom are kept. |
+| **Plug-in status** | The top line of PhotoSelect's Lightroom window: whether the plug-in is running in Lightroom, its version, and when it last rated photos. |
+| **Analysis decode** | How PhotoSelect decodes RAW for scoring: half size for 33 MP+ photos, a fast demosaic for smaller ones. Inspection always uses the full-quality decode. |
 | **Sony ARW** | Sony's RAW format; A7 and A9 bodies are checked against the public sample archive in every build. |
 | **Apply PhotoSelect Selections** | The Lightroom Classic command (Library → Plug-in Extras) that applies the stars and keywords after import, showing a summary first. |
 | **CAMERA PREVIEW** | The photo was analysed from the JPEG the camera stored inside the RAW file, because the RAW pixels could not be decoded (e.g. Nikon High Efficiency NEF). Its scores include the camera's own sharpening and noise reduction. |

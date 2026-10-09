@@ -1,4 +1,4 @@
-# PhotoSelect 1.4 — Apple silicon Mac app
+# PhotoSelect 1.5 — Apple silicon Mac app
 
 PhotoSelect helps you cull bursts of sailing and sports photos. Point it at a folder of Nikon
 (NEF/NRW), Olympus / OM System (ORF), Sony (ARW), other RAW, JPEG, PNG or TIFF files. It decodes each photo
@@ -44,10 +44,17 @@ nothing is deleted, renamed, moved, uploaded, or written to your photo folders.
 
    **Open in Lightroom Import** starts Lightroom Classic (or brings it to the front) and opens its
    Import window with only the photos in the ticked groups. Choose **Add** or **Copy** there and click
-   **Import**. With *Add the stars and keywords automatically* ticked, the plug-in rates the photos a
-   few seconds after they are imported. This needs Lightroom to have been restarted once after
-   installing the plug-in. **Only save selections** keeps the earlier route: import yourself, then
-   **Library → Plug-in Extras → Apply PhotoSelect Selections…**.
+   **Import**.
+
+   With *Add the stars and keywords automatically* ticked (the default), the plug-in rates the photos
+   by itself a few seconds after they are in the catalog. That also covers imports you start in
+   Lightroom yourself (Add, Copy, renamed or DNG) within 14 days of sending. Each photo is rated once,
+   and Lightroom shows "PhotoSelect: stars applied to N imported photos".
+
+   The window's top line shows whether the plug-in is running in Lightroom, its version and what it
+   last did. It warns if an older plug-in is loaded or Lightroom needs a restart (once, after
+   installing). **Library → Plug-in Extras → Apply PhotoSelect Selections…** remains as a manual
+   fallback.
    * Stars: Keep ★★★, Consider ★★, Drop ★, ♥ Liked ★★★★★ (your decision wins over the suggestion).
    * Keywords go under *PhotoSelect*: Keep / Consider / Drop / Liked / Burst NNN / Near-identical /
      Camera preview, for Smart Collections. They are not included when exporting images.
@@ -59,6 +66,35 @@ nothing is deleted, renamed, moved, uploaded, or written to your photo folders.
 
    The selections are saved in `~/Library/Application Support/PhotoSelect/Lightroom/`, never in your
    photo folders, and no XMP sidecar files are written.
+
+## Speed and resource use
+
+* **Analysis decodes RAW only as large as the scores need.**
+  * 33 MP and larger photos are decoded at half size, which still leaves the 4,000 px focus scale.
+  * Smaller photos use a fast demosaic.
+  * Inspection and 100% crops still use LibRaw's full-quality decode.
+
+  Measured on an Apple silicon test Mac (13 cameras, 5–61 MP):
+  * decode + analysis is 2.9× faster overall: 45–61 MP bodies take 0.6–1.6 s instead of 2.8–4.4 s
+    per photo, and 24 MP bodies about 1.2 s instead of 1.7 s;
+  * peak memory per photo is a quarter lower;
+  * rankings are essentially unchanged (rank correlation 0.995 for sharpness and focus, folder scores
+    within 2–3 points on average).
+* **Up to 6 analysis workers**, depending on cores and memory, e.g. 4 on an 8 GB M2. One core is left
+  for the interface. They run at macOS "utility" priority, so analysis yields to the interface and
+  other apps.
+* **Capture-time order:** analysis follows capture time, so bursts complete together and can be culled
+  while the rest of the folder continues.
+* **Lighter file reading:** capture time and camera model are read in one pass that only fetches the
+  EXIF blocks, instead of reading 8 MB per photo. This matters on cards and external drives.
+* **Fast inspection:**
+  * after the full-resolution inspector has been opened once, the previous and next photos are
+    rendered in the background;
+  * full-size renders are kept on disk (up to 1.5 GB, oldest removed first);
+  * ← → step through photos inside the inspector at the same zoom.
+* **Smooth controls:** slider drags redraw the grid at most once per screen frame.
+* **Figures for your Mac:** the diagnostic report shows time to first analysed photo, files per
+  second, decode / analysis times, CPU time per file and the number of workers.
 
 ## What the scores mean (and don't)
 
