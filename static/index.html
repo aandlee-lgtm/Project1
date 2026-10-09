@@ -89,7 +89,7 @@ a{color:var(--mint)}kbd{border:1px solid var(--line);border-radius:4px;padding:0
 <dialog id="comparison"><div class="dialoghead"><strong id="compareTitle">Comparison</strong><div class="detailtools"><label class="hint"><input id="cropMode" type="checkbox"> 100% crops of the focus region</label><button data-close="comparison">Close</button></div></div>
 <p class="hint">Ranked by your current weights. Close scores are a prompt to look, not a verdict: check the subject and moment before deciding.</p><div id="compare"></div></dialog>
 
-<dialog id="about"><div class="dialoghead"><strong>About PhotoSelect</strong><button data-close="about">Close</button></div><pre id="aboutText" class="hint" style="white-space:pre-wrap"></pre><button id="clearCache">Clear analysis cache</button> <span id="aboutMessage" class="hint"></span></dialog>
+<dialog id="about"><div class="dialoghead"><strong>About PhotoSelect</strong><button data-close="about">Close</button></div><pre id="aboutText" class="hint" style="white-space:pre-wrap"></pre><button id="diagButton" onclick="document.getElementById('about').close();createDiagnostics()">Create diagnostic report…</button> <button id="clearCache">Clear analysis cache</button> <span id="aboutMessage" class="hint"></span></dialog>
 <script>
 const TOKEN='__TOKEN__', DESKTOP=__DESKTOP__;
 const $=id=>document.getElementById(id);
@@ -262,8 +262,14 @@ $('export').onclick=async()=>{if(!rows.length){showError('Analyse a folder befor
   for(const r of rows){const i=derived.info.get(r.id)||{},s=score(r);data.push([r.name,r.path,r.format,r.camera||'',r.status==='analysed'?'analysed':'not analysed',r.is_raw&&r.status==='analysed',r.timestamp?new Date(r.timestamp*1000).toISOString():'',r.status==='analysed'?autoDecision(r):'',r.decision||'',!!r.liked,s===null?'':s.toFixed(1),r.scores.sharpness??'',r.scores.focus??'',r.scores.composition??'',r.scores.exposure??'',r.metrics.clip_high??'',r.metrics.clip_low??'',!!r.noise_flag,r.status==='analysed'?r.group:'',i.size||'',i.rank||'',i.gap!==undefined?i.gap.toFixed(1):'',i.rank===1,r.roi?JSON.stringify(r.roi):'',r.roi_state==='full',JSON.stringify(prefs.weights),prefs.keep,prefs.consider,reasons(r).join(' | ')])}
   for(const e of errors)data.push([e.name,e.path,'','','failed: '+e.error,'','','','','','','','','','','','','','','','','','','','','','','','']);
   try{const r=await api('export',{rows:data});
-    if(r.csv!==undefined){const blob=new Blob(['﻿'+r.csv],{type:'text/csv'}),a=document.createElement('a'),u=URL.createObjectURL(blob);a.href=u;a.download='PhotoSelect-decisions.csv';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}
+    if(r.text!==undefined)download(r.text,r.filename,'text/csv',true)
     else if(r.saved)$('notice').textContent='Decisions exported to '+r.saved;}catch(e){showError(e)}};
+
+function download(text,name,type,bom){const blob=new Blob([(bom?'\ufeff':'')+text],{type}),a=document.createElement('a'),u=URL.createObjectURL(blob);a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}
+async function createDiagnostics(){try{$('notice').textContent='Creating diagnostic report…';const r=await api('diagnostics',{});
+  if(r.text!==undefined){download(r.text,r.filename,'text/plain');$('notice').textContent='Diagnostic report downloaded.'}
+  else if(r.saved)$('notice').textContent='Diagnostic report saved to '+r.saved+'. Review it, then attach or paste it when reporting test results.';
+  else $('notice').textContent=''}catch(e){showError(e)}}
 
 // ---------- about ----------
 async function openAbout(){try{const a=await api('about');$('aboutText').textContent=`PhotoSelect ${a.version}\nLibRaw ${a.libraw} (rawpy ${a.rawpy}) · NumPy ${a.numpy} · Pillow ${a.pillow} · Python ${a.python} (bundled)\nAnalysis workers: ${a.workers}\n\nDecisions, likes, regions and preferences: ${a.support}\nThumbnails and previews cache: ${a.cache} (${(a.cache_bytes/1048576).toFixed(1)} MB)\nLogs: ${a.logs}\n\nAll processing happens on this Mac. Original photos are opened read-only.`;$('aboutMessage').textContent='';$('about').showModal()}catch(e){showError(e)}}

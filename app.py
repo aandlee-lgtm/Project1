@@ -20,7 +20,7 @@ import raw_io
 import store as store_module
 from engine import Library
 
-APP_VERSION = '1.0.0'
+APP_VERSION = '1.0.1'
 log = logging.getLogger('photoselect.app')
 
 
@@ -218,16 +218,8 @@ def create_app(library=None, store=None, token=None):
         library.regroup(data.get('gap', 2), data.get('similarity', 14))
         return jsonify(ok=True)
 
-    @app.post('/api/export')
-    def export():
-        data = request.get_json(force=True) or {}
-        table = data.get('rows') or []
-        if not table or not all(isinstance(r, list) for r in table):
-            return jsonify(error='Nothing to export.'), 400
-        out = io.StringIO()
-        csv.writer(out, lineterminator='\r\n').writerows(table)
-        text = out.getvalue()
-        filename = 'PhotoSelect-decisions.csv'
+    def save_text(text, filename, encoding='utf-8'):
+        """Write a user-requested file via the native save dialog (or EXPORT_DIR in tests)."""
         if app.config['EXPORT_DIR']:
             target = Path(app.config['EXPORT_DIR']) / filename
         elif app.config['SAVE_FILE']:
@@ -236,12 +228,27 @@ def create_app(library=None, store=None, token=None):
                 return jsonify(cancelled=True)
             target = Path(chosen)
         else:
-            return jsonify(csv=text)  # plain-browser development mode: client downloads it
+            return jsonify(text=text, filename=filename)  # plain-browser development mode: client downloads it
         originals = {Path(r['path']).resolve() for r in library.payload()['rows']}
         if target.resolve() in originals:
             return jsonify(error='Refusing to overwrite an original photo.'), 400
-        target.write_text(text, encoding='utf-8-sig')
+        target.write_text(text, encoding=encoding)
         return jsonify(saved=str(target))
+
+    @app.post('/api/export')
+    def export():
+        data = request.get_json(force=True) or {}
+        table = data.get('rows') or []
+        if not table or not all(isinstance(r, list) for r in table):
+            return jsonify(error='Nothing to export.'), 400
+        out = io.StringIO()
+        csv.writer(out, lineterminator='\r\n').writerows(table)
+        return save_text(out.getvalue(), 'PhotoSelect-decisions.csv', 'utf-8-sig')
+
+    @app.post('/api/diagnostics')
+    def make_diagnostics():
+        import diagnostics
+        return save_text(diagnostics.build(library, store.prefs(), APP_VERSION), diagnostics.filename())
 
     @app.get('/api/about')
     def about():

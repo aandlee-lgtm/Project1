@@ -174,7 +174,7 @@ class Library:
             self.full_jpegs.clear()
             self.status.update(phase='listing', running=True, done=0, total=0, previews=0, cached=0,
                                folder=str(folder), recursive=bool(recursive), started=time.time(), finished=None,
-                               elapsed=None)
+                               elapsed=None, previews_done=None)
             self._bump()
         threading.Thread(target=self._scan, args=(folder, bool(recursive), self.cancel_event),
                          name='scan', daemon=True).start()
@@ -223,6 +223,7 @@ class Library:
             with self.lock:
                 if not cancel.is_set():
                     self.status['phase'] = 'analysing'
+                    self.status['previews_done'] = time.time()
                     self._bump()
             self._run(pending, self._analyse_row, cancel, 'done')
             # Rows that were already analysed but have a region not yet measured at full resolution.
@@ -267,6 +268,7 @@ class Library:
         row['size'] = data.get('size')
         row['timestamp'] = data.get('timestamp')
         row['camera'] = data.get('camera')
+        row['timing'] = data.get('timing')
         row['status'] = 'analysed'
         row['source'] = source
 
@@ -290,13 +292,16 @@ class Library:
             return
         path = Path(row['path'])
         try:
+            t0 = time.perf_counter()
             full = raw_io.decode(path)
+            t1 = time.perf_counter()
             region = row['roi']
             preview, m = analysis.analyse(full, region)
             data = {k: v for k, v in m.items() if k != 'focus'}
             data['focus'] = m['focus_default']
             data.update(size=list(full.size), timestamp=raw_io.capture_time(path), camera=raw_io.camera_model(path),
-                        decoder=('LibRaw ' + raw_io.libraw_version()) if row['is_raw'] else 'Pillow')
+                        decoder=('LibRaw ' + raw_io.libraw_version()) if row['is_raw'] else 'Pillow',
+                        timing={'decode': round(t1 - t0, 3), 'analyse': round(time.perf_counter() - t1, 3)})
             thumb = preview.copy()
             thumb.thumbnail((THUMB_EDGE, THUMB_EDGE))
             _save_jpeg(preview, self.cache / 'previews' / f"{row['key']}.jpg", 88)

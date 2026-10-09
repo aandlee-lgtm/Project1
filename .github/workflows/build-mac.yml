@@ -74,6 +74,7 @@ jobs:
         run: |
           cat "$RUNNER_TEMP/acceptance/acceptance.md" >> "$GITHUB_STEP_SUMMARY" || true
           cat "$RUNNER_TEMP/acceptance/acceptance.md" || true
+          echo '--- diagnostic report sample ---'; head -n 60 "$RUNNER_TEMP/acceptance/diagnostics-sample.txt" || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -83,6 +84,7 @@ jobs:
             ${{ runner.temp }}/acceptance/**/*.json
             ${{ runner.temp }}/acceptance/**/*.png
             ${{ runner.temp }}/acceptance/**/*.log
+            ${{ runner.temp }}/acceptance/**/*.txt
             ${{ runner.temp }}/acceptance/decoded/*.small.jpg
             ${{ runner.temp }}/acceptance/exports/*.csv
             ${{ runner.temp }}/samples/manifest.json

@@ -109,6 +109,7 @@ def main():
         ]),
         Menu('Help', [
             MenuAction('About PhotoSelect', lambda: run_js("openAbout()")),
+            MenuAction('Create Diagnostic Report…', lambda: run_js("createDiagnostics()")),
             MenuAction('Open Log Folder', lambda: open_path(log_directory)),
             MenuAction('Third-Party Notices', lambda: open_path(notices)),
         ]),

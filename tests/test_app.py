@@ -89,6 +89,20 @@ class AppTests(unittest.TestCase):
         self.assertEqual(self.post('/api/cancel', {}).status_code, 200)
         self.assertEqual(fingerprint(self.photos), before)
 
+    def test_diagnostic_report(self):
+        self.post('/api/scan', {'folder': str(self.photos)})
+        self.wait()
+        r = self.post('/api/diagnostics', {})
+        path = Path(r.get_json()['saved'])
+        self.assertTrue(path.name.startswith('PhotoSelect-diagnostics-'))
+        text = path.read_text()
+        for heading in ('## This Mac', '## Last scan', '## Files that could not be analysed', '## Bursts',
+                        '## Orientation cross-check', '## Files (first'):
+            self.assertIn(heading, text)
+        self.assertIn('bad.NEF', text)
+        self.assertIn('bursts: 1', text)                      # a.jpg + b.JPG, 0.02 s apart
+        self.assertNotIn(str(self.photos.parent), text)       # no absolute paths
+
     def test_export_never_overwrites_an_original(self):
         self.post('/api/scan', {'folder': str(self.photos)})
         self.wait()

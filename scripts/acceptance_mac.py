@@ -412,6 +412,17 @@ def http_status(port, path, host=None):
         return e.code
 
 
+@guarded('diagnostic report')
+def diagnostics_check(app, out):
+    r = app.call('diagnostics', {})
+    text = Path(r['saved']).read_text()
+    shutil.copy2(r['saved'], Path(out) / 'diagnostics-sample.txt')
+    ok = all(h in text for h in ('## This Mac', 'macos:', 'chip:', '## Bursts', '## Orientation cross-check',
+                                 'Nikon NEF')) and str(HOME) not in text
+    oriented = [l for l in text.splitlines() if l.startswith('- RAW files checked')]
+    check('Help → Create Diagnostic Report produces a report without full paths', ok, oriented)
+
+
 def ui_check(app, folder, out, expect_persisted, label):
     cmd = [sys.executable, str(Path(__file__).resolve().parent.parent / 'tests' / 'ui_check.py'), '--port', str(app.port),
            '--token', app.token, '--folder', str(folder), '--engine', 'webkit', '--recursive',
@@ -528,6 +539,7 @@ def main():
             isolation_checks(app)
             screenshot(out, 'app-window-launch1.png')
             library_checks(app, shoot, real, out)
+            diagnostics_check(app, out)
             ui_check(app, shoot.parent, out, False, 'launch 1')
             screenshot(out, 'app-window-after-ui.png')
             port, pid = app.port, app.pid
