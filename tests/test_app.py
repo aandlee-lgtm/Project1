@@ -218,7 +218,9 @@ class AppTests(unittest.TestCase):
             self.assertEqual(self.post('/api/lightroom/sync', {}).get_json()['changed'], 0)    # nothing reported
             self.post('/api/scan', {'folder': str(self.photos)})
             self.wait()
-            a, b = str(self.photos / 'a.jpg'), str(self.photos / 'b.JPG')
+            # the paths PhotoSelect sent to Lightroom (resolved: /var → /private/var on macOS)
+            paths = {x['name']: x['path'] for x in self.get('/api/rows').get_json()['rows']}
+            a, b = paths['a.jpg'], paths['b.JPG']
             folder = home / 'support' / 'Lightroom'
             folder.mkdir(parents=True)
             # written by the plug-in: time, stars before, stars now, PhotoSelect path
