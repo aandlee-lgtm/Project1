@@ -19,7 +19,8 @@ FALLBACK_NEF = ('https://github.com/letmaik/rawpy/raw/main/test/iss030e122639.NE
                 'NASA ISS Nikon D3S (rawpy test file, public domain)')
 PREFER = {
     'nef': ['Z 8', 'Z 9', 'Z 6_2', 'Z 6III', 'Z 6', 'Z 7', 'Z 5', 'Z 50', 'Z f', 'D850', 'D500', 'D7500', 'D750'],
-    'orf': ['OM-1', 'OM-5', 'E-M1MarkIII', 'E-M1X', 'E-M1MarkII', 'E-M5MarkIII', 'E-M10MarkIV', 'E-M1'],
+    'orf': ['OM-1', 'OM-1 Mark II', 'OM-5', 'E-M1 Mark III', 'E-M1X', 'E-M1 Mark II', 'E-M5 Mark III', 'E-M10 Mark IV',
+            'E-M1MarkIII', 'E-M1MarkII', 'E-M5MarkIII', 'E-M1'],
     'nrw': ['P1000', 'P7800', 'P7700', 'P950', 'B700'],
 }
 LIMIT = 70 * 2 ** 20
@@ -30,35 +31,34 @@ def get(url, timeout=120):
     return urllib.request.urlopen(req, timeout=timeout)
 
 
-def size_of(url):
+def download(url, limit=LIMIT):
+    """GET with a size cap; returns bytes or None if larger than the cap or unavailable."""
     try:
-        req = urllib.request.Request(url, method='HEAD', headers={'User-Agent': 'PhotoSelect-acceptance-tests'})
-        return int(urllib.request.urlopen(req, timeout=30).headers.get('Content-Length', 0))
-    except Exception:
+        with get(url) as r:
+            data = r.read(limit + 1)
+        return data if len(data) <= limit else None
+    except Exception as error:
+        print(f'  download failed: {url}: {error}')
         return None
 
 
-def pick(entries, ext, makes, count):
-    cands = [e for e in entries if e['path'].lower().endswith('.' + ext) and
+def candidates(entries, ext, makes):
+    """Files of one extension from the given makes, preferred (recent) models first, one per model."""
+    cands = [e for e in entries if e['path'].lower().endswith('.' + ext) and e['path'].count('/') >= 2 and
              any(m in e['path'].split('/')[0].lower() for m in makes)]
     random.Random(7).shuffle(cands)
     order = []
     for model in PREFER[ext]:
-        order += [e for e in cands if e['path'].split('/')[1].upper().endswith(model.upper())]
+        order += [e for e in cands if e['path'].split('/')[1].upper().replace(' ', '') .endswith(model.upper().replace(' ', ''))]
     order += cands
-    chosen, models = [], set()
+    seen, out = set(), []
     for e in order:
         model = e['path'].split('/')[1]
-        if model in models:
-            continue
-        size = size_of(BASE + urllib.parse.quote(e['path']))
-        if size is None or size > LIMIT:
-            continue
-        chosen.append(e)
-        models.add(model)
-        if len(chosen) >= count:
-            break
-    return chosen
+        if model not in seen:
+            seen.add(model)
+            out.append(e)
+    print(f'{ext}: {len(cands)} files from {len(out)} models; first choices: {[e["path"] for e in out[:6]]}')
+    return out
 
 
 def main():
@@ -79,20 +79,26 @@ def main():
             if len(parts) == 2:
                 entries.append({'sha256': parts[0], 'path': parts[1].lstrip('*').lstrip('./')})
         print(f'raw.pixls.us listing: {len(entries)} files; first: {listing[:2]}')
-        plan = (pick(entries, 'nef', ['nikon'], a.nef) + pick(entries, 'nrw', ['nikon'], a.nrw) +
-                pick(entries, 'orf', ['olympus', 'om digital', 'om system'], a.orf))
-        for e in plan:
-            make, model, name = e['path'].split('/')[:3]
-            target = out / f"{model.replace(' ', '_')}__{name}"
-            data = get(BASE + urllib.parse.quote(e['path'])).read()
-            digest = hashlib.sha256(data).hexdigest()
-            if digest != e['sha256']:
-                print(f'checksum mismatch for {e["path"]}; skipped')
-                continue
-            target.write_bytes(data)
-            manifest.append({'file': target.name, 'make': make, 'model': model, 'source': 'raw.pixls.us (CC0 sample archive)',
-                             'sha256': digest, 'bytes': len(data)})
-            print(f'  {make} / {model}: {name} ({len(data) / 2**20:.1f} MB)')
+        for ext, makes, count in (('nef', ['nikon'], a.nef), ('nrw', ['nikon'], a.nrw),
+                                  ('orf', ['olympus', 'om digital', 'om system'], a.orf)):
+            got = 0
+            for e in candidates(entries, ext, makes):
+                if got >= count:
+                    break
+                make, model, name = e['path'].split('/')[:3]
+                data = download(BASE + urllib.parse.quote(e['path']))
+                if data is None:
+                    continue
+                digest = hashlib.sha256(data).hexdigest()
+                if digest != e['sha256']:
+                    print(f'checksum mismatch for {e["path"]}; skipped')
+                    continue
+                target = out / f"{model.replace(' ', '_')}__{name}"
+                target.write_bytes(data)
+                manifest.append({'file': target.name, 'make': make, 'model': model,
+                                 'source': 'raw.pixls.us (CC0 sample archive)', 'sha256': digest, 'bytes': len(data)})
+                print(f'  {make} / {model}: {name} ({len(data) / 2**20:.1f} MB)')
+                got += 1
     except Exception as error:
         print(f'raw.pixls.us unavailable: {error}')
     if not any(m['file'].lower().endswith('.nef') for m in manifest):
