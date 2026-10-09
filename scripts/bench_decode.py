@@ -33,7 +33,8 @@ def one(path, mode):
     import analysis
     import raw_io
     t0 = time.perf_counter()
-    full, basis, _ = raw_io.decode_photo(path, min_edge=analysis.FOCUS_SCALE if mode == 'fast' else None)
+    min_edge = {'reference': None, 'fast': analysis.FOCUS_SCALE, 'half': 1}[mode]   # 'half': half-size for every file
+    full, basis, _ = raw_io.decode_photo(path, min_edge=min_edge)
     t1 = time.perf_counter()
     _, m = analysis.analyse(full)
     t2 = time.perf_counter()
@@ -41,6 +42,44 @@ def one(path, mode):
     peak_mb = peak / 2 ** 20 if sys.platform == 'darwin' else peak / 1024
     print(json.dumps({'decode': t1 - t0, 'analyse': t2 - t1, 'peak_mb': peak_mb, 'size': list(full.size),
                       'basis': basis, **{k: m[k] for k in KEYS}}))
+
+
+HIGH_RES = ('Z 8', 'Z 9', 'Z 7', 'D850', 'ILCE-7RM4', 'ILCE-7RM5', 'ILCE-7CR', 'ILCE-1', 'Z8', 'Z9', 'Z7', 'Z 7_2', 'Z 7II')
+
+
+def get(url, limit=None):
+    with urllib.request.urlopen(urllib.request.Request(url, headers={'User-Agent': 'PhotoSelect-bench'}), timeout=300) as r:
+        return r.read(limit + 1) if limit else r.read()
+
+
+def dir_listing(url):
+    import re
+    html = get(url).decode('utf-8', 'replace')
+    return [urllib.parse.unquote(h) for h in re.findall(r'href="([^"?/][^"]*)"', html)]
+
+
+def high_res_samples(per_model=1):
+    """(url, None) for RAW samples of 33 MP+ bodies from the full raw.pixls.us archive (/data/)."""
+    out = []
+    for make in ('Nikon/', 'NIKON CORPORATION/', 'Sony/', 'SONY/'):
+        root = 'https://raw.pixls.us/data/' + urllib.parse.quote(make)
+        try:
+            models = dir_listing(root)
+        except Exception as error:
+            print('listing', root, error)
+            continue
+        for folder in models:
+            name = folder.rstrip('/').upper().replace(' ', '')
+            if not any(name.endswith(m.upper().replace(' ', '')) for m in HIGH_RES):
+                continue
+            try:
+                files = [f for f in dir_listing(root + urllib.parse.quote(folder.rstrip('/')) + '/')
+                         if f.lower().endswith(('.nef', '.arw'))]
+            except Exception:
+                continue
+            out += [(root + urllib.parse.quote(folder.rstrip('/')) + '/' + urllib.parse.quote(f), folder.rstrip('/'))
+                    for f in files[:per_model]]
+    return out
 
 
 def spearman(a, b):
@@ -78,25 +117,28 @@ def main():
     prefer = ('Z 8', 'Z 9', 'Z 7', 'Z 6_3', 'Z 6', 'D850', 'ILCE-7RM', 'ILCE-7M4', 'ILCE-1', 'ILCE-9', 'OM-1', 'E-M1')
     entries.sort(key=lambda e: next((i for i, m in enumerate(prefer) if m.upper().replace(' ', '') in e[0].upper().replace(' ', '')), 99))
     results, models = [], set()
-    for path, digest in entries:
-        if len(results) >= a.count:
+    todo = [(BASE + urllib.parse.quote(p), p.split('/')[1], d) for p, d in entries]
+    todo = [(u, m, None) for u, m in high_res_samples()] + todo
+    high = 0
+    for url, model, digest in todo:
+        if len(results) >= a.count + high:
             break
-        model = path.split('/')[1]
         if model in models:
             continue
         try:
-            data = urllib.request.urlopen(urllib.request.Request(BASE + urllib.parse.quote(path),
-                                                                 headers={'User-Agent': 'PhotoSelect-bench'}), timeout=300).read()
+            data = get(url, 150 * 2 ** 20)
         except Exception as error:
-            print('download failed', path, error)
+            print('download failed', url, error)
             continue
-        if hashlib.sha256(data).hexdigest() != digest or len(data) > 150 * 2 ** 20:
+        if len(data) > 150 * 2 ** 20 or (digest and hashlib.sha256(data).hexdigest() != digest):
             continue
-        target = out / path.split('/')[-1]
+        if digest is None:
+            high += 1
+        target = out / urllib.parse.unquote(url.split('/')[-1])
         target.write_bytes(data)
         row = {'model': model, 'file': target.name, 'mb': round(len(data) / 2 ** 20, 1)}
         ok = True
-        for mode in ('reference', 'fast'):
+        for mode in ('reference', 'fast', 'half'):
             r = subprocess.run([sys.executable, __file__, '--one', str(target), mode], capture_output=True, text=True)
             if r.returncode != 0:
                 print('failed', target.name, mode, r.stderr[-400:])
@@ -112,25 +154,34 @@ def main():
     sys.path.insert(0, str(ROOT))
     import analysis
     scored = {}
-    for mode in ('reference', 'fast'):
+    for mode in ('reference', 'fast', 'half'):
         rows = [{'raw': {k: r[mode][k] for k in KEYS}, 'scores': {}} for r in results]
         analysis.normalise(rows)
         scored[mode] = rows
     lines = ['# Analysis decode: 1.4.0 (reference) vs 1.5.0 (fast)', '',
-             '| Camera | MP | Fast decode | Decode s (ref → fast) | Analyse s | Peak MB (ref → fast) | Focus (ref / fast) |',
+             '| Camera | MP | Fast decode | Decode s (ref → fast → half) | Analyse s | Peak MB (ref → fast → half) | Focus (ref / fast / half) |',
              '|---|---|---|---|---|---|---|']
     for r in results:
         ref, fast = r['reference'], r['fast']
         mp = ref['size'][0] * ref['size'][1] / 1e6
         how = 'half-size' if fast['size'][0] < ref['size'][0] * .75 else 'fast demosaic'
-        lines.append(f"| {r['model']} | {mp:.0f} | {how} | {ref['decode']:.2f} → {fast['decode']:.2f} | "
-                     f"{ref['analyse']:.2f} → {fast['analyse']:.2f} | {ref['peak_mb']:.0f} → {fast['peak_mb']:.0f} | "
-                     f"{ref['focus']:.4g} / {fast['focus']:.4g} |")
+        half = r['half']
+        lines.append(f"| {r['model']} | {mp:.0f} | {how} | {ref['decode']:.2f} → {fast['decode']:.2f} → {half['decode']:.2f} | "
+                     f"{ref['analyse']:.2f} → {fast['analyse']:.2f} → {half['analyse']:.2f} | "
+                     f"{ref['peak_mb']:.0f} → {fast['peak_mb']:.0f} → {half['peak_mb']:.0f} | "
+                     f"{ref['focus']:.4g} / {fast['focus']:.4g} / {half['focus']:.4g} |")
     summary = {}
     if results:
         t_ref = sum(r['reference']['decode'] + r['reference']['analyse'] for r in results)
         t_fast = sum(r['fast']['decode'] + r['fast']['analyse'] for r in results)
-        summary = {'files': len(results), 'speedup': round(t_ref / t_fast, 2),
+        t_half = sum(r['half']['decode'] + r['half']['analyse'] for r in results)
+        summary = {'files': len(results), 'speedup': round(t_ref / t_fast, 2), 'speedup_half_everything': round(t_ref / t_half, 2),
+                   'peak_mb_half': round(max(r['half']['peak_mb'] for r in results)),
+                   'rank_correlation_half': {k: round(spearman([r['reference'][k] for r in results], [r['half'][k] for r in results]) or 0, 3)
+                                             for k in KEYS},
+                   'mean_score_difference_half': {k: round(statistics.mean(abs(x['scores'][k] - y['scores'][k])
+                                                                           for x, y in zip(scored['reference'], scored['half'])), 1)
+                                                  for k in ('sharpness', 'focus', 'composition', 'exposure')},
                    'peak_mb_reference': round(max(r['reference']['peak_mb'] for r in results)),
                    'peak_mb_fast': round(max(r['fast']['peak_mb'] for r in results)),
                    'rank_correlation': {k: round(spearman([r['reference'][k] for r in results], [r['fast'][k] for r in results]) or 0, 3)
@@ -142,7 +193,10 @@ def main():
                       f"(**{summary['speedup']}× faster**). Largest peak memory per file: {summary['peak_mb_reference']} MB → "
                       f"{summary['peak_mb_fast']} MB.",
                   f"Rank correlation between modes (1 = same order): {summary['rank_correlation']}.",
-                  f"Mean difference of the folder-relative 0-100 scores: {summary['mean_score_difference']}."]
+                  f"Mean difference of the folder-relative 0-100 scores: {summary['mean_score_difference']}.",
+                  '', f"Alternative, half-size for every file: {t_half:.1f} s ({summary['speedup_half_everything']}× faster), peak "
+                      f"{summary['peak_mb_half']} MB, rank correlation {summary['rank_correlation_half']}, mean score difference "
+                      f"{summary['mean_score_difference_half']}."]
     report = '\n'.join(lines) + '\n'
     (out / 'bench.md').write_text(report)
     (out / 'bench.json').write_text(json.dumps({'summary': summary, 'results': results}, indent=1))
