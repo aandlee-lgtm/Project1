@@ -293,6 +293,17 @@ at the end lists what was built.
       - rate automatically after any import of photos that have PhotoSelect selections;
       - the plug-in reports that it is running and its version, and PhotoSelect shows this;
       - a confirmation in Lightroom after rating.
+14. **Optimise for speed and low resource use.** The owner wants the app as resource-efficient as possible,
+    since its purpose is to cut the time spent culling and inspecting large numbers of shots.
+    - Baseline from the 1.4.0 test run: 250 × 24 MP RAW at 0.43–0.49 files/s with one worker on a 7 GB
+      virtual Mac (about 9 minutes), and 1.1–1.5 GB peak memory.
+    - Planned (backlog 14):
+      - decode RAW only at the size the scores need, keeping scores equivalent;
+      - analyse burst by burst so complete bursts are ready early;
+      - lower memory per worker, allowing more workers, at low priority;
+      - prefetched full-resolution renders for instant ← → and 100% zoom;
+      - a faster grid;
+      - before / after measurements in the validation and diagnostic reports.
 
 ---
 
