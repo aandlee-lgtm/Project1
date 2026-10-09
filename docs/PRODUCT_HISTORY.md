@@ -229,6 +229,11 @@ and discussed first, then shipped together. Each item says what was decided and,
       again. If they still don't match, check whether the import renamed the files or used Copy as DNG.
     - Planned (backlog 11): explain the selection in the summary, list unmatched names, match DNG copies,
       and tolerate time-zone offsets.
+    - Cause found: Lightroom's "Previous Import" was an earlier day's photos, not the 27 analysed. The 27
+      had not been imported into Lightroom yet. Next step: import them, then run the command on the new
+      import.
+    - Proposed: the plug-in could also add the analysed photos to the catalog itself, in place, and apply
+      the stars in the same step (Lightroom's SDK supports adding photos).
 
 ---
 
