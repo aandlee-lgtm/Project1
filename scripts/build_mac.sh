@@ -78,7 +78,7 @@ if [ -n "${CODESIGN_IDENTITY:-}" ]; then
 else
   codesign --force --deep --sign - "$APP"
 fi
-codesign --verify --deep --strict --verbose=2 "$APP"
+codesign --verify --deep --strict "$APP" && echo "signature verified: $APP"
 codesign -dv "$APP" 2>&1 | grep -E 'Signature|TeamIdentifier|flags' || true
 
 echo '== disk image'

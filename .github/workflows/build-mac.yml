@@ -71,7 +71,9 @@ jobs:
             --samples "$RUNNER_TEMP/samples" --out "$RUNNER_TEMP/acceptance"
       - name: Summary
         if: always()
-        run: cat "$RUNNER_TEMP/acceptance/acceptance.md" >> "$GITHUB_STEP_SUMMARY" || true
+        run: |
+          cat "$RUNNER_TEMP/acceptance/acceptance.md" >> "$GITHUB_STEP_SUMMARY" || true
+          cat "$RUNNER_TEMP/acceptance/acceptance.md" || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
