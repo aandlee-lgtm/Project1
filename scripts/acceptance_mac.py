@@ -480,6 +480,10 @@ def main():
     for d in (SUPPORT, CACHES, LOGS):
         shutil.rmtree(d, ignore_errors=True)
 
+    kinds = {Path(m['file']).suffix.lower() for m in json.loads((Path(a.samples) / 'manifest.json').read_text())}
+    for ext, label in (('.nef', 'Nikon NEF'), ('.nrw', 'Nikon NRW'), ('.orf', 'Olympus / OM System ORF')):
+        if ext not in kinds:
+            record(f'genuine {label} decode', 'NOT TESTED', 'no genuine sample file was available to this run')
     install(a.dmg, out)
     volume, shoot, real, large = make_photos(a.samples, out)
     before = fingerprint(volume)

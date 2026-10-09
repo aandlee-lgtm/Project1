@@ -61,6 +61,26 @@ def pick(entries, ext, makes, count):
     return chosen
 
 
+def discover():
+    """Print the archive's link structure so the download scheme can be confirmed from CI logs."""
+    import re
+    for url in ('https://raw.pixls.us/', 'https://raw.pixls.us/data/', 'https://raw.pixls.us/data-unique/'):
+        try:
+            r = get(url, timeout=60)
+            html = r.read().decode('utf-8', 'replace')
+            print(f'DISCOVER {url} -> {r.status}, {len(html)} bytes')
+            links = sorted(set(re.findall(r'(?:href|src)=["\']([^"\']+)', html)))
+            print('DISCOVER links:', links[:80])
+            for m in sorted(set(re.findall(r'[\w./-]*(?:\.php|\.json|getfile|data/)[\w./?=&%-]*', html)))[:60]:
+                print('DISCOVER ref:', m)
+            for src in [l for l in links if l.endswith('.js')][:6]:
+                js = get(urllib.parse.urljoin(url, src), timeout=60).read().decode('utf-8', 'replace')
+                for m in sorted(set(re.findall(r'["\'][^"\']*(?:\.php|\.json|getfile|/data)[^"\']*["\']', js)))[:40]:
+                    print(f'DISCOVER js {src}:', m)
+        except Exception as error:
+            print(f'DISCOVER {url} failed: {error}')
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('out')
@@ -71,6 +91,7 @@ def main():
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     manifest = []
+    discover()
     try:
         listing = get(BASE + 'filelist.sha1').read().decode('utf-8', 'replace').splitlines()
         entries = []
@@ -110,7 +131,10 @@ def main():
     (out / 'manifest.json').write_text(json.dumps(manifest, indent=1))
     print(json.dumps(manifest, indent=1))
     kinds = {Path(m['file']).suffix.lower() for m in manifest}
-    sys.exit(0 if {'.nef', '.orf'} <= kinds else 2)
+    missing = {'.nef', '.orf', '.nrw'} - kinds
+    if missing:
+        print(f'WARNING: no genuine samples for {sorted(missing)}; those formats will be reported as NOT TESTED.')
+    sys.exit(0 if kinds else 2)
 
 
 if __name__ == '__main__':
