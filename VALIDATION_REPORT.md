@@ -47,7 +47,13 @@ repository, so the same checks can be repeated on your Mac.
 **Photos and decoding.** The test library was placed on a *separately mounted APFS volume* named
 "Photo Drive", in folders with spaces. Genuine camera files came from raw.pixls.us (CC0):
 
-__DECODE_TABLE__
+| Camera (file) | Format | Decoded size | Correlation with Apple's render | macOS 14 | macOS 15 |
+|---|---|---|---|---|---|
+| Nikon D7200 (`DSC_0979.NEF`) | NEF, uppercase ext. | 6016 × 4016 | 0.998 | PASS | PASS |
+| Nikon D5600 (`…0792.nef`) | NEF, lowercase ext. | 6016 × 4016 | 0.981 | PASS | PASS |
+| Olympus XZ-1 (`p1319978.Orf`) | ORF, mixed-case ext. | 3680 × 2760 | 0.856 | PASS | PASS |
+| Nikon D3S (NASA ISS file, earlier runs) | NEF | 4284 × 2844 | 0.995 | PASS | PASS |
+| Nikon NRW (Coolpix) | NRW | — | — | NOT TESTED (no sample obtained) | NOT TESTED |
 
 Correlation is between PhotoSelect's full-resolution LibRaw decode and macOS's own RAW
 renderer (`sips` / Core Image) for the same file, both downsampled to greyscale. Values near 1
@@ -76,14 +82,20 @@ lowers the correlation without indicating a decoding error.
   get the highest focus scores (95 vs 52 / 19 / 15 for the blurred frames). PASS
 - No JavaScript errors. PASS
 
-**Performance and robustness: 250 RAW files (24 MP NEF/ORF clones) on the test volume**
+**Performance and robustness: 250 RAW files on the test volume** (APFS clones of the genuine samples above, mostly the 24 MP NEFs)
 
-__PERF_TABLE__
+| | macOS 14.8 | macOS 15.7 |
+|---|---|---|
+| Analysis workers chosen (7 GB / 3-core VM) | 1 | 1 |
+| Time for 250 files, first pass | 438 s (0.51 files/s) | 538 s (0.42 files/s) |
+| Peak memory of the app process | 909 MB | 926 MB |
+| Cancel → stopped | 1.6 s | 2.5 s |
+| API latency during analysis (median / p95 / max) | 4 / 15 / 201 ms | 8 / 25 / 340 ms |
+| Fully cached rescan of 250 files | 0.5 s | 0.6 s |
 
-- Cancel mid-scan: stops within about 1–2 s and keeps finished results. Re-analysing resumes
-  from the cache. PASS
-- API latency while analysing: median ~5 ms, p95 13–20 ms. The interface stays responsive. PASS
-- Fully cached rescan of 250 files: 0.6 s, with no re-decoding. PASS
+- Cancelling keeps finished results, and re-analysing resumes from the cache. PASS
+- The final run: **macOS 14.8 and macOS 15.7 each passed every check (70 per platform, 0
+  failures)**, apart from the NRW item marked NOT TESTED.
 
 **Shutdown, persistence, safety**
 - Quit via the standard Quit Apple Event (the ⌘Q / menu path): exits in under 1 s. No
@@ -104,7 +116,8 @@ PASS
 ## Not tested / known limitations
 
 - **Your cameras and your photos.** Genuine Nikon (D7200, D5600, D3S) and Olympus (XZ-1) files
-  were tested, but not your bodies, your bursts, or special modes (e.g. Nikon High Efficiency
+  were tested. No **NRW** file and no current Nikon Z or OM System body (OM-1, etc.) was obtained
+  from the public archive in these runs. Your own bodies, your bursts and special modes were not tested (e.g. Nikon High Efficiency
   NEF, OM System high-res or pro-capture files). Please send a few NEF/ORF files, ideally
   including a burst. If a mode isn't supported by LibRaw 0.22.1, the app says so per file.
 - **Real burst sequences from a camera** were not available. Burst grouping was verified with

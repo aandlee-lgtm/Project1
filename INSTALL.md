@@ -7,6 +7,18 @@ inside it (measured at build time). It has been **tested on macOS 14.8 (Sonoma) 
 from Safari 15.4 or later, which current macOS versions include. Intel Macs are not supported. Nothing else is needed: no Python, Terminal, Homebrew or
 downloads after installation, and it works offline.
 
+## Get the DMG
+
+Either:
+
+* **Download the tested build:** open the repository's **Actions** tab, select the latest green
+  run of *Build and test macOS app (Apple silicon)*, and download the artifact
+  **PhotoSelect-AppleSilicon-dmg** (GitHub delivers it as a .zip; double-click it to get
+  `PhotoSelect-AppleSilicon.dmg`). The `.sha256` file next to it lets you check the download
+  with `shasum -a 256`. Artifacts expire after 90 days. Or:
+* **Build it on your Mac:** `bash scripts/build_mac.sh` (see README → Building). A locally
+  built copy is not quarantined, so it opens without the Gatekeeper step below.
+
 ## Install
 
 1. Open `PhotoSelect-AppleSilicon.dmg`.
