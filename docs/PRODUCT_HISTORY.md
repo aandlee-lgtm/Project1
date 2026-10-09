@@ -282,6 +282,18 @@ at the end lists what was built.
   checked. It matches Copy as DNG imports and capture times that are whole hours apart. Its summary
   lists unmatched names and the range of PhotoSelect names, with a hint to import that folder first.
 
+### After 1.4.0 (planned for the next version: waiting for build_new)
+13. **Automate star rating after import.** The owner still has to import and then run the plug-in
+    command before stars appear.
+    - Explained: 1.4.0 rates automatically only after **Open in Lightroom Import**, with the automatic
+      option ticked, and only once the 1.4 plug-in is running. If the 1.3 copy added by hand is still
+      in the Plug-in Manager, or Lightroom was not restarted after installing, only the manual command
+      works. Imports started in Lightroom itself are never rated automatically in 1.4.0.
+    - Planned (backlog 13):
+      - rate automatically after any import of photos that have PhotoSelect selections;
+      - the plug-in reports that it is running and its version, and PhotoSelect shows this;
+      - a confirmation in Lightroom after rating.
+
 ---
 
 ## 2. Definitions (draft glossary for the user instructions)
