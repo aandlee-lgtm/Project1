@@ -14,18 +14,33 @@ def main():
     import rawpy, exifread
     from PIL import Image
     print('rawpy', rawpy.__version__, 'LibRaw', '.'.join(map(str, rawpy.libraw_version)))
-    wanted = [w.upper().replace(' ', '') for w in sys.argv[1:]]
-    entries = [l.split(None, 1) for l in get(BASE + 'filelist.sha256').decode().splitlines() if l.strip()]
-    hits = [(h, p.lstrip('*').lstrip('./')) for h, p in entries
-            if any(w in p.upper().replace(' ', '') for w in wanted)]
+    import re
+    wanted = [w.upper().replace(' ', '').replace('_', '') for w in sys.argv[1:]]
+
+    def listing(url):
+        html = get(url).decode('utf-8', 'replace')
+        return [urllib.parse.unquote(h) for h in re.findall(r'href="([^"?/][^"]*)"', html)]
+    hits = []
+    for make in ('Nikon/', 'NIKON CORPORATION/'):
+        root = 'https://raw.pixls.us/data/' + urllib.parse.quote(make)
+        try:
+            models = listing(root)
+        except Exception as e:
+            print('listing failed', root, e); continue
+        print(make, 'models:', [m for m in models if 'Z' in m.upper()][:60])
+        for m in models:
+            if any(w in m.upper().replace(' ', '').replace('_', '').rstrip('/') for w in wanted):
+                for f in listing(root + urllib.parse.quote(m)):
+                    if not f.endswith('/'):
+                        hits.append((None, 'https://raw.pixls.us/data/' + urllib.parse.quote(make + m + f)))
     print(f'{len(hits)} matching files')
     for h, path in hits:
         print('\n==', path)
         try:
-            data = get(BASE + urllib.parse.quote(path))
+            data = get(path)
         except Exception as e:
             print('  download failed:', e); continue
-        print(f'  {len(data)/2**20:.1f} MB, sha256 ok: {hashlib.sha256(data).hexdigest() == h}')
+        print(f'  {len(data)/2**20:.1f} MB')
         try:
             tags = exifread.process_file(io.BytesIO(data), details=True)
             for k in ('Image Model', 'MakerNote NEFCompression', 'MakerNote Quality', 'EXIF CompressedBitsPerPixel', 'Image BitsPerSample'):
