@@ -25,6 +25,8 @@
 - The status line no longer shows the decoder version (still in About and the diagnostic report).
 - Photo cards for camera-preview photos are shorter. The CAMERA PREVIEW badge stays, and the full
   explanation is in the viewer.
+- Tested: the installed DMG passed all acceptance checks on macOS 14.8 and 15.7 (run 37895394093). The
+  Lightroom plug-in has not yet been tried in a real Lightroom Classic; see field test T15.
 
 ## 1.2.0
 - Click the Keep, Consider or Drop tile above the grid to show only that group; click it again, or

@@ -1,4 +1,38 @@
-# PhotoSelect 1.0.0 — validation report
+# PhotoSelect validation report (1.0.0, updated for 1.3.0)
+
+## 1.3.0 results
+Build and acceptance run: https://github.com/aandlee-lgtm/Project1/actions/runs/37895394093. The DMG was
+installed on clean macOS 14.8 and 15.7 runners. Both passed every check (macOS 15: 95 passed or
+informational, 0 failed), and the 1.0 checks below were repeated. New checks, run on the installed app
+before and after a relaunch:
+
+| Check | Result |
+|---|---|
+| Status line has no decoder version ("13 photos analysed … · 9 bursts / single frames · 4 could not be analysed") | PASS |
+| Accent colour is the new teal #4fe0c8 | PASS |
+| Burst Similarity ≥ % and near-identical settings saved and applied (Regroup) | PASS |
+| Viewer shows likeness to the burst's top frame; burst comparison shows likeness to #1 and the burst average | PASS |
+| Camera-preview photo cards omit the long sentence (Z6III HE sample) | PASS |
+| Learn from my decisions is disabled until 30 photos are marked | PASS |
+| Settings profile saved, loaded, restored after relaunch, deleted; settings remembered per folder | PASS |
+| Lightroom plug-in installed (Help → Install Lightroom Plug-in…) and selections sent | PASS |
+| Originals unchanged and no files added to photo folders (Lightroom selections are kept in ~/Library) | PASS |
+| No JavaScript errors | PASS |
+
+**Tested only from source, not on the packaged app:**
+- *Learn → Apply → Undo* (the CI folder has only 13 photos). It passed against the source server with
+  a 40-photo folder (Chromium).
+- Likeness and near-identical grouping, the 1.2 → 1.3 preference migration and the Lightroom
+  endpoints are covered by unit tests: 51 in total.
+- The plug-in's Lua code runs under Lua 5.1 (Lightroom's version). This includes the menu command
+  against a simulated Lightroom catalog: stars, keyword replacement, existing stars kept, Replace,
+  Cancel, and "no selections found".
+
+**Not tested:** the plug-in inside a real Adobe Lightroom Classic. Lightroom cannot run on the test
+machines. The SDK calls are written to Adobe's documented API but have only been exercised against
+the simulation. Field test T15 covers this on your Mac.
+
+## 1.0.0 results
 
 What was verified, how, and what remains untested. Every result below comes from automated
 runs of the **packaged app installed from the DMG**, unless marked as a source-level test.
