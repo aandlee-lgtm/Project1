@@ -204,6 +204,18 @@ and discussed first, then shipped together. Each item says what was decided and,
      - add a Sony ARW format filter;
      - report models without a sample as NOT TESTED.
 
+10. **"Send to Lightroom does not seem to do anything"; where and how to install the plug-in.**
+    - Explained:
+      - Send to Lightroom only saves the selections file, and confirms it with one line of text under the
+        progress bar. The stars appear in Lightroom only after the plug-in's command is run there.
+      - Install with PhotoSelect **Help → Install Lightroom Plug-in…**. It copies `PhotoSelect.lrplugin` to
+        `~/Library/Application Support/Adobe/Lightroom/Modules/`, which Lightroom Classic loads
+        automatically when it starts.
+      - To install by hand: Lightroom **File → Plug-in Manager… → Add**, then choose that
+        `PhotoSelect.lrplugin` folder.
+      - Then restart Lightroom, import, and run Library → Plug-in Extras → Apply PhotoSelect Selections….
+    - Planned (backlog 10): a confirmation dialog with plug-in status, an Install button and the next steps.
+
 ---
 
 ## 2. Definitions (draft glossary for the user instructions)
