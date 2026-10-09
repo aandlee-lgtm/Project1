@@ -49,7 +49,7 @@ def series_code(folder):
     return None
 
 
-def listing(url):
+def dir_listing(url):
     html = get(url).decode('utf-8', 'replace')
     return [urllib.parse.unquote(h) for h in re.findall(r'href="([^"?/][^"]*)"', html)]
 
@@ -120,7 +120,7 @@ def main():
     for make in ('Sony/', 'SONY/'):
         root = 'https://raw.pixls.us/data/' + urllib.parse.quote(make)
         try:
-            models = listing(root)
+            models = dir_listing(root)
         except Exception as error:
             print(f'listing {root}: {error}')
             continue
@@ -130,7 +130,7 @@ def main():
             if not code or any(e[0] == code for e in entries):
                 continue
             try:
-                files = [f for f in listing(root + urllib.parse.quote(folder.rstrip('/')) + '/') if f.lower().endswith('.arw')]
+                files = [f for f in dir_listing(root + urllib.parse.quote(folder.rstrip('/')) + '/') if f.lower().endswith('.arw')]
             except Exception as error:
                 print(f'listing {folder}: {error}')
                 continue
