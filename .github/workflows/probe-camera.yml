@@ -1,0 +1,22 @@
+name: Probe camera RAW support
+
+on:
+  push:
+    branches: ['claude/**']
+    paths: ['scripts/probe_camera.py', '.github/workflows/probe-camera.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install --quiet rawpy==0.27.1 exifread==3.5.1 pillow==12.3.0 numpy==2.5.3
+      - run: python scripts/probe_camera.py "Z 6III" "Z6III" "Z 6_3" "Z 6 III"
