@@ -1,0 +1,39 @@
+name: Publish release
+
+# Pushing a tag such as v1.0.2 publishes the DMG from the latest successful
+# "Build and test macOS app" run on the branch as a GitHub Release (no rebuild).
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch the tested DMG
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUN=$(gh run list -R "$GITHUB_REPOSITORY" --workflow build-mac.yml --branch claude/relaxed-tesla-nh3gba \
+                --status success --limit 1 --json databaseId -q '.[0].databaseId')
+          echo "Using build run $RUN"
+          gh run download "$RUN" -R "$GITHUB_REPOSITORY" -n PhotoSelect-AppleSilicon-dmg -D dist
+          (cd dist && shasum -a 256 -c PhotoSelect-AppleSilicon.dmg.sha256)
+          echo "RUN=$RUN" >> "$GITHUB_ENV"
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" --prerelease \
+            --title "PhotoSelect ${GITHUB_REF_NAME#v} (Apple silicon)" \
+            --notes "Apple silicon Mac app. Download PhotoSelect-AppleSilicon.dmg, open it and drag PhotoSelect to Applications. Ad-hoc signed, not notarised: on first launch use System Settings → Privacy & Security → Open Anyway (see INSTALL.md).
+
+Built and acceptance-tested on macOS 14 and 15 in run https://github.com/$GITHUB_REPOSITORY/actions/runs/$RUN.
+
+Nikon High Efficiency (HE/HE★) NEF is not supported by the bundled LibRaw decoder; use Lossless compressed NEF." \
+            dist/PhotoSelect-AppleSilicon.dmg dist/PhotoSelect-AppleSilicon.dmg.sha256

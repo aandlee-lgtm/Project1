@@ -2,8 +2,9 @@ name: Build and test macOS app (Apple silicon)
 
 on:
   push:
+    tags-ignore: ['v*']
     branches: [main, 'claude/**']
-    paths-ignore: ['docs/**', '**.md', 'scripts/probe_camera.py', 'scripts/probe_apple_raw.py', '.github/workflows/probe-camera.yml']
+    paths-ignore: ['docs/**', '**.md', 'scripts/probe_camera.py', 'scripts/probe_apple_raw.py', '.github/workflows/probe-camera.yml', '.github/workflows/release.yml']
   workflow_dispatch:
 
 permissions:
