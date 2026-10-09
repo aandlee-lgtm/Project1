@@ -1,5 +1,39 @@
 # PhotoSelect releases
 
+## 1.4.0
+- **Send to Lightroom…** now opens a window with:
+  - whether the plug-in is installed, with **Install plug-in** and **Show plug-in in Finder** buttons;
+  - a checkbox and count for each group: ★★★ Keep, ★★ Consider, ★ Drop, ★★★★★ ♥ Liked.
+- **Open in Lightroom Import** starts Lightroom Classic and opens its own Import window with only the
+  photos in the ticked groups. Choose Add or Copy there and click Import.
+  - The plug-in then adds the stars and keywords automatically a few seconds after the import. This
+    needs the 1.4 plug-in, and Lightroom restarted once after installing it.
+  - **Only save selections** keeps the earlier route: import first, then Apply PhotoSelect Selections.
+- **Lightroom plug-in 1.4:**
+  - with one photo or none selected, it checks every photo shown, and says which photos it checked;
+  - it matches photos imported with Copy as DNG, and capture times a whole number of hours apart
+    (time zones);
+  - its summary lists any photos that did not match.
+
+  The plug-in is also attached to this release as `PhotoSelect-Lightroom-plugin.zip`. If you added
+  the 1.3 plug-in yourself, remove it in Lightroom → File → Plug-in Manager, then install the new one.
+- **Nikon High Efficiency NEF from the Z50 II** (and other bodies that LibRaw reports as a "data
+  error") are analysed from the camera's own JPEG and labelled CAMERA PREVIEW. They are no longer
+  reported as damaged.
+- **Sony A7 and A9 series:** every body from the A7 to the A7 V, A7R to A7R V, A7S to A7S III, A7C,
+  A7C II, A7CR, and A9 to A9 III was checked against public sample files, 58 files in total.
+  - All of them decode as RAW, except the A7 V's new "compressed" mode, which the bundled LibRaw
+    cannot read yet. Those files are analysed from the camera's full-size JPEG and labelled CAMERA
+    PREVIEW. A7 V lossless compressed files decode as RAW.
+  - There is a new **Sony ARW** option in the file-format filter.
+- Help → **Show Lightroom Plug-in in Finder**.
+- Tested: the installed DMG passed all acceptance checks on macOS 14.8 and 15.7 (run 37922521013).
+  - The hand-off to Lightroom was tested with a stand-in app, because Lightroom cannot run on the
+    test machines. The Import window and automatic stars still need a check in your Lightroom (field
+    test T15).
+  - Photos handed to Lightroom keep their content and dates. macOS only records a "last opened" date
+    on them, as it does whenever a file is opened in any app.
+
 ## 1.3.0
 - **Bursts by % likeness.** Bursts now use how alike frames look (0–100 %) as well as capture time.
   - Set *Similarity ≥ %* under Burst matching (default 70 %, the same grouping as before).

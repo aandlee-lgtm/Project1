@@ -94,8 +94,10 @@ without capture times stay ungrouped.
 
 **Sony A7 / A9 series.** Sony ARW files from these bodies are decoded by the bundled LibRaw. The
 build checks every A7 / A9 sample in the public raw.pixls.us archive: each body and RAW mode
-(uncompressed, compressed, lossless compressed). The results are in the validation report, and
-bodies without a public sample are listed as not tested. The Format filter has a *Sony ARW* option.
+(uncompressed, compressed, lossless compressed). All 21 bodies from the A7 to the A7 V and the A9 to
+the A9 III decode as RAW, except the A7 V's new "compressed" mode. The bundled LibRaw cannot read it
+yet, so those files are analysed from the camera's full-size JPEG and labelled CAMERA PREVIEW. The
+Format filter has a *Sony ARW* option.
 
 **RAW rendering:** LibRaw with the camera's white balance, sRGB output, the camera orientation
 flag, and no per-image auto-brightening, so a burst renders consistently. It will not match

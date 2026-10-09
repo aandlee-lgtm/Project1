@@ -253,6 +253,13 @@ at the end lists what was built.
   DSC_1312.NEF (Z50 II) is analysed from its 5568 × 3712 camera JPEG. The macOS tests also fetch other
   HE samples, such as a Z50 II one, when the archive has them.
 - (9) Sony ARW: a *Sony ARW* format filter and Sony mentioned in the app and README.
+  - Coverage result: all 21 A7 / A9 bodies (58 public sample files) decode as RAW, except the A7 V's new
+    "compressed" mode.
+  - The bundled LibRaw 0.22.1 cannot open that mode, and no newer rawpy exists. PhotoSelect now
+    analyses any genuine camera file that LibRaw cannot open from the camera's own full-size JPEG,
+    found inside the file and labelled CAMERA PREVIEW.
+  - The Lightroom hand-off test showed that macOS records a "last opened" date attribute on files
+    handed to an app. Content and dates are unchanged; this is documented as expected.
   - A CI job decodes every A7 / A9 sample on raw.pixls.us with the bundled LibRaw. It reports, per body
     and mode, the result, the embedded JPEG size and sub-second capture times; bodies without a sample
     are NOT TESTED.

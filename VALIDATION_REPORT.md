@@ -1,6 +1,42 @@
-# PhotoSelect validation report (1.0.0, updated for 1.3.0)
+# PhotoSelect validation report (1.0.0, updated for 1.4.0)
+
+## 1.4.0 results
+Build and acceptance run: https://github.com/aandlee-lgtm/Project1/actions/runs/37922521013. The installed
+DMG passed every check on clean macOS 14.8 and 15.7 runners (macOS 15: 0 failed). New checks:
+
+| Check | Result |
+|---|---|
+| Sony ARW decoded by the installed app and matching Apple's own RAW render (A7R V lossless compressed: 0.978; A7S: 0.967) | PASS |
+| Send to Lightroom window shows plug-in status and the four star groups with counts | PASS |
+| Open in Lightroom hands exactly the chosen groups' files to the Lightroom app (stand-in applet recorded 15 of 15 chosen) and requests automatic rating | PASS |
+| Lightroom Classic not installed: explained in the window, selections still saved, no page errors | PASS |
+| Originals unchanged: content, size, modification date and permissions of all 270 files | PASS |
+| Photos handed to Lightroom: macOS added only its "last opened" attribute (com.apple.lastuseddate#PS) on 15 files | INFO |
+
+**Sony A7 / A9 coverage** (separate check, every public raw.pixls.us sample through the bundled
+rawpy 0.27.1 / LibRaw 0.22.1, run 37921740555):
+- All 21 bodies (A7 to A7 V, A7R to A7R V incl. IIIA / IVA, A7S to A7S III, A7C, A7C II, A7CR, A9 to
+  A9 III) were tested with 58 files, covering uncompressed, compressed and lossless compressed
+  (L / M / S) modes.
+- All decode as RAW except the **A7 V "compressed" mode** (3 files). The bundled LibRaw does not
+  recognise it, so these files are analysed from the camera's own JPEG (7008 × 4672 full frame,
+  4608 × 3072 APS-C) and labelled CAMERA PREVIEW. No newer rawpy release exists yet.
+- Bodies before about 2020 embed only a 1616 × 1080 (or 1920 × 1080) JPEG. That is irrelevant
+  because their RAW decodes. Newer bodies embed near full-size JPEGs.
+- Sub-second capture times, used for burst grouping, are recorded by the A7 IV, A7 V, A7R V,
+  A7S III, A7C, A7C II, A7CR, A9 II and A9 III, but not by older bodies.
+
+**Tested from source only:**
+- The Z50 II High Efficiency NEF fallback was checked on your DSC_1312.NEF (5568 × 3712 camera JPEG,
+  upright) and in unit tests. No public Z50 II HE sample was found for the macOS run.
+- The Lightroom plug-in 1.4 runs under Lua 5.1 against a simulated catalog: matching, selection
+  scope, unmatched-name summary, automatic rating after import, expiry, and shutdown.
+
+**Not tested:** Lightroom Classic itself. In particular, whether Lightroom opens its Import window
+for files handed to it, and the background rating after import, need field test T15 on your Mac.
 
 ## 1.3.0 results
+
 Build and acceptance run: https://github.com/aandlee-lgtm/Project1/actions/runs/37895394093. The DMG was
 installed on clean macOS 14.8 and 15.7 runners. Both passed every check (macOS 15: 95 passed or
 informational, 0 failed), and the 1.0 checks below were repeated. New checks, run on the installed app
