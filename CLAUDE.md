@@ -2,6 +2,9 @@
 
 - Treat the owner's feedback as feature requests: add each one to `docs/BACKLOG.md`
   (date, description, status "Planned").
+- Record every discussion in `docs/PRODUCT_HISTORY.md`: the owner's requests and questions, the
+  answers and explanations, the decisions, and what shipped in each version. Keep its glossary of
+  definitions current. It is the source for user instructions, definitions and release notes.
 - Do **not** build, bump the version, publish a DMG or create a release until the owner's message
   explicitly includes `build_new`. CI enforces this: the macOS build and release jobs only run when
   the commit message contains the exact marker `[build_new]` (with brackets). Never write that
