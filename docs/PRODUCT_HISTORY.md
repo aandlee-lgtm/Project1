@@ -143,6 +143,13 @@ Planned items from BACKLOG.md, with the discussion behind each:
      - A summary is shown first, and existing Lightroom stars are not overwritten unless asked.
      - The plug-in is installed from Help → Install Lightroom Plug-in….
 
+7. **Shorter cards for camera-preview photos.** Looking at the grid, the owner asked to remove the sentence
+   "Scored from the embedded camera JPEG (camera sharpening and noise reduction included), not the RAW pixels."
+   from the photo cards, to save space.
+   - Planned: the card shows its normal reason line instead.
+   - The CAMERA PREVIEW badge stays, so it is still clear which photos were scored from the camera JPEG.
+   - The full explanation stays in the viewer, the CSV and the diagnostic report.
+
 ---
 
 ## 2. Definitions (draft glossary for the user instructions)
