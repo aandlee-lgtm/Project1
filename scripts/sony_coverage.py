@@ -11,6 +11,7 @@ Writes coverage.md and coverage.json; the exit code is 0 so the report always co
 import hashlib
 import json
 import os
+import re
 import struct
 import sys
 import time
@@ -32,6 +33,25 @@ SERIES = {  # every A7 / A9 body, by its ILCE code
 }
 COMPRESSION = {1: 'uncompressed', 7: 'lossless compressed', 32767: 'compressed', 32769: 'compressed',
                32770: 'compressed', 32773: 'packbits'}
+
+
+def series_code(folder):
+    """ILCE code for a raw.pixls.us model folder ('ILCE-7M3', 'Sony ILCE-7M3', 'ILCE-7M3 (A7 III)', 'A7 III'…), or None."""
+    text = folder.upper().replace('Α', 'A')
+    m = re.search(r'ILCE[- ]?(7|9)([A-Z0-9]*)', text)
+    if m:
+        code = f'ILCE-{m.group(1)}{m.group(2)}'
+        return code if code in SERIES else None
+    name = re.sub(r'^(SONY\s+)?(ALPHA\s*)?', '', text).strip()
+    for code, model in SERIES.items():
+        if name.replace(' ', '') == model.upper().replace(' ', ''):
+            return code
+    return None
+
+
+def listing(url):
+    html = get(url).decode('utf-8', 'replace')
+    return [urllib.parse.unquote(h) for h in re.findall(r'href="([^"?/][^"]*)"', html)]
 
 
 def get(url):
@@ -84,29 +104,51 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     print('rawpy', __import__('rawpy').__version__, 'LibRaw', raw_io.libraw_version())
     listing = get(BASE + 'filelist.sha256').decode('utf-8', 'replace').splitlines()
-    entries = []
+    entries, folders = [], set()
     for line in listing:
         parts = line.strip().split(None, 1)
         if len(parts) == 2:
             path = parts[1].lstrip('*').lstrip('./')
             bits = path.split('/')
             if len(bits) >= 3 and 'sony' in bits[0].lower() and path.lower().endswith('.arw'):
-                code = bits[1].upper().replace(' ', '')
-                if code in SERIES:
-                    entries.append((code, path, parts[0]))
+                folders.add(bits[1])
+                code = series_code(bits[1])
+                if code:
+                    entries.append((code, BASE + urllib.parse.quote(path), parts[0]))
+    print(f'Sony model folders in data-unique: {sorted(folders)}')
+    # data-unique keeps one file per camera and mode; the full archive (/data/) may have bodies it lacks
+    for make in ('Sony/', 'SONY/'):
+        root = 'https://raw.pixls.us/data/' + urllib.parse.quote(make)
+        try:
+            models = listing(root)
+        except Exception as error:
+            print(f'listing {root}: {error}')
+            continue
+        print(f'{make} folders: {models}')
+        for folder in models:
+            code = series_code(folder.rstrip('/'))
+            if not code or any(e[0] == code for e in entries):
+                continue
+            try:
+                files = [f for f in listing(root + urllib.parse.quote(folder.rstrip('/')) + '/') if f.lower().endswith('.arw')]
+            except Exception as error:
+                print(f'listing {folder}: {error}')
+                continue
+            entries += [(code, root + urllib.parse.quote(folder.rstrip('/')) + '/' + urllib.parse.quote(f), None)
+                        for f in files[:PER_MODEL]]
     print(f'{len(entries)} A7/A9 samples on raw.pixls.us: {sorted({c for c, _, _ in entries})}')
     results = []
     for code in SERIES:
-        for _, path, digest in [e for e in entries if e[0] == code][:PER_MODEL]:
-            name = path.split('/')[-1]
+        for _, url, digest in [e for e in entries if e[0] == code][:PER_MODEL]:
+            name = urllib.parse.unquote(url.split('/')[-1])
             item = {'code': code, 'model': SERIES[code], 'file': name}
             try:
-                data = get(BASE + urllib.parse.quote(path))
+                data = get(url)
             except Exception as error:
                 item.update(result='download failed', error=str(error))
                 results.append(item)
                 continue
-            if len(data) > LIMIT or hashlib.sha256(data).hexdigest() != digest:
+            if len(data) > LIMIT or (digest and hashlib.sha256(data).hexdigest() != digest):
                 item.update(result='skipped (too large or checksum mismatch)')
                 results.append(item)
                 continue
