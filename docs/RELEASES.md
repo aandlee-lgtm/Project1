@@ -1,5 +1,11 @@
 # PhotoSelect releases
 
+## 1.2.0
+- Click the Keep, Consider or Drop tile above the grid to show only that group; click it again, or
+  Photos analysed, to show everything. The active tile is outlined and matches the filter menu.
+- "Skip suggestion" is now **Drop**, in orange, everywhere (tiles, labels, buttons, filter, CSV).
+  Decisions saved as Skip in earlier versions become Drop automatically. Viewer shortcut: D.
+
 ## 1.1.0
 - RAW files whose pixels LibRaw cannot decode (for example Nikon Z6III High Efficiency NEF) are analysed
   from the camera's embedded full-size JPEG, labelled CAMERA PREVIEW on cards, viewer, comparisons, status
