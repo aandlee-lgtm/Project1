@@ -42,7 +42,8 @@ jobs:
             echo ""
             echo "Nikon High Efficiency (HE / HE★) NEF cannot be decoded by the bundled LibRaw; use Lossless compressed NEF."
             echo ""
-            echo "Changes: see docs/RELEASES.md"
+            echo "## What's new in ${TAG#v}"
+            awk -v v="## ${TAG#v}" '$0==v{on=1;next} /^## /{on=0} on' docs/RELEASES.md
           } > notes.md
       - name: Create release
         if: env.EXISTS != '1'
