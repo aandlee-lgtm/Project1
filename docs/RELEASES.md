@@ -1,5 +1,11 @@
 # PhotoSelect releases
 
+## 1.1.0
+- RAW files whose pixels LibRaw cannot decode (for example Nikon Z6III High Efficiency NEF) are analysed
+  from the camera's embedded full-size JPEG, labelled CAMERA PREVIEW on cards, viewer, comparisons, status
+  line, diagnostics and CSV (ported from PhotoSelect 0.3.1). Damaged or non-RAW files never fall back.
+- Status line shows the correct photo count as soon as a scan finishes.
+
 ## 1.0.2
 - Nikon High Efficiency (HE / HE★) NEFs are identified by name in "Files that could not be analysed",
   with the camera setting to use instead (NEF (RAW) compression → Lossless compressed). LibRaw cannot
