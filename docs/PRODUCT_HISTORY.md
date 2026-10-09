@@ -191,6 +191,19 @@ and discussed first, then shipped together. Each item says what was decided and,
      error and use the camera preview. Files without the marker that fail with a data error are still
      reported as damaged and never fall back.
 
+9. **Sony A7 and A9 series.** The owner wants PhotoSelect to work for every Sony A7 and A9 body, though
+   they have no sample file yet.
+   - Current state: .ARW files are accepted and passed to LibRaw 0.22.1, but no Sony file has been
+     tested.
+   - Planned:
+     - verify every A7/A9 body and RAW mode (uncompressed, compressed, lossless compressed) using the
+       public raw.pixls.us samples, in the macOS acceptance run;
+     - update the decoder or fall back to the camera preview where needed (Sony's embedded JPEG is often
+       small, about 1616 × 1080);
+     - check burst timing;
+     - add a Sony ARW format filter;
+     - report models without a sample as NOT TESTED.
+
 ---
 
 ## 2. Definitions (draft glossary for the user instructions)
