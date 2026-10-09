@@ -177,6 +177,20 @@ and discussed first, then shipped together. Each item says what was decided and,
   - existing Lightroom stars are kept unless *Replace* is ticked.
 - Photo cards for camera-preview photos show the normal reason line. The CAMERA PREVIEW badge stays.
 
+### After 1.3.0 (planned for the next version: waiting for build_new)
+8. **Z50 II High Efficiency NEF reported as damaged.** The owner sent DSC_1312.NEF, which 1.3.0 listed
+   as "Nikon NEF: the RAW data is damaged or truncated (Data error or unsupported file format)".
+   - Found: the file is not damaged.
+     - It is a **Nikon Z50 II High Efficiency NEF**: it contains the intoPIX TicoRAW marker, taken
+       2026-07-15.
+     - LibRaw starts decoding the HE data and stops with a *data error*. For Z6III HE files it reports
+       *unsupported* instead, and only that error triggered the camera-preview fallback added in 1.1.0.
+     - The file holds a full-size camera JPEG (5568 × 3712), so it can be analysed as CAMERA PREVIEW
+       like the Z6III files.
+   - Decided: on a NEF with the High Efficiency marker, treat a data error the same as an unsupported
+     error and use the camera preview. Files without the marker that fail with a data error are still
+     reported as damaged and never fall back.
+
 ---
 
 ## 2. Definitions (draft glossary for the user instructions)
@@ -209,7 +223,7 @@ and discussed first, then shipped together. Each item says what was decided and,
 | **Send to Lightroom** | Saves the current selections for the Lightroom Classic plug-in, in ~/Library/Application Support/PhotoSelect/Lightroom (never in the photo folders). |
 | **Apply PhotoSelect Selections** | The Lightroom Classic command (Library → Plug-in Extras) that applies the stars and keywords after import, showing a summary first. |
 | **CAMERA PREVIEW** | The photo was analysed from the JPEG the camera stored inside the RAW file, because the RAW pixels could not be decoded (e.g. Nikon High Efficiency NEF). Its scores include the camera's own sharpening and noise reduction. |
-| **High Efficiency NEF (HE / HE★)** | A Nikon RAW compression that LibRaw cannot decode. To get full RAW analysis, shoot with NEF (RAW) compression set to Lossless compressed. |
+| **High Efficiency NEF (HE / HE★)** | A Nikon RAW compression (seen on the Z6III and Z50 II) that LibRaw cannot decode. To get full RAW analysis, shoot with NEF (RAW) compression set to Lossless compressed. |
 | **Could not be analysed** | A file that was listed but not scored, with a specific reason (damaged, empty, unreadable or unsupported). |
 | **Diagnostic report** | Help → Create Diagnostic Report…: a text file for troubleshooting, with no images and no full paths. |
 | **Lightroom stars** | How PhotoSelect results appear in Lightroom Classic: Keep 3★, Consider 2★, Drop 1★, Liked 5★. Your decision wins over the suggestion. |
