@@ -235,6 +235,16 @@ and discussed first, then shipped together. Each item says what was decided and,
     - Proposed: the plug-in could also add the analysed photos to the catalog itself, in place, and apply
       the stars in the same step (Lightroom's SDK supports adding photos).
 
+12. **Open Lightroom's Import page with only chosen star levels.** The owner asked for Send to Lightroom
+    to launch Lightroom (if not open), go to the Import page, and import only selected groups, e.g. only
+    3★ (Keep), 2★ (Consider) or 1★ (Drop).
+    - Decided: PhotoSelect shows a dialog with a checkbox for each group, with counts. It then opens
+      Lightroom Classic with only those files. macOS hands them to Lightroom the same way as dragging
+      files onto its icon, which opens Lightroom's Import window with exactly those photos.
+    - The user still confirms the import (Add or Copy) in Lightroom. Applying the stars stays one click
+      (Apply PhotoSelect Selections), or becomes automatic if the plug-in can detect the new import.
+    - Needs a real-Lightroom check on the owner's Mac.
+
 ---
 
 ## 2. Definitions (draft glossary for the user instructions)
