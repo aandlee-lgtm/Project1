@@ -194,6 +194,24 @@ class AppTests(unittest.TestCase):
                 self.assertIn('more than PhotoSelect hands to Lightroom', r.get_json()['error'])
             self.assertEqual(len(handed), 2)
 
+    def test_plugin_status_reported_from_lightroom(self):
+        home = Path(self.tmp.name) / 'home'
+        modules = Path(self.tmp.name) / 'Modules'
+        with patch.dict(os.environ, {'PHOTOSELECT_HOME': str(home), 'PHOTOSELECT_LR_MODULES': str(modules),
+                                     'PHOTOSELECT_LR_APP': ''}):
+            s = self.get('/api/lightroom/status').get_json()
+            self.assertEqual((s['plugin_installed'], s['plugin_running'], s['bundled_version']), (False, False, '1.5.0'))
+            self.post('/api/lightroom/install', {})
+            folder = home / 'support' / 'Lightroom'
+            (folder / 'plugin-status.txt').write_text(
+                f'version\t1.4.0\nstarted\t{time.time() - 60:.0f}\nchecked\t{time.time() - 5:.0f}\n'
+                f'applied_at\t{time.time() - 30:.0f}\napplied_count\t27\nwaiting\t3\n')
+            s = self.get('/api/lightroom/status').get_json()
+            self.assertEqual((s['installed_version'], s['plugin_running'], s['running_version'], s['last_applied_count'],
+                              s['waiting']), ('1.5.0', True, '1.4.0', 27, 3))
+            (folder / 'plugin-status.txt').write_text(f'version\t1.5.0\nchecked\t{time.time() - 600:.0f}\n')
+            self.assertFalse(self.get('/api/lightroom/status').get_json()['plugin_running'])   # Lightroom closed
+
     def test_export_never_overwrites_an_original(self):
         self.post('/api/scan', {'folder': str(self.photos)})
         self.wait()

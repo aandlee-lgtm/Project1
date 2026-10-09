@@ -114,6 +114,8 @@ def build(library, prefs, app_version):
       f"reused from cache: {status.get('cached')}; could not be analysed: {len(errors)}")
     if started and status.get('previews_done'):
         w(f"- time until all embedded previews shown: {status['previews_done'] - started:.1f} s")
+    if started and status.get('first_result'):
+        w(f"- time until the first photo was fully analysed: {status['first_result'] - started:.1f} s")
     if started and finished:
         w(f'- total scan time: {finished - started:.1f} s')
     fresh = [r for r in analysed if r.get('source') == 'decoded' and r.get('timing')]
@@ -124,6 +126,9 @@ def build(library, prefs, app_version):
           f'(max {dec[-1]:.2f}), analysis median {ana[len(ana) // 2]:.2f} s')
         if started and finished:
             w(f'- throughput: {len(fresh) / max(finished - started, .1):.2f} files/s')
+        if status.get('cpu_seconds') is not None:
+            w(f"- CPU time: {status['cpu_seconds']:.0f} s in total, {status['cpu_seconds'] / len(fresh):.2f} s per newly analysed file "
+              f"({library.workers} analysis workers at background priority)")
     w('')
 
     w('## Formats and cameras')

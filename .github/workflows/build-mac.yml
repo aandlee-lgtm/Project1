@@ -4,7 +4,7 @@ on:
   push:
     tags-ignore: ['v*']
     branches: [main, 'claude/**']
-    paths-ignore: ['docs/**', '**.md', 'scripts/probe_camera.py', 'scripts/probe_apple_raw.py', '.github/workflows/probe-camera.yml', '.github/workflows/release.yml']
+    paths-ignore: ['docs/**', '**.md', 'scripts/probe_camera.py', 'scripts/probe_apple_raw.py', 'scripts/bench_decode.py', 'scripts/sony_coverage.py', '.github/workflows/probe-camera.yml', '.github/workflows/release.yml', '.github/workflows/perf-check.yml', '.github/workflows/sony-coverage.yml']
   workflow_dispatch:
 
 permissions:

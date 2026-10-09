@@ -144,6 +144,21 @@ class App:
             time.sleep(.5)
         return self.call('state'), self.call('rows')
 
+    def cpu_seconds(self):
+        """Total CPU time used by the app process so far (all threads), or None."""
+        r = run('ps', '-o', 'cputime=', '-p', str(self.pid), check_=False)
+        text = r.stdout.strip()
+        if not text:
+            return None
+        parts = text.replace('-', ':').split(':')
+        try:
+            seconds = 0.0
+            for p in parts:
+                seconds = seconds * 60 + float(p)
+            return seconds
+        except ValueError:
+            return None
+
     def rss_mb(self):
         out = run('ps', '-o', 'rss=', '-p', self.pid, check_=False).stdout.strip()
         return int(out) / 1024 if out else None
@@ -499,6 +514,7 @@ def large_folder(app, large, out):
     # Resume: cached results reused, then finish the whole folder to measure throughput.
     t = time.time()
     peak = []
+    cpu0 = app.cpu_seconds()
     app.call('scan', {'folder': str(large), 'recursive': False})
     while True:
         s = app.call('state')
@@ -507,11 +523,15 @@ def large_folder(app, large, out):
             break
         time.sleep(1)
     elapsed = time.time() - t
+    cpu = app.cpu_seconds() - cpu0 if cpu0 is not None and app.cpu_seconds() is not None else None
     check('rescan after cancellation reuses cached results', s['cached'] >= analysed, f"{s['cached']} reused")
     fresh = n - s['cached']
     facts['large_folder'] = {'files': n, 'workers': s['workers'], 'seconds': round(elapsed, 1),
                              'files_per_second': round(fresh / max(elapsed, .1), 2),
-                             'peak_rss_mb': round(max(x for x in peak + rss if x), 0)}
+                             'peak_rss_mb': round(max(x for x in peak + rss if x), 0),
+                             'cpu_seconds_per_file': round(cpu / max(fresh, 1), 2) if cpu is not None else None,
+                             'seconds_to_previews': round(s['previews_done'] - s['started'], 1) if s.get('previews_done') else None,
+                             'seconds_to_first_result': round(s['first_result'] - s['started'], 1) if s.get('first_result') else None}
     check(f'large folder ({n} RAW files) completes', s['phase'] == 'complete', facts['large_folder'])
     t = time.time()
     s, _ = app.scan(large, recursive=False)

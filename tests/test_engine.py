@@ -71,7 +71,7 @@ class EngineTests(unittest.TestCase):
         self.scan()
         calls = []
         real = raw_io.decode_photo
-        with patch('raw_io.decode_photo', side_effect=lambda p, allow_preview=True: calls.append(p) or real(p)):
+        with patch('raw_io.decode_photo', side_effect=lambda p, allow_preview=True, min_edge=None: calls.append(p) or real(p, min_edge=min_edge)):
             p = self.scan()
             self.assertEqual(calls, [])
             self.assertTrue(all(r['source'] == 'cache' for r in p['rows']))
@@ -93,7 +93,7 @@ class EngineTests(unittest.TestCase):
         real = raw_io.decode_photo
         gate = threading.Event()
 
-        def slow(p, allow_preview=True):
+        def slow(p, allow_preview=True, min_edge=None):
             gate.wait(5)
             time.sleep(.05)
             return real(p)
@@ -157,7 +157,7 @@ class EngineTests(unittest.TestCase):
         os.replace(self.photos / 'tmp.jpg', self.photos / 'DSC_0001.NEF')   # stands in for an HE NEF
         real = raw_io.decode_photo
 
-        def fake(path, allow_preview=True):
+        def fake(path, allow_preview=True, min_edge=None):
             if str(path).endswith('.NEF'):
                 from PIL import Image
                 return Image.open(path).convert('RGB'), 'camera_preview', raw_io.PREVIEW_NOTICE
@@ -182,6 +182,53 @@ class EngineTests(unittest.TestCase):
             locked.chmod(0o755)
         self.assertEqual([r['name'] for r in p['rows']], ['ok.jpg'])
         self.assertTrue(any('Permission denied' in e['error'] for e in p['errors']))
+
+
+    def test_analysis_runs_in_capture_order(self):
+        # File names in reverse time order: analysis follows capture time, so bursts complete together.
+        for k, when in enumerate(['10:00:09', '10:00:05', '10:00:01']):
+            make_jpeg(self.photos / f'A_{k}.jpg', seed=k, when=f'2026:05:01 {when}')
+        order = []
+        real = raw_io.decode_photo
+        library = Library(self.store, self.home / 'cache', workers=1)   # one at a time, to observe the order
+        with patch('raw_io.decode_photo', side_effect=lambda p, allow_preview=True, min_edge=None:
+                   order.append(Path(p).name) or real(p, min_edge=min_edge)):
+            self.scan(library=library)
+        self.assertEqual(order, ['A_2.jpg', 'A_1.jpg', 'A_0.jpg'])
+        self.assertIsNotNone(library.snapshot()['first_result'])
+        self.assertIsNotNone(library.snapshot()['cpu_seconds'])
+        library.shutdown()
+
+    def test_full_render_disk_cache_and_prefetch(self):
+        self.make_burst()
+        p = self.scan()
+        row = self.library.row(p['rows'][0]['id'])
+        data = self.library.full_jpeg(row)
+        cached = self.home / 'cache' / 'full' / f"{row['key']}.jpg"
+        self.assertEqual(cached.read_bytes(), data)
+        self.library.full_jpegs.clear()
+        with patch('raw_io.decode', side_effect=AssertionError('should come from the disk cache')):
+            self.assertEqual(self.library.full_jpeg(row), data)
+        other = self.library.row(p['rows'][1]['id'])
+        self.library.prefetch([other['id'], 'unknown'])
+        deadline = time.monotonic() + 10
+        while self.library.full_jpegs.get(other['key']) is None and time.monotonic() < deadline:
+            time.sleep(.05)
+        self.assertIsNotNone(self.library.full_jpegs.get(other['key']))
+        self.library._trim_full_cache(limit=1)               # oldest renders removed beyond the limit
+        self.assertLessEqual(len(list((self.home / 'cache' / 'full').glob('*.jpg'))), 1)
+
+    def test_default_workers_fit_memory_and_cores(self):
+        import engine
+        def workers(cpus, gb):
+            with patch('os.cpu_count', return_value=cpus), \
+                    patch('os.sysconf', side_effect=lambda k: {'SC_PHYS_PAGES': gb * 2 ** 18, 'SC_PAGE_SIZE': 4096}[k]):
+                return engine.default_workers()
+        self.assertEqual(workers(8, 8), 4)       # 8 GB M2
+        self.assertEqual(workers(10, 16), 6)     # 16 GB, capped
+        self.assertEqual(workers(3, 7), 2)       # the 3-core test Mac
+        self.assertEqual(workers(1, 2), 1)
+
 
 
 if __name__ == '__main__':

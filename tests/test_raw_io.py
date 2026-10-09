@@ -123,6 +123,39 @@ class RawFormatTests(unittest.TestCase):
             with self.assertRaisesRegex(DecodeError, 'does not recognise'):
                 raw_io.decode_photo(junk)
 
+    def test_analysis_decodes_only_as_large_as_needed(self):
+        def raw(w, h, flip=0):
+            r = MagicMock()
+            r.sizes.width, r.sizes.height, r.sizes.flip = w, h, flip
+            return r
+        self.assertTrue(raw_io._render_options(raw(8256, 5504), 4000).get('half_size'))         # 45 MP: binned
+        small = raw_io._render_options(raw(6048, 4024), 4000)                                   # 24 MP: fast demosaic
+        self.assertNotIn('half_size', small)
+        self.assertEqual(small['demosaic_algorithm'], rawpy.DemosaicAlgorithm.LINEAR)
+        full = raw_io._render_options(raw(8256, 5504), None)                                    # inspection: full quality
+        self.assertNotIn('half_size', full)
+        self.assertNotIn('demosaic_algorithm', full)
+        self.assertEqual(raw_io._native_size(raw(8256, 5504, flip=6)), (5504, 8256))
+        # decode_photo reports the full-resolution size of a half-size decode
+        path = self.dir / 'big.NEF'
+        path.write_bytes(os.urandom(4000))
+        decoded = raw(8256, 5504)
+        decoded.postprocess.return_value = np.zeros((2752, 4128, 3), np.uint8)
+        context = MagicMock()
+        context.__enter__.return_value = decoded
+        with patch('rawpy.imread', return_value=context):
+            image, source, _ = raw_io.decode_photo(path, min_edge=4000)
+        self.assertEqual((image.size, image.info['native_size'], source), ((4128, 2752), (8256, 5504), 'decoded_raw'))
+        self.assertTrue(decoded.postprocess.call_args.kwargs['half_size'])
+
+    def test_exif_info_reads_lazily_once(self):
+        from helpers import make_jpeg
+        path = self.dir / 'IMG.jpg'
+        make_jpeg(path, when='2026:05:01 10:00:00', subsec='25')
+        stamp, camera = raw_io.exif_info(path)
+        self.assertAlmostEqual(stamp % 60, .25, places=2)
+        self.assertEqual(raw_io.exif_info(self.dir / 'missing.NEF'), (None, None))
+
     def _contexts(self, preview_size=(1200, 800)):
         import io as _io
         buf = _io.BytesIO()

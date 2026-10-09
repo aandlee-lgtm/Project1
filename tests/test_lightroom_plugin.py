@@ -20,8 +20,8 @@ except ImportError:
 PLUGIN = Path(__file__).resolve().parent.parent / 'lightroom' / 'PhotoSelect.lrplugin'
 
 
-def selections(rows, exported=None):
-    text = app_module.lightroom_selections('/Photos', rows)
+def selections(rows, exported=None, auto=False):
+    text = app_module.lightroom_selections('/Photos', rows, auto)
     if exported is not None:
         head, rest = text.split('\n', 1)
         parts = head.split('\t')
@@ -216,38 +216,67 @@ class ApplySelectionsTests(unittest.TestCase):
         self.assertIn('Not matched: OTHER.NEF', lua.globals().MESSAGE)
         self.assertIn('import that folder first', lua.globals().MESSAGE)
 
-    def pending(self, rows, age=0):
-        text = selections(rows)
+    def pending(self, rows, age=0, name='pending.import', auto=True):
+        text = selections(rows, auto=auto)
         head, rest = text.split('\n', 1)
         parts = head.split('\t')
         parts[2] = str(float(parts[2]) - age)
-        (self.folder / 'pending.import').write_text('\t'.join(parts) + '\n' + rest)
+        (self.folder / name).write_text('\t'.join(parts) + '\n' + rest)
 
-    def test_auto_apply_after_import(self):
+    def test_auto_apply_after_open_in_lightroom_import(self):
         # PhotoSelect handed two Keep photos to Lightroom's Import window; one was added in place, one copied.
         self.pending([row('DSC_0001.NEF', 3, keywords=['Keep']),
                       row('DSC_0009.NEF', 3, capture='2026-05-01 10:00:09', keywords=['Keep'])])
         photos = [{'path': '/Volumes/Card/DCIM/DSC_0001.NEF', 'fileName': 'DSC_0001.NEF', 'time': '2026-05-01 10:00:00'},
                   {'path': '/Pictures/DSC_0009.NEF', 'fileName': 'DSC_0009.NEF', 'time': '2026-05-01 10:00:09', 'rating': 4}]
-        lua = self.run_plugin(self.folder, [], script=None)
+        lua = self.run_plugin(self.folder / 'none', [], script=None)
+        lua.execute(f"package.loaded['Config'] = {{ selectionsFolder = [==[{self.folder}]==] }}")
         ops = lua.eval("require 'LightroomOps'")
-        self.assertEqual(ops.applyPending(False), 0)                  # nothing imported yet
+        self.assertEqual(ops.autoApply(1, 8), 0)                      # nothing imported yet
         self.assertEqual(lua.globals().WRITES, 0)
         lua.eval('addPhoto')(lua.table_from(photos[0]))               # the import runs
-        self.assertEqual(ops.applyPending(False), 1)
-        self.assertEqual(ops.applyPending(False), 0)                  # never applied twice
+        self.assertEqual(ops.autoApply(1, 8), 1)                      # found by path in the next pass
+        self.assertEqual(ops.autoApply(2, 8), 0)                      # never applied twice
         lua.eval('addPhoto')(lua.table_from(photos[1]))
-        self.assertEqual(ops.applyPending(False), 0)                  # copied: only found by name search
-        self.assertEqual(ops.applyPending(True), 1)
+        self.assertEqual(ops.autoApply(3, 8), 0)                      # copied: found by the capture-date lookup
+        self.assertEqual(ops.autoApply(8, 8), 1)
         self.assertEqual(self.state(lua), {'DSC_0001.NEF': (3, ['PhotoSelect/Keep']),
                                            'DSC_0009.NEF': (4, ['PhotoSelect/Keep'])})   # existing 4 stars kept
         self.assertFalse((self.folder / 'pending.import').exists())  # all done
         self.assertIn('stars applied to 1 imported photos', lua.globals().BEZEL)
+        status = dict(l.split('\t') for l in (self.folder / 'plugin-status.txt').read_text().splitlines())
+        self.assertEqual((status['version'], status['applied_count']), ('1.5.0', '1'))
 
-    def test_auto_apply_request_expires(self):
-        self.pending([row('DSC_0001.NEF', 3)], age=4 * 3600)
+    def test_auto_apply_after_any_import_of_sent_selections(self):
+        # "Send to Lightroom" with automatic rating, then an ordinary import started in Lightroom (renamed files).
+        (self.folder / 'one.tsv').unlink()
+        self.pending([row('DSC_0001.NEF', 3, keywords=['Keep']), row('DSC_0002.NEF', 1, capture='2026-05-01 10:00:01',
+                      keywords=['Drop'])], name='sent.tsv')
+        self.pending([row('DSC_0003.NEF', 2, capture='2026-05-01 10:00:02', keywords=['Consider'])],
+                     name='manual.tsv', auto=False)
+        photos = [{'path': '/P/Sail-1.NEF', 'fileName': 'Sail-1.NEF', 'preserved': 'DSC_0001.NEF', 'time': '2026-05-01 10:00:00'},
+                  {'path': '/P/DSC_0002.dng', 'fileName': 'DSC_0002.dng', 'time': '2026-05-01 10:00:01'},
+                  {'path': '/P/DSC_0003.NEF', 'fileName': 'DSC_0003.NEF', 'time': '2026-05-01 10:00:02'},
+                  {'path': '/P/Other.NEF', 'fileName': 'Other.NEF', 'time': '2026-04-01 10:00:00'}]
+        lua = self.run_plugin(self.folder, photos, script=None)
+        ops = lua.eval("require 'LightroomOps'")
+        self.assertEqual(ops.autoApply(1, 8), 0)                      # selections are looked up on slow passes only
+        self.assertEqual(ops.autoApply(8, 8), 2)
+        self.assertEqual({k: v[0] or 0 for k, v in self.state(lua).items()},
+                         {'Sail-1.NEF': 3, 'DSC_0002.dng': 1, 'DSC_0003.NEF': 0, 'Other.NEF': 0})   # auto off: untouched
+        # after a Lightroom restart, photos already rated are not rated again even if their stars were removed
+        for p in lua.globals().PHOTOS.values():
+            p.rating = 0
+        ops.reset()
+        self.assertEqual(ops.autoApply(16, 8), 0)
+        self.assertEqual(lua.globals().WRITES, 1)
+
+    def test_auto_apply_requests_expire(self):
+        self.pending([row('DSC_0001.NEF', 3)], age=4 * 3600)                       # Open in Lightroom: 3 hours
+        self.pending([row('DSC_0002.NEF', 3, capture='2026-05-01 10:00:01')], age=15 * 86400, name='old.tsv')
+        (self.folder / 'one.tsv').unlink()
         lua = self.run_plugin(self.folder, self.photos(), script=None)
-        self.assertEqual(lua.eval("require 'LightroomOps'").applyPending(True), 0)
+        self.assertEqual(lua.eval("require 'LightroomOps'").autoApply(8, 8), 0)
         self.assertFalse((self.folder / 'pending.import').exists())
         self.assertEqual(lua.globals().WRITES, 0)
 
@@ -256,6 +285,7 @@ class ApplySelectionsTests(unittest.TestCase):
         lua = self.run_plugin(self.folder, self.photos(), script='Init.lua')   # mock sleep runs Shutdown.lua
         self.assertEqual(lua.globals().SLEEPS, 1)
         self.assertEqual(self.state(lua)['DSC_0001.NEF'][0], 3)
+        self.assertIn('version\t1.5.0', (self.folder / 'plugin-status.txt').read_text())
 
     def test_no_selections_explains_what_to_do(self):
         lua = self.run_plugin(self.folder / 'missing', self.photos())
@@ -297,7 +327,7 @@ function Photo:removeKeyword(k)
   for i, x in ipairs(self.keywords) do if x == k then table.remove(self.keywords, i) return end end
 end
 function addPhoto(t)
-  local p = setmetatable({ path = t.path, fileName = t.fileName, time = t.time, rating = t.rating, keywords = {} }, Photo)
+  local p = setmetatable({ path = t.path, fileName = t.fileName, preserved = t.preserved, time = t.time, rating = t.rating, keywords = {} }, Photo)
   if t.oldKeyword then table.insert(p.keywords, makeKeyword(t.oldKeyword, makeKeyword('PhotoSelect'))) end
   table.insert(PHOTOS, p)
 end
@@ -319,9 +349,12 @@ function catalog:findPhotoByPath(path)
 end
 function catalog:findPhotos(args)
   local d = args.searchDesc
-  assert(d.criteria == 'filename' and d.operation == '==')
+  assert(d.criteria == 'captureTime' and d.operation == 'in' and d.value and d.value2)
   local out = {}
-  for _, p in ipairs(PHOTOS) do if p.fileName == d.value then table.insert(out, p) end end
+  for _, p in ipairs(PHOTOS) do
+    local day = string.sub(p.time or '', 1, 10)
+    if day >= d.value and day <= d.value2 then table.insert(out, p) end
+  end
   return out
 end
 function catalog:batchGetRawMetadata(photos, keys)
@@ -333,7 +366,7 @@ function catalog:batchGetRawMetadata(photos, keys)
 end
 function catalog:batchGetFormattedMetadata(photos, keys)
   local out = {}
-  for _, p in ipairs(photos) do out[p] = { fileName = p.fileName, preservedFileName = nil } end
+  for _, p in ipairs(photos) do out[p] = { fileName = p.fileName, preservedFileName = p.preserved } end
   return out
 end
 function catalog:createKeyword(name, synonyms, includeOnExport, parent, returnExisting)

@@ -55,7 +55,8 @@ function Core.parse(text)
   for _, f in ipairs({ 'path', 'name', 'capture', 'rating', 'keywords' }) do
     if not index[f] then return nil, 'missing column ' .. f end
   end
-  local result = { exported = tonumber(head[3]) or 0, folder = head[4] or '', entries = {} }
+  -- head[5] (since 1.5): '1' when PhotoSelect asked for stars to be applied automatically after import
+  local result = { exported = tonumber(head[3]) or 0, folder = head[4] or '', auto = head[5] == '1', entries = {} }
   for n = 3, #lines do
     if lines[n] ~= '' then
       local v = split(lines[n], '\t')

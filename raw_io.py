@@ -98,8 +98,32 @@ class _PixelsUnsupported(Exception):
     """LibRaw recognised the RAW container but cannot decode its pixel data (e.g. Nikon HE/HE*)."""
 
 
-def decode_photo(path, allow_preview=True):
+def _render_options(raw, min_edge):
+    """LibRaw rendering options. With min_edge (analysis), decode no larger or slower than needed:
+    half-size (2x2 binned, no demosaic: about a quarter of the work) when that still leaves min_edge px
+    on the long edge, otherwise a fast linear demosaic at full size. Without it (inspection), LibRaw's
+    default high-quality demosaic at full size."""
+    import rawpy
+    options = dict(use_camera_wb=True, no_auto_bright=True, output_bps=8, output_color=rawpy.ColorSpace.sRGB)
+    if min_edge:
+        if max(raw.sizes.width, raw.sizes.height) // 2 >= min_edge:
+            options['half_size'] = True
+        else:
+            options['demosaic_algorithm'] = rawpy.DemosaicAlgorithm.LINEAR
+    return options
+
+
+def _native_size(raw):
+    """Full-resolution output size of a RAW file, upright (LibRaw flips 5 and 6 rotate by 90 degrees)."""
+    w, h = raw.sizes.width, raw.sizes.height
+    return (h, w) if raw.sizes.flip in (5, 6) else (w, h)
+
+
+def decode_photo(path, allow_preview=True, min_edge=None):
     """Decode a photo. Returns (upright 8-bit sRGB image, source, notice).
+
+    min_edge: for analysis, decode RAW only as large as needed (see _render_options); the image's
+    info['native_size'] then gives the full-resolution size. Inspection uses the default (full quality).
 
     source is 'decoded_raw' (LibRaw demosaic), 'image' (JPEG/PNG/TIFF) or 'camera_preview': the
     camera's embedded JPEG, used only when LibRaw recognises the file as RAW but cannot decode its
@@ -128,8 +152,8 @@ def decode_photo(path, allow_preview=True):
             try:
                 # Camera white balance, sRGB output, no per-image auto brightening so that
                 # exposure is rendered consistently across a burst. LibRaw applies orientation.
-                rgb = raw.postprocess(use_camera_wb=True, no_auto_bright=True, output_bps=8,
-                                      output_color=rawpy.ColorSpace.sRGB)
+                rgb = raw.postprocess(**_render_options(raw, min_edge))
+                native = _native_size(raw)
             except rawpy.LibRawFileUnsupportedError as error:
                 raise _PixelsUnsupported() from error
             except rawpy.LibRawDataError as error:
@@ -139,7 +163,9 @@ def decode_photo(path, allow_preview=True):
                 if path.suffix.lower() == '.nef' and is_nikon_high_efficiency(path):
                     raise _PixelsUnsupported() from error
                 raise
-        return Image.fromarray(rgb), 'decoded_raw', ''
+        image = Image.fromarray(rgb)
+        image.info['native_size'] = native if min_edge else image.size
+        return image, 'decoded_raw', ''
     except rawpy.LibRawFileUnsupportedError as error:
         # LibRaw does not recognise the file at all: a camera model or RAW mode newer than the bundled
         # decoder (e.g. Sony A7 V "compressed"), or not a RAW file. Only a genuine camera file with its own
@@ -258,28 +284,73 @@ def _exif_file(path):
         return io.BytesIO(f.read(4 * 1024 * 1024))
 
 
-def capture_time(path):
-    """Capture time in seconds (with sub-seconds when recorded), or None."""
+class _PatchedHeader(io.RawIOBase):
+    """Read-only view of a file whose first four bytes are replaced (ORF's TIFF variant), read lazily."""
+
+    def __init__(self, f, head):
+        self.f, self.head = f, head
+
+    def readable(self):
+        return True
+
+    def seekable(self):
+        return True
+
+    def seek(self, offset, whence=0):
+        return self.f.seek(offset, whence)
+
+    def tell(self):
+        return self.f.tell()
+
+    def read(self, n=-1):
+        at = self.f.tell()
+        data = self.f.read(n)
+        if at < 4:
+            data = self.head[at:4] + data[4 - at:]
+        return data
+
+    def readinto(self, b):
+        data = self.read(len(b))
+        b[:len(data)] = data
+        return len(data)
+
+
+def exif_info(path):
+    """(capture time in seconds with sub-seconds when recorded, 'Make Model'), each None if unknown.
+
+    One pass that reads only the EXIF blocks it needs (the file is seeked, not read whole), instead of
+    two reads of the first 4 MB per photo: much less disk traffic on external drives and cards.
+    """
     try:
         import exifread
-        tags = exifread.process_file(_exif_file(path), details=False, stop_tag='SubSecTimeOriginal')
-        date = str(tags.get('EXIF DateTimeOriginal') or tags.get('Image DateTime') or '').strip()
-        if not date:
-            return None
-        stamp = datetime.strptime(date[:19], '%Y:%m:%d %H:%M:%S').timestamp()
-        sub = ''.join(c for c in str(tags.get('EXIF SubSecTimeOriginal', '')) if c.isdigit())
-        return stamp + (float('0.' + sub) if sub else 0.0)
+        with open(path, 'rb') as f:
+            head = f.read(4)
+            f.seek(0)
+            source = _PatchedHeader(f, b'II*\x00' if head.startswith(b'II') else b'MM\x00*') \
+                if head in (b'IIRO', b'IIRS', b'MMOR') else f
+            tags = exifread.process_file(source, details=False, stop_tag='SubSecTimeOriginal')
     except Exception:
-        return None
+        return None, None
+    camera = ' '.join(str(tags.get(k, '')).strip() for k in ('Image Make', 'Image Model')).strip() or None
+    stamp = None
+    try:
+        date = str(tags.get('EXIF DateTimeOriginal') or tags.get('Image DateTime') or '').strip()
+        if date:
+            stamp = datetime.strptime(date[:19], '%Y:%m:%d %H:%M:%S').timestamp()
+            sub = ''.join(c for c in str(tags.get('EXIF SubSecTimeOriginal', '')) if c.isdigit())
+            stamp += float('0.' + sub) if sub else 0.0
+    except ValueError:
+        stamp = None
+    return stamp, camera
+
+
+def capture_time(path):
+    """Capture time in seconds (with sub-seconds when recorded), or None."""
+    return exif_info(path)[0]
 
 
 def camera_model(path):
-    try:
-        import exifread
-        tags = exifread.process_file(_exif_file(path), details=False, stop_tag='Model')
-        return ' '.join(str(tags.get(k, '')).strip() for k in ('Image Make', 'Image Model')).strip() or None
-    except Exception:
-        return None
+    return exif_info(path)[1]
 
 
 def is_hidden(name):

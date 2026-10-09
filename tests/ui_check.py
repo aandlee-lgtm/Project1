@@ -165,6 +165,13 @@ def main():
         page.click('[data-zoom="1"]')
         css = page.evaluate("parseFloat(inspectImage.style.width)")
         check('100% view maps 1 image pixel to 1 screen pixel', abs(css * 2 - natural[0]) <= 2, f'css {css}px @2x')
+        # 1.5: step to the next photo inside the inspector, keeping the zoom; neighbours were prefetched
+        before_id = page.evaluate('current.id')
+        if page.evaluate('visible.length') > 1:
+            page.keyboard.press('ArrowRight')
+            wait(f"current.id !== '{before_id}' && document.getElementById('inspectImage').naturalWidth > 0", 180_000)
+            check('inspector steps to the next photo at the same zoom', page.evaluate("zoom") == '1',
+                  page.evaluate('current.name'))
         if shots:
             page.screenshot(path=str(shots / 'inspector.png'))
         page.click('[data-close="inspector"]')
@@ -254,7 +261,7 @@ def main():
         wait("document.getElementById('notice').textContent.includes('plug-in installed')", 30_000)
         page.click('#lightroom')
         page.wait_for_selector('#lrDialog[open]')
-        wait("document.getElementById('lrPlugin').textContent.includes('plug-in installed')", 30_000)
+        wait("/installed|running/i.test(document.getElementById('lrPlugin').textContent)", 30_000)
         groups = page.eval_on_selector_all('[data-lrgroup]', 'els => els.map(e => [e.dataset.lrgroup, e.checked, e.closest("label").textContent.trim()])')
         check('Send to Lightroom window shows plug-in status and star groups',
               len(groups) == 4 and [g[0] for g in groups] == ['3', '2', '1', '5'], groups)

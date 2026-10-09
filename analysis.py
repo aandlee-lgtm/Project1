@@ -18,7 +18,7 @@ None of these measures is a trained model. They are relative cues:
 import numpy as np
 from PIL import Image
 
-ANALYSIS_VERSION = 3
+ANALYSIS_VERSION = 4   # 4: analysis decodes RAW at the size the scores need (1.5.0)
 PREVIEW_EDGE = 1600
 FOCUS_SCALE = 4000
 DEFAULT_REGION = (0.25, 0.25, 0.5, 0.5)

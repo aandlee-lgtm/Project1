@@ -70,6 +70,41 @@ def lightroom_app():
     return next((p for p in found if p.endswith('.app')), None)
 
 
+def plugin_version(folder):
+    """'major.minor.revision' from a PhotoSelect.lrplugin folder's Info.lua, or ''."""
+    import re
+    try:
+        m = re.search(r'VERSION\s*=\s*\{\s*major\s*=\s*(\d+),\s*minor\s*=\s*(\d+),\s*revision\s*=\s*(\d+)',
+                      (Path(folder) / 'Info.lua').read_text(encoding='utf-8'))
+    except OSError:
+        return ''
+    return '.'.join(m.groups()) if m else ''
+
+
+def plugin_report():
+    """What the plug-in last reported from inside Lightroom (plugin-status.txt), or {}."""
+    try:
+        lines = (lightroom_dir() / 'plugin-status.txt').read_text(encoding='utf-8').splitlines()
+    except OSError:
+        return {}
+    out = dict(line.split('\t', 1) for line in lines if '\t' in line)
+    for k in ('started', 'checked', 'applied_at', 'applied_count', 'waiting'):
+        try:
+            out[k] = float(out[k])
+        except (KeyError, ValueError):
+            out[k] = 0
+    return out
+
+
+def lightroom_running():
+    if sys.platform != 'darwin':
+        return False
+    try:
+        return subprocess.run(['/usr/bin/pgrep', '-x', 'Adobe Lightroom Classic'], capture_output=True, timeout=5).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
 def _open_in_lightroom(app_path, paths):
     """Hand files to Lightroom Classic like dropping them on its icon: it opens its Import window with them."""
     subprocess.run(['/usr/bin/open', '-a', app_path, *paths], check=True, capture_output=True, timeout=60)
@@ -79,9 +114,11 @@ def _tsv_field(value):
     return ' '.join(str(value).replace('\t', ' ').splitlines())
 
 
-def lightroom_selections(folder, rows):
-    """Tab-separated selections file read by the plug-in's SelectionsCore.lua (format version 1)."""
-    lines = [f'# PhotoSelect selections\t1\t{time.time():.3f}\t{_tsv_field(folder)}', '\t'.join(LIGHTROOM_FIELDS)]
+def lightroom_selections(folder, rows, auto=False):
+    """Tab-separated selections file read by the plug-in's SelectionsCore.lua (format version 1).
+    auto: the plug-in applies these selections by itself once the photos are in the catalog."""
+    lines = [f'# PhotoSelect selections\t1\t{time.time():.3f}\t{_tsv_field(folder)}\t{1 if auto else 0}',
+             '\t'.join(LIGHTROOM_FIELDS)]
     for r in rows:
         rating = int(r['rating'])
         keywords = '|'.join(_tsv_field(k).replace('|', '/') for k in r.get('keywords') or [])
@@ -233,6 +270,12 @@ def create_app(library=None, store=None, token=None):
             return jsonify(error=str(error)), 422
         return Response(data, mimetype='image/jpeg', headers={'Cache-Control': 'private, max-age=600'})
 
+    @app.post('/api/prefetch')
+    def prefetch():
+        ids = (request.get_json(force=True) or {}).get('ids') or []
+        library.prefetch([i for i in ids if isinstance(i, str)])
+        return jsonify(ok=True)
+
     @app.get('/api/crop/<id>')
     def crop(id):
         row = row_or_404(id)
@@ -322,8 +365,16 @@ def create_app(library=None, store=None, token=None):
     @app.get('/api/lightroom/status')
     def lightroom_status():
         installed = (plugin_path() / 'Info.lua').exists()
+        report = plugin_report()
         return jsonify(plugin_installed=installed, plugin_path=str(plugin_path()) if installed else '',
-                       lightroom=lightroom_app() or '')
+                       installed_version=plugin_version(plugin_path()) if installed else '',
+                       bundled_version=plugin_version(resource_dir() / 'lightroom' / LIGHTROOM_PLUGIN),
+                       lightroom=lightroom_app() or '', lightroom_running=lightroom_running(),
+                       # the plug-in writes its status about every 30 s while Lightroom is open
+                       plugin_running=bool(report) and time.time() - report['checked'] < 120,
+                       running_version=report.get('version', ''), checked_ago=round(time.time() - report['checked'])
+                       if report else None, last_applied=report.get('applied_at') or None,
+                       last_applied_count=int(report.get('applied_count') or 0), waiting=int(report.get('waiting') or 0))
 
     @app.post('/api/lightroom/reveal')
     def lightroom_reveal():
@@ -350,7 +401,8 @@ def create_app(library=None, store=None, token=None):
         target = lightroom_dir() / f'{store_module.path_id(folder or "-")}.tsv'
         target.parent.mkdir(parents=True, exist_ok=True)
         tmp = target.with_suffix('.tmp')
-        tmp.write_text(lightroom_selections(folder, table), encoding='utf-8')
+        auto = bool(data.get('auto_apply'))
+        tmp.write_text(lightroom_selections(folder, table, auto), encoding='utf-8')
         os.replace(tmp, target)
         log.info('Lightroom selections for %d photos saved to %s', len(table), target)
         result = {'saved': str(target), 'count': len(table), 'plugin_installed': (plugin_path() / 'Info.lua').exists()}
@@ -375,7 +427,7 @@ def create_app(library=None, store=None, token=None):
         pending = target.parent / 'pending.import'
         if data.get('auto_apply'):
             tmp = pending.with_suffix('.tmp')
-            tmp.write_text(lightroom_selections(folder, [known[p] for p in paths]), encoding='utf-8')
+            tmp.write_text(lightroom_selections(folder, [known[p] for p in paths], True), encoding='utf-8')
             os.replace(tmp, pending)
         else:
             pending.unlink(missing_ok=True)

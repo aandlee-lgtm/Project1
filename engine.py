@@ -15,6 +15,7 @@ a single failing file is recorded as an error without stopping the scan.
 import io
 import logging
 import os
+import sys
 import threading
 import time
 import traceback
@@ -54,8 +55,25 @@ def default_workers():
         ram_gb = os.sysconf('SC_PHYS_PAGES') * os.sysconf('SC_PAGE_SIZE') / 2 ** 30
     except (ValueError, OSError, AttributeError):
         ram_gb = 8
-    # A 45 MP RAW needs roughly 0.5 GB while being demosaiced; keep a generous margin.
-    return max(1, min(4, cpus // 2, int(ram_gb // 4)))
+    # Analysis decodes RAW at the size the scores need (half size for 33 MP+), about 0.2-0.4 GB per
+    # worker at peak; leave one core for the interface and macOS, and at most 6 workers.
+    return max(1, min(6, cpus - 1, int(ram_gb // 2)))
+
+
+FULL_CACHE_BYTES = 1500 * 2 ** 20   # full-resolution renders kept on disk for instant inspection
+
+
+def background_priority():
+    """Run the calling thread at macOS 'utility' quality of service: analysis keeps going at full
+    speed when the Mac is otherwise idle, but yields to the interface and to other apps."""
+    if sys.platform != 'darwin':
+        return
+    try:
+        import ctypes
+        libc = ctypes.CDLL('/usr/lib/libSystem.dylib')
+        libc.pthread_set_qos_class_self_np(ctypes.c_uint(0x11), ctypes.c_int(0))   # QOS_CLASS_UTILITY
+    except Exception:
+        pass
 
 
 class LRU:
@@ -116,7 +134,7 @@ class Library:
     def __init__(self, store, cache_root, workers=None):
         self.store = store
         self.cache = Path(cache_root)
-        for name in ('thumbs', 'previews', 'embedded'):
+        for name in ('thumbs', 'previews', 'embedded', 'full'):
             (self.cache / name).mkdir(parents=True, exist_ok=True)
         self.lock = threading.RLock()
         self.rows, self.by_id, self.errors = [], {}, []
@@ -126,7 +144,7 @@ class Library:
         self.dirty = False
         self.cancel_event = threading.Event()
         self.workers = workers or default_workers()
-        self.pool = ThreadPoolExecutor(self.workers, thread_name_prefix='analyse')
+        self.pool = ThreadPoolExecutor(self.workers, thread_name_prefix='analyse', initializer=background_priority)
         self.side_pool = ThreadPoolExecutor(2, thread_name_prefix='inspect')
         self.full_images = LRU(2)
         self.full_jpegs = LRU(3)
@@ -188,7 +206,8 @@ class Library:
             self.full_jpegs.clear()
             self.status.update(phase='listing', running=True, done=0, total=0, previews=0, cached=0,
                                folder=str(folder), recursive=bool(recursive), started=time.time(), finished=None,
-                               elapsed=None, previews_done=None)
+                               elapsed=None, previews_done=None, first_result=None, cpu_seconds=None)
+            self.cpu_start = time.process_time()
             self._bump()
         threading.Thread(target=self._scan, args=(folder, bool(recursive), self.cancel_event),
                          name='scan', daemon=True).start()
@@ -233,7 +252,10 @@ class Library:
                 self._bump()
 
             pending = [r for r in rows if r['status'] == 'pending']
-            self._run([r for r in pending if r['is_raw']], self._embedded, cancel, 'previews')
+            self._run(pending, self._embedded, cancel, 'previews')
+            # Analyse in capture order, so each burst completes together and can be culled while the rest
+            # of the folder is still being analysed.
+            pending.sort(key=lambda r: (r['timestamp'] is None, r['timestamp'] or 0, r['name']))
             with self.lock:
                 if not cancel.is_set():
                     self.status['phase'] = 'analysing'
@@ -252,6 +274,7 @@ class Library:
                 self.status.update(running=False, finished=time.time(),
                                    phase='cancelled' if cancel.is_set() else 'complete')
                 self.status['elapsed'] = round(self.status['finished'] - (self.status['started'] or 0), 2)
+                self.status['cpu_seconds'] = round(time.process_time() - getattr(self, 'cpu_start', time.process_time()), 1)
                 self._bump()
 
     def _run(self, rows, fn, cancel, counter):
@@ -292,6 +315,9 @@ class Library:
     def _embedded(self, row, cancel):
         if cancel.is_set() or row['status'] != 'pending':
             return
+        row['timestamp'], row['camera'] = raw_io.exif_info(row['path'])
+        if not row['is_raw']:
+            return
         im = raw_io.embedded_preview(row['path'])
         if im is None:
             return
@@ -310,13 +336,15 @@ class Library:
         path = Path(row['path'])
         try:
             t0 = time.perf_counter()
-            full, basis, notice = raw_io.decode_photo(path)
+            full, basis, notice = raw_io.decode_photo(path, min_edge=analysis.FOCUS_SCALE)
             t1 = time.perf_counter()
             region = row['roi']
             preview, m = analysis.analyse(full, region)
             data = {k: v for k, v in m.items() if k != 'focus'}
             data['focus'] = m['focus_default']
-            data.update(size=list(full.size), timestamp=raw_io.capture_time(path), camera=raw_io.camera_model(path),
+            if row.get('camera') is None and row.get('timestamp') is None:
+                row['timestamp'], row['camera'] = raw_io.exif_info(path)
+            data.update(size=list(full.info.get('native_size', full.size)), timestamp=row['timestamp'], camera=row['camera'],
                         decoder={'decoded_raw': 'LibRaw ' + raw_io.libraw_version(), 'image': 'Pillow',
                                  'camera_preview': 'embedded camera JPEG'}[basis],
                         basis=basis, notice=notice,
@@ -341,13 +369,16 @@ class Library:
             self._error(row, f'Unexpected analysis error: {error}')
             return
         with self.lock:
+            if self.status.get('first_result') is None:
+                self.status['first_result'] = time.time()
             self._fill(row, data, 'decoded')
             row['raw']['focus'] = m['focus'] if region else m['focus_default']
             row['roi_state'] = 'full' if region else None
             self._bump()
 
     def _remove_cached(self, key):
-        for name in (f'thumbs/{key}.jpg', f'previews/{key}.jpg', f'embedded/{key}.jpg', f'embedded/{key}_t.jpg'):
+        for name in (f'thumbs/{key}.jpg', f'previews/{key}.jpg', f'embedded/{key}.jpg', f'embedded/{key}_t.jpg',
+                     f'full/{key}.jpg'):
             try:
                 (self.cache / name).unlink()
             except OSError:
@@ -418,13 +449,60 @@ class Library:
         return im
 
     def full_jpeg(self, row):
+        """Full-resolution render for the inspector: from memory, else the disk cache, else decoded."""
         data = self.full_jpegs.get(row['key'])
-        if data is None:
+        if data is not None:
+            return data
+        cached = self.cache / 'full' / f"{row['key']}.jpg"
+        try:
+            data = cached.read_bytes()
+            os.utime(cached)                      # most recently used
+        except OSError:
             out = io.BytesIO()
             self.full_image(row).save(out, format='JPEG', quality=93, subsampling=0)
             data = out.getvalue()
-            self.full_jpegs.put(row['key'], data)
+            try:
+                tmp = cached.with_suffix('.tmp')
+                tmp.write_bytes(data)
+                os.replace(tmp, cached)
+                self._trim_full_cache()
+            except OSError:
+                pass
+        self.full_jpegs.put(row['key'], data)
         return data
+
+    def prefetch(self, ids):
+        """Render full-resolution images in the background (the next / previous photo in the viewer)."""
+        for id in ids[:3]:
+            row = self.row(id)
+            if row is not None and row['status'] in ('analysed', 'preview') and \
+                    self.full_jpegs.get(row['key']) is None:
+                self.side_pool.submit(self._prefetch_one, row)
+
+    def _prefetch_one(self, row):
+        try:
+            self.full_jpeg(row)
+        except Exception as error:
+            log.info('prefetch skipped for %s: %s', row['name'], error)
+
+    def _trim_full_cache(self, limit=None):
+        limit = FULL_CACHE_BYTES if limit is None else limit
+        files = []
+        for p in (self.cache / 'full').glob('*.jpg'):
+            try:
+                st = p.stat()
+                files.append((st.st_mtime, st.st_size, p))
+            except OSError:
+                pass
+        total = sum(f[1] for f in files)
+        for _, size, p in sorted(files):
+            if total <= limit:
+                break
+            try:
+                p.unlink()
+                total -= size
+            except OSError:
+                pass
 
     def crop_jpeg(self, row, region):
         im = self.full_image(row)
@@ -459,7 +537,7 @@ class Library:
             with self.lock:
                 row['roi_state'] = 'measuring'
                 self._bump()
-            value = analysis.focus_detail(self.full_image(row), region)
+            value = analysis.focus_detail(raw_io.decode_photo(row['path'], min_edge=analysis.FOCUS_SCALE)[0], region)
         except Exception as error:
             log.warning('region measurement failed: %s', error)
             with self.lock:
@@ -481,7 +559,7 @@ class Library:
                 raise RuntimeError('Cancel the running scan before clearing the cache.')
             self.store.clear_analysis()
             clear_cache_files(self.cache)
-            for name in ('thumbs', 'previews', 'embedded'):
+            for name in ('thumbs', 'previews', 'embedded', 'full'):
                 (self.cache / name).mkdir(parents=True, exist_ok=True)
             self.rows, self.by_id, self.errors = [], {}, []
             self.status.update(phase='idle', done=0, total=0, previews=0, cached=0)

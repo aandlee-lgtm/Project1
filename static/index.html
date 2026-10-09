@@ -101,7 +101,7 @@ a{color:var(--teal)}kbd{border:1px solid var(--line);border-radius:4px;padding:0
 
 <dialog id="inspector"><div class="dialoghead"><div><strong id="inspectTitle"></strong><div id="inspectInfo" class="hint"></div></div>
 <div class="detailtools"><button data-zoom="fit">Fit</button><button data-zoom="1">100% (1:1 pixels)</button><button data-zoom="2">200%</button><button data-close="inspector">Close</button></div></div>
-<p class="hint">Full-resolution decode of the original file (camera white balance, standard LibRaw rendering — not your Lightroom edits). Click the image to switch between fit and 1:1 at that point.</p>
+<p class="hint">Full-resolution decode of the original file (camera white balance, standard LibRaw rendering — not your Lightroom edits). Click the image to switch between fit and 1:1 at that point. <kbd>←</kbd><kbd>→</kbd> previous / next photo at the same zoom.</p>
 <div id="inspectBox"><img id="inspectImage" alt="Full-resolution image"></div></dialog>
 
 <dialog id="comparison"><div class="dialoghead"><strong id="compareTitle">Comparison</strong><div class="detailtools"><label class="hint"><input id="cropMode" type="checkbox"> 100% crops of the focus region</label><button data-close="comparison">Close</button></div></div>
@@ -112,7 +112,7 @@ a{color:var(--teal)}kbd{border:1px solid var(--line);border-radius:4px;padding:0
 <div class="detailtools"><button id="lrInstall">Install plug-in</button><button id="lrReveal">Show plug-in in Finder</button></div>
 <h2>Which photos should Lightroom import?</h2>
 <div id="lrGroups" class="lrgroups"></div>
-<label class="hint"><input id="lrAuto" type="checkbox" checked> Add the stars and keywords automatically once Lightroom has imported them</label>
+<label class="hint"><input id="lrAuto" type="checkbox" checked> Add the stars and keywords automatically once these photos are in Lightroom, however you import them</label>
 <div class="detailtools" style="margin-top:14px"><button id="lrOpen" class="primary">Open in Lightroom Import</button><button id="lrSave">Only save selections</button></div>
 <div id="lrError" role="alert" style="color:#ffb0aa;margin-top:10px;white-space:pre-wrap"></div><div id="lrResult" class="hint" role="status" style="margin-top:10px"></div>
 <ol id="lrSteps" class="hint"></ol>
@@ -176,7 +176,7 @@ function reasons(r){
 function savePrefs(){rememberFolderSettings();clearTimeout(saveTimer);saveTimer=setTimeout(()=>api('prefs',prefs).catch(showError),250)}
 function buildWeights(){const sum=weightSum();
   $('weights').innerHTML=KEYS.map(k=>`<label class="weight"><span class="row">${LABEL[k]}<output id="value-${k}">${sum?Math.round(prefs.weights[k]/sum*100)+'%':'Off'}</output></span><input id="weight-${k}" type="range" min="0" max="100" value="${prefs.weights[k]}"><small>${DESCRIPTION[k]}</small></label>`).join('');
-  KEYS.forEach(k=>$('weight-'+k).oninput=e=>{prefs.weights[k]=+e.target.value;const s=weightSum();KEYS.forEach(t=>$('value-'+t).textContent=s?Math.round(prefs.weights[t]/s*100)+'%':'Off');savePrefs();render()})}
+  KEYS.forEach(k=>$('weight-'+k).oninput=e=>{prefs.weights[k]=+e.target.value;const s=weightSum();KEYS.forEach(t=>$('value-'+t).textContent=s?Math.round(prefs.weights[t]/s*100)+'%':'Off');savePrefs();scheduleRender()})}
 function applyPrefs(){buildWeights();for(const id of ['keep','consider']){$(id).value=prefs[id];$(id+'Value').textContent=prefs[id]}for(const id of ['likeness','near_identical']){$(id).value=prefs[id];$(id+'Value').textContent=prefs[id]+' %'}$('gap').value=prefs.gap;$('near_window').value=prefs.near_window;renderLearn();$('recursive').checked=!!prefs.recursive;if(!$('folder').value)$('folder').value=prefs.folder||''}
 async function mark(r,fields){Object.assign(r,fields);render();renderLearn();if(current&&current.id===r.id)updateViewer();try{await api('mark',{id:r.id,...fields})}catch(e){showError(e)}}
 
@@ -243,6 +243,8 @@ function matches(r){const f=$('filter').value,ff=$('formatFilter').value;
   if($('winners').checked&&!isWinner(r))return false;return true}
 function sourceLabel(r){if(r.status==='preview')return 'embedded camera preview · analysis pending';if(r.status!=='analysed')return 'waiting';const c=r.source==='cache'?' (cached result)':'';if(r.basis==='camera_preview')return 'CAMERA PREVIEW · RAW pixels not decodable'+c;return r.is_raw?'RAW decoded'+c:'decoded'+c}
 function pager(pages){if(pages<=1)return '';return `<button data-page="${page-1}" ${page<=0?'disabled':''}>← Previous</button><span class="hint">Page ${page+1} of ${pages} · ${visible.length} photos</span><button data-page="${page+1}" ${page>=pages-1?'disabled':''}>Next →</button>`}
+let renderQueued=false;
+function scheduleRender(){if(renderQueued)return;renderQueued=true;requestAnimationFrame(()=>{renderQueued=false;render()})}
 function render(){derive();const analysed=rows.filter(r=>r.status==='analysed');$('total').textContent=analysed.length;
   for(const [id,v] of [['kept','Keep'],['considered','Consider'],['dropped','Drop']])$(id).textContent=analysed.filter(r=>decision(r)===v).length;
   document.querySelectorAll('[data-bucket]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.bucket===$('filter').value)));
@@ -290,7 +292,7 @@ async function poll(){try{scan=await api('state');const run=scan.running;
 $('browse').onclick=async()=>{try{showError();$('notice').textContent='Choose a folder in the system dialog…';const r=await api('pick',{});if(r.folder)$('folder').value=r.folder;renderLearn();$('notice').textContent=r.folder?'Folder selected. Click Analyse photos.':'No folder chosen.'}catch(e){showError(e)}};
 $('scan').onclick=async()=>{try{showError();$('notice').textContent='';const fs=(prefs.folder_settings||{})[folderKey()];if(fs){useSettings(fs);$('notice').textContent='Using the settings remembered for this folder.'}prefs.recursive=$('recursive').checked;await api('scan',{folder:$('folder').value,recursive:$('recursive').checked});page=0;rowsVersion=-1;lastRowsFetch=0}catch(e){showError(e)}};
 $('cancel').onclick=()=>api('cancel',{}).catch(showError);
-for(const id of ['keep','consider'])$(id).oninput=()=>{prefs[id]=+$(id).value;$(id+'Value').textContent=$(id).value;savePrefs();render()};
+for(const id of ['keep','consider'])$(id).oninput=()=>{prefs[id]=+$(id).value;$(id+'Value').textContent=$(id).value;savePrefs();scheduleRender()};
 $('folder').oninput=renderLearn;
 for(const id of ['filter','formatFilter','sort','winners'])$(id).onchange=()=>{page=0;render()};
 document.querySelectorAll('[data-bucket]').forEach(b=>b.onclick=()=>{const f=$('filter');f.value=b.dataset.bucket!=='all'&&f.value===b.dataset.bucket?'all':b.dataset.bucket;page=0;render();$('grid').scrollIntoView({behavior:'smooth',block:'start'})});
@@ -307,7 +309,10 @@ function updateViewer(){const r=current;if(!r)return;const s=score(r);$('viewTit
   if(r.roi){const [x,y,w,h]=r.roi;Object.assign($('region').style,{left:x*100+'%',top:y*100+'%',width:w*100+'%',height:h*100+'%'});$('region').hidden=false}else $('region').hidden=true;
   $('full').disabled=$('burstCompare').disabled=r.status==='pending';
   $('full').textContent=r.basis==='camera_preview'?'Inspect full-size camera preview':'Inspect full resolution'}
-function openViewer(id){current=byId.get(id);if(!current)return;$('viewMessage').textContent='';
+let inspectorUsed=false;
+function neighbours(r){const i=visible.findIndex(x=>x.id===r.id);if(i<0||!visible.length)return [];return [visible[(i+1)%visible.length],visible[(i-1+visible.length)%visible.length]].filter(x=>x&&x.id!==r.id&&x.status!=='pending').map(x=>x.id)}
+function prefetchNeighbours(r){if(inspectorUsed&&r&&!scan.running)api('prefetch',{ids:neighbours(r)}).catch(()=>{})}
+function openViewer(id){current=byId.get(id);if(!current)return;$('viewMessage').textContent='';prefetchNeighbours(current);
   $('viewImage').src=current.status==='pending'?'':img('preview',current);$('reveal').hidden=!DESKTOP;updateViewer();if(!$('viewer').open)$('viewer').showModal()}
 let start=null;const stage=$('stage');
 function point(e){const b=$('viewImage').getBoundingClientRect();return [Math.max(0,Math.min(1,(e.clientX-b.left)/b.width)),Math.max(0,Math.min(1,(e.clientY-b.top)/b.height))]}
@@ -331,10 +336,13 @@ function applyZoom(cx=.5,cy=.5){const im=$('inspectImage'),box=$('inspectBox');i
   else{const w=im.naturalWidth/dpr*(+zoom);im.style.maxWidth='none';im.style.maxHeight='none';im.style.width=w+'px';im.style.height='auto';box.classList.add('zoomed');
     box.scrollLeft=cx*w-box.clientWidth/2;box.scrollTop=cy*(im.naturalHeight/dpr*(+zoom))-box.clientHeight/2}
   document.querySelectorAll('[data-zoom]').forEach(b=>b.classList.toggle('active',b.dataset.zoom===zoom))}
-$('full').onclick=()=>{const r=current;zoom='fit';$('inspectTitle').textContent=r.name;$('inspectInfo').textContent='Decoding the full-resolution image… RAW files can take a few seconds.';
+$('full').onclick=()=>{inspectorUsed=true;prefetchNeighbours(current);const r=current;zoom=$('inspector').open?zoom:'fit';$('inspectTitle').textContent=r.name;$('inspectInfo').textContent='Decoding the full-resolution image… RAW files can take a few seconds.';
   if(r.basis==='camera_preview')$('inspectInfo').textContent='Loading the full-size embedded camera JPEG…';const im=$('inspectImage');im.removeAttribute('src');im.onload=()=>{$('inspectInfo').textContent=`${im.naturalWidth} × ${im.naturalHeight} pixels · ${r.format}${r.basis==='camera_preview'?' · embedded camera JPEG — RAW pixel decoding is unavailable for this file':r.is_raw?' · decoded from RAW by LibRaw':''}`;applyZoom()};
   im.onerror=async()=>{let msg='Could not decode the full-resolution image.';try{await fetch(img('full',r)).then(x=>x.json()).then(j=>msg=j.error||msg)}catch(e){}$('inspectInfo').textContent=msg};
-  im.src=img('full',r);$('inspector').showModal()};
+  im.src=img('full',r);if(!$('inspector').open)$('inspector').showModal()};
+$('inspector').addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(k!=='arrowleft'&&k!=='arrowright')return;e.preventDefault();
+  const i=visible.findIndex(x=>x.id===current.id);if(!visible.length)return;const next=visible[(i+(k==='arrowright'?1:-1)+visible.length)%visible.length];
+  current=next;$('viewImage').src=current.status==='pending'?'':img('preview',current);updateViewer();$('full').click()});
 document.querySelectorAll('[data-zoom]').forEach(b=>b.onclick=()=>{zoom=b.dataset.zoom;applyZoom()});
 $('inspectImage').onclick=e=>{const b=e.target.getBoundingClientRect(),cx=(e.clientX-b.left)/b.width,cy=(e.clientY-b.top)/b.height;zoom=zoom==='fit'?'1':'fit';applyZoom(cx,cy)};
 
@@ -374,9 +382,17 @@ function lightroomRows(){derive();const out=[];
   return out}
 const LR_GROUPS=[[3,'Keep','★★★',true],[2,'Consider','★★',false],[1,'Drop','★',false],[5,'♥ Liked','★★★★★',true]];
 let lrChoice=Object.fromEntries(LR_GROUPS.map(g=>[g[0],g[3]])),lrStatus={};
+function pluginStatusText(s){
+  if(!s.plugin_installed)return '<b>The PhotoSelect plug-in is not installed yet.</b> Click Install plug-in, then quit and reopen Lightroom Classic. Or add it yourself: Show plug-in in Finder, then Lightroom → File → Plug-in Manager… → Add.';
+  const v=s.installed_version?` ${esc(s.installed_version)}`:'',when=t=>new Date(t*1000).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+  if(s.plugin_running&&s.running_version&&s.bundled_version&&s.running_version!==s.bundled_version)
+    return `<b>Lightroom is running an older PhotoSelect plug-in (${esc(s.running_version)}).</b> Click Reinstall plug-in, remove any other PhotoSelect entry in Lightroom → File → Plug-in Manager, then quit and reopen Lightroom.`;
+  if(s.plugin_running)return `✓ Plug-in${v} running in Lightroom: stars are added automatically once the photos are imported.`+(s.last_applied?` Last: ${s.last_applied_count} photos at ${when(s.last_applied)}.`:'')+(s.waiting?` ${s.waiting} photos waiting to be imported.`:'');
+  if(!s.lightroom)return `✓ Plug-in${v} installed · Lightroom Classic was not found on this Mac.`;
+  if(s.lightroom_running)return `<b>Plug-in${v} installed, but not running in Lightroom yet.</b> Quit and reopen Lightroom Classic once (needed after installing). If it still does not start, remove older PhotoSelect entries in File → Plug-in Manager. Until then, use Library → Plug-in Extras → Apply PhotoSelect Selections…`;
+  return `✓ Plug-in${v} installed. It starts with Lightroom Classic and adds the stars automatically after you import.`}
 async function refreshLightroomStatus(){try{lrStatus=await api('lightroom/status')}catch(e){lrStatus={}}
-  $('lrPlugin').innerHTML=lrStatus.plugin_installed?`✓ PhotoSelect plug-in installed${lrStatus.lightroom?'':' · Lightroom Classic was not found on this Mac'}.`
-    :'<b>The PhotoSelect plug-in is not installed yet.</b> Install it once, then quit and reopen Lightroom Classic. Or add it yourself: Show plug-in in Finder, then Lightroom → File → Plug-in Manager… → Add.';
+  $('lrPlugin').innerHTML=pluginStatusText(lrStatus);
   $('lrInstall').textContent=lrStatus.plugin_installed?'Reinstall plug-in':'Install plug-in'}
 function renderLightroomDialog(){const all=lightroomRows(),count=r=>all.filter(x=>x.rating===r).length;
   $('lrGroups').innerHTML=LR_GROUPS.map(([r,label,stars])=>`<label><input type="checkbox" data-lrgroup="${r}" ${lrChoice[r]?'checked':''} ${count(r)?'':'disabled'}><span><b>${stars}</b> ${label}<br><span class="hint">${count(r)} photo${count(r)===1?'':'s'}</span></span></label>`).join('');
@@ -384,18 +400,18 @@ function renderLightroomDialog(){const all=lightroomRows(),count=r=>all.filter(x
   const n=all.filter(x=>lrChoice[x.rating]).length;$('lrOpen').textContent=`Open ${n} photos in Lightroom Import`;$('lrOpen').disabled=!n;
   $('lrSteps').innerHTML=[`<b>Open in Lightroom Import</b> starts Lightroom Classic (or brings it to the front) and opens its Import window with only these ${n} photos.`,
     'In Lightroom, choose <b>Add</b> (files stay where they are) or <b>Copy</b> at the top of the Import window, then click <b>Import</b>.',
-    $('lrAuto').checked?'The stars and keywords are added automatically a few seconds after the import. This needs the plug-in, and Lightroom restarted once after installing it. If they do not appear, use Library → Plug-in Extras → Apply PhotoSelect Selections…'
+    $('lrAuto').checked?'The stars and keywords are added automatically a few seconds after the import, also if you import these photos later or from Lightroom itself (within 14 days). The plug-in must be running: see its status above. If stars do not appear, use Library → Plug-in Extras → Apply PhotoSelect Selections…'
       :'Then choose <b>Library → Plug-in Extras → Apply PhotoSelect Selections…</b> to add the stars and keywords.'].map(x=>`<li>${x}</li>`).join('')}
 $('lightroom').onclick=async()=>{if(!rows.length){showError('Analyse a folder before sending selections to Lightroom.');return}
   showError();$('lrError').textContent='';$('lrResult').textContent='';renderLightroomDialog();await refreshLightroomStatus();if(!$('lrDialog').open)$('lrDialog').showModal()};
 $('lrAuto').onchange=renderLightroomDialog;
 async function sendToLightroom(open){$('lrError').textContent='';$('lrResult').textContent=open?'Opening Lightroom Classic…':'Saving…';
   const all=lightroomRows(),body={folder:prefs.folder||$('folder').value,rows:all};
-  if(open){body.open=all.filter(x=>lrChoice[x.rating]).map(x=>x.path);body.auto_apply=$('lrAuto').checked}
+  body.auto_apply=$('lrAuto').checked;if(open)body.open=all.filter(x=>lrChoice[x.rating]).map(x=>x.path);
   try{const r=await api('lightroom',body);
     if(r.lightroom_missing){$('lrResult').textContent='';$('lrError').textContent=r.error;$('notice').textContent=r.error;return}
     $('lrResult').textContent=open?`Lightroom Classic is opening its Import window with ${r.opened} photos. Selections for all ${r.count} photos are saved for Apply PhotoSelect Selections.`
-      :`Selections for ${r.count} photos are saved. Import this folder in Lightroom, then choose Library → Plug-in Extras → Apply PhotoSelect Selections…`;
+      :`Selections for ${r.count} photos are saved. `+(body.auto_apply?'Import this folder in Lightroom as usual: the stars are added automatically a few seconds after the import (or use Library → Plug-in Extras → Apply PhotoSelect Selections…).':'Import this folder in Lightroom, then choose Library → Plug-in Extras → Apply PhotoSelect Selections…');
     $('notice').textContent=$('lrResult').textContent;if(!r.plugin_installed)$('lrError').textContent='The plug-in is not installed yet: click Install plug-in, then quit and reopen Lightroom Classic.'}
   catch(e){$('lrResult').textContent='';$('lrError').textContent=e.message}}
 $('lrOpen').onclick=()=>sendToLightroom(true);$('lrSave').onclick=()=>sendToLightroom(false);

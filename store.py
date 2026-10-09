@@ -152,7 +152,7 @@ class Store:
 
 
 def clear_cache_files(root):
-    for name in ('thumbs', 'previews', 'embedded'):
+    for name in ('thumbs', 'previews', 'embedded', 'full'):
         shutil.rmtree(Path(root) / name, ignore_errors=True)
 
 

@@ -1,0 +1,33 @@
+name: Analysis decode benchmark (Apple silicon)
+
+# Compares the 1.4.0 and 1.5.0 analysis decodes on genuine camera RAW files: speed, memory and
+# whether scores / rankings stay equivalent. A check, not a build.
+on:
+  push:
+    branches: ['claude/**']
+    paths: ['scripts/bench_decode.py', '.github/workflows/perf-check.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bench:
+    runs-on: macos-14
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Decoder (pinned like the app)
+        run: pip install --quiet $(grep -E '^(rawpy|numpy|pillow|exifread)==' requirements-mac.txt)
+      - name: Benchmark
+        run: python scripts/bench_decode.py "$RUNNER_TEMP/bench" --count 12
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: decode-benchmark
+          path: |
+            ${{ runner.temp }}/bench/bench.md
+            ${{ runner.temp }}/bench/bench.json
