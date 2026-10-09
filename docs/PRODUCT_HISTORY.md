@@ -329,6 +329,14 @@ Built when the owner sent **build_new** after items 13 and 14 were discussed (be
   - slider redraws batched;
   - new timings in the diagnostic report and the acceptance tests.
 
+### After 1.5.0 (planned for the next version: waiting for build_new)
+15. **Main actions in a persistent top bar.** The owner wants Send to Lightroom placed near the top, and
+    asked for the title bar to stay visible while scrolling, holding Choose folder, Analyse photos and
+    Send to Lightroom.
+    - Planned (backlog 15): a sticky top bar with the brand, the folder (shortened), Choose folder,
+      Analyse / Cancel, Send to Lightroom…, a thin progress bar and a one-line status. The toolbar keeps
+      the filters and Export.
+
 ---
 
 ## 2. Definitions (draft glossary for the user instructions)
