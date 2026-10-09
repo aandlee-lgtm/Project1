@@ -6,6 +6,7 @@ local LrDate = import 'LrDate'
 local LrDialogs = import 'LrDialogs'
 local LrFileUtils = import 'LrFileUtils'
 local LrPathUtils = import 'LrPathUtils'
+local LrTasks = import 'LrTasks'
 
 local Core = require 'SelectionsCore'
 local Ops = { stopped = false }
@@ -55,6 +56,17 @@ function Ops.describePhotos(catalog, photos)
   return out
 end
 
+Ops.FROM = 'From PhotoSelect'              -- keyword on every photo PhotoSelect rated (used by the Smart Collections)
+Ops.SET = 'PhotoSelect'                   -- collection set holding the Smart Collections
+-- Smart Collections, in the order the owner reviews them: rescue drops, confirm keeps, decide the rest.
+Ops.COLLECTIONS = {
+  { name = '1 Rescue', rating = 1 },
+  { name = '2 Confirm', rating = 3 },
+  { name = '3 Decide', rating = 2 },
+  { name = 'Liked', rating = 5 },
+  { name = 'Borderline', keyword = 'Borderline' },
+}
+
 function Ops.apply(catalog, plan)
   catalog:withWriteAccessDo(Ops.TITLE, function()
     local parent = catalog:createKeyword('PhotoSelect', {}, false, nil, true)
@@ -77,11 +89,35 @@ function Ops.apply(catalog, plan)
       for _, name in ipairs(item.entry.keywords) do
         photo:addKeyword(keyword(name))
       end
+      photo:addKeyword(keyword(Ops.FROM))
       if item.setRating then
         photo:setRawMetadata('rating', item.setRating)
       end
     end
   end, { timeout = 60 })
+  LrTasks.pcall(Ops.ensureCollections, catalog)
+  LrTasks.pcall(Ops.track, Ops.selectionsFolder(), plan)
+end
+
+--[[ The "PhotoSelect" collection set with one Smart Collection per review step (see Ops.COLLECTIONS).
+Each holds the photos PhotoSelect rated (keyword "From PhotoSelect") that now have that many stars, so
+a photo moves between them as its stars change in Lightroom. Made once; existing ones are kept. ]]
+local collectionsMade = false
+function Ops.ensureCollections(catalog)
+  if collectionsMade then return end
+  catalog:withWriteAccessDo('PhotoSelect Smart Collections', function()
+    local set = catalog:createCollectionSet(Ops.SET, nil, true)
+    for _, c in ipairs(Ops.COLLECTIONS) do
+      local rule = c.rating and { criteria = 'rating', operation = '==', value = c.rating }
+        or { criteria = 'keywords', operation = 'words', value = c.keyword }
+      catalog:createSmartCollection(c.name, {
+        combine = 'intersect',
+        rule,
+        { criteria = 'keywords', operation = 'all', value = Ops.FROM },
+      }, set, true)
+    end
+  end, { timeout = 30 })
+  collectionsMade = true
 end
 
 local function unixNow()
@@ -89,9 +125,12 @@ local function unixNow()
 end
 Ops.unixNow = unixNow
 
-Ops.VERSION = '1.5.0'
+Ops.VERSION = '1.6.0'
 Ops.STATUS = 'plugin-status.txt'          -- read by PhotoSelect: is the plug-in running, and what did it do
 Ops.APPLIED = 'applied.txt'               -- photos already rated automatically (never twice)
+Ops.TRACKED = 'tracked.txt'               -- photos PhotoSelect rated: Lightroom id, last stars seen, PhotoSelect path
+Ops.CHANGES = 'lightroom-changes.tsv'     -- star changes made in Lightroom, read (and removed) by PhotoSelect
+local TRACK_DAYS = 90                     -- star changes are reported for photos rated in the last 90 days
 local AUTO_DAYS = 14                      -- selections sent within this many days are applied automatically
 
 local function readLines(path)
@@ -255,9 +294,88 @@ function Ops.autoApply(round, slow)
   return #fresh.items
 end
 
+--[[ Changes flow back (1.6): remember the stars each photo had after PhotoSelect rated it, then report
+star changes made in Lightroom to PhotoSelect, which updates its decision to match. ]]
+local tracked = nil   -- [localId] = { rating =, at =, path = }
+
+local function trackedSet(folder)
+  if not tracked then
+    tracked = {}
+    for _, line in ipairs(readLines(LrPathUtils.child(folder, Ops.TRACKED))) do
+      local id, rating, at, path = string.match(line, '^(%d+)\t(%d)\t([%d%.]+)\t(.+)$')
+      if id then tracked[tonumber(id)] = { rating = tonumber(rating), at = tonumber(at), path = path } end
+    end
+  end
+  return tracked
+end
+
+local function saveTracked(folder)
+  local lines, oldest = {}, unixNow() - TRACK_DAYS * 86400
+  for id, t in pairs(tracked) do
+    if t.at >= oldest then
+      lines[#lines + 1] = string.format('%d\t%d\t%.0f\t%s', id, t.rating, t.at, t.path)
+    else
+      tracked[id] = nil
+    end
+  end
+  table.sort(lines)
+  writeFile(LrPathUtils.child(folder, Ops.TRACKED), table.concat(lines, '\n') .. (#lines > 0 and '\n' or ''))
+end
+
+-- Called after stars and keywords were applied: the stars each photo now has are the starting point.
+function Ops.track(folder, plan)
+  if LrFileUtils.exists(folder) ~= 'directory' or #plan.items == 0 then return end
+  local set, now = trackedSet(folder), unixNow()
+  for _, item in ipairs(plan.items) do
+    local id = item.photo.photo.localIdentifier
+    if id then
+      set[id] = { rating = item.setRating or tonumber(item.photo.rating) or 0, at = now, path = item.entry.path }
+    end
+  end
+  saveTracked(folder)
+end
+
+--[[ Report star changes made in Lightroom since the last look: one line per change in
+lightroom-changes.tsv (time, stars before, stars now, PhotoSelect path). Photos removed from the
+catalog are forgotten. Returns the number of changes. ]]
+function Ops.syncBack()
+  local folder = Ops.selectionsFolder()
+  if LrFileUtils.exists(folder) ~= 'directory' then return 0 end
+  local set = trackedSet(folder)
+  if next(set) == nil then return 0 end
+  local catalog = LrApplication.activeCatalog()
+  local photos, ids, gone = {}, {}, false
+  for id in pairs(set) do
+    local photo = catalog:getPhotoByLocalId(id)
+    if photo then
+      photos[#photos + 1] = photo
+      ids[photo] = id
+    else
+      set[id], gone = nil, true
+    end
+  end
+  local changes, now = {}, unixNow()
+  if #photos > 0 then
+    local raw = catalog:batchGetRawMetadata(photos, { 'rating' })
+    for _, photo in ipairs(photos) do
+      local id = ids[photo]
+      local rating = tonumber((raw[photo] or {}).rating) or 0
+      if rating ~= set[id].rating then
+        changes[#changes + 1] = string.format('%.0f\t%d\t%d\t%s', now, set[id].rating, rating, set[id].path)
+        set[id].rating = rating
+      end
+    end
+  end
+  if #changes > 0 then
+    writeFile(LrPathUtils.child(folder, Ops.CHANGES), table.concat(changes, '\n') .. '\n', 'a')
+  end
+  if #changes > 0 or gone then saveTracked(folder) end
+  return #changes
+end
+
 -- Test hook: forget what was loaded from applied.txt (as after a Lightroom restart).
 function Ops.reset()
-  applied, started = nil, nil
+  applied, started, tracked, collectionsMade = nil, nil, nil, false
 end
 
 return Ops

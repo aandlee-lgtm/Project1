@@ -3,9 +3,15 @@
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px -apple-system,system-ui,sans-serif}
 button,input,select{font:inherit}button,select,input[type=text],input[type=number]{background:#232c32;color:var(--text);border:1px solid var(--line);border-radius:7px;padding:9px 10px}
 button{cursor:pointer}button:hover{border-color:var(--teal)}button.primary{background:var(--teal);color:#06302a;font-weight:700}button:disabled{opacity:.4;cursor:default}
-header{height:64px;padding:0 24px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line)}
-.brand{font-size:21px;font-weight:700;letter-spacing:-1px}.brand b{color:var(--teal)}.tag{color:var(--muted);font-size:12px;letter-spacing:.08em}
-main{display:grid;grid-template-columns:280px 1fr;min-height:calc(100vh - 64px)}aside{padding:22px;border-right:1px solid var(--line)}
+header.topbar{position:sticky;top:0;z-index:20;background:var(--bg);border-bottom:1px solid var(--line);padding:10px 24px 0;box-shadow:0 6px 16px #0006}
+.toprow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.toprow .brand{margin-right:10px}
+.folderbox{flex:1 1 260px;min-width:200px;display:flex;gap:8px;align-items:center}.folderbox input[type=text]{flex:1;min-width:120px}
+.folderbox label{white-space:nowrap}.version{margin-left:4px;white-space:nowrap}
+.statusrow{display:flex;flex-direction:column;gap:2px;margin-top:6px;font-size:12px}
+#status{min-height:18px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topbar .progress{margin:6px -24px 0}
+.brand{font-size:21px;font-weight:700;letter-spacing:-1px;white-space:nowrap}.brand b{color:var(--teal)}.tag{color:var(--muted);font-size:12px;letter-spacing:.08em}
+main{display:grid;grid-template-columns:280px 1fr;min-height:calc(100vh - 110px)}aside{padding:22px;border-right:1px solid var(--line)}
 h1{font-size:24px;letter-spacing:-.6px;margin:0 0 8px}h2{font-size:14px;margin:22px 0 10px}.muted{color:var(--muted);line-height:1.6}
 .section{border-top:1px solid var(--line);margin-top:22px;padding-top:4px}.weight{margin:18px 0;display:block}.weight label,.weight .row{display:flex;justify-content:space-between}
 .weight input{width:100%;accent-color:var(--teal);margin:10px 0 0}.weight small{color:var(--muted);font-size:11px}
@@ -26,8 +32,8 @@ h1{font-size:24px;letter-spacing:-.6px;margin:0 0 8px}h2{font-size:14px;margin:2
 .why{font-size:11px;color:var(--muted);margin-top:10px;line-height:1.45;min-height:16px}
 .actions{display:flex;gap:5px;margin-top:12px}.actions button{padding:6px 7px;font-size:11px;flex:1}.actions button.active,.detailtools button.active{border-color:var(--teal);color:var(--teal)}
 .empty{text-align:center;padding:70px 20px;border:1px dashed var(--line);border-radius:12px}.empty .icon{font-size:44px;color:var(--teal)}
-.progress{height:3px;background:#293238;margin-top:10px}.progress i{display:block;background:var(--teal);height:100%;width:0;transition:width .3s}
-#status{min-height:22px;color:var(--muted);margin-top:10px}#error{color:#ffb0aa;white-space:pre-wrap}
+.progress{height:3px;background:#293238}.progress i{display:block;background:var(--teal);height:100%;width:0;transition:width .3s}
+#error{color:#ffb0aa;white-space:pre-wrap}
 dialog{width:min(1180px,96vw);max-height:94vh;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:20px}dialog::backdrop{background:#000b}
 .dialoghead{display:flex;align-items:center;justify-content:space-between;gap:12px}.stage{position:relative;display:table;margin:14px auto;max-width:100%;line-height:0;touch-action:none;cursor:crosshair}
 .stage img{display:block;max-width:100%;max-height:58vh;user-select:none}.region{position:absolute;border:2px solid var(--teal);background:#4fe0c826;pointer-events:none}
@@ -42,7 +48,12 @@ details{margin-top:16px}#compare{display:grid;grid-template-columns:repeat(auto-
 a{color:var(--teal)}kbd{border:1px solid var(--line);border-radius:4px;padding:0 4px;font-size:11px}
 @media(max-width:860px){main{grid-template-columns:1fr}aside{border-right:0;border-bottom:1px solid var(--line)}.summary{grid-template-columns:1fr 1fr}.import{flex-wrap:wrap}}
 </style></head><body>
-<header><div class="brand">Photo<b>Select</b> <span class="tag"> / YOUR BEST FRAMES, IN FOCUS</span></div><span class="tag">v__VERSION__ · LOCAL PROCESSING · ORIGINALS UNTOUCHED</span></header>
+<header class="topbar"><div class="toprow"><div class="brand">Photo<b>Select</b></div>
+<div class="folderbox"><input id="folder" type="text" placeholder="Choose a folder, or paste its full path, e.g. /Volumes/Card/DCIM/100NIKON" aria-label="Photo folder path"><label class="hint"><input id="recursive" type="checkbox"> Subfolders</label></div>
+<button id="browse">Choose folder</button><button id="scan" class="primary">Analyse photos</button><button id="cancel" hidden>Cancel</button>
+<button id="lightroom" title="Star ratings and keywords for Adobe Lightroom Classic">Send to Lightroom…</button><span class="tag version">v__VERSION__</span></div>
+<div class="statusrow"><div id="status">Ready when you are. Start with one small shoot to tune your preferences.</div><div id="error" role="alert"></div><div id="notice" class="hint" role="status"></div></div>
+<div class="progress"><i id="progress"></i></div></header>
 <main><aside>
 <div class="tag">YOUR SELECTION CRITERIA</div><h2>What matters in this shoot?</h2><p class="muted">Adjust the balance. Rankings update immediately.</p>
 <div id="weights"></div>
@@ -77,18 +88,15 @@ a{color:var(--teal)}kbd{border:1px solid var(--line);border-radius:4px;padding:0
 </aside>
 <section class="workspace"><div class="tag">THE REVIEW ROOM</div><h1 style="margin-top:8px">Find the frames worth your time.</h1>
 <p class="muted" style="margin:0">Import a folder, tune the criteria, and review the strongest shot in each burst.</p>
-<div class="import"><input id="folder" type="text" placeholder="Full folder path, e.g. /Volumes/Card/DCIM/100NIKON" aria-label="Photo folder path"><button id="browse">Choose folder</button><button id="scan" class="primary">Analyse photos</button><button id="cancel" hidden>Cancel</button></div>
-<label class="hint"><input id="recursive" type="checkbox"> Include subfolders</label><span class="hint"> · Nikon NEF / NRW · Olympus &amp; OM System ORF · Sony ARW · other RAW · JPEG / PNG / TIFF</span>
-<div id="status">Ready when you are. Start with one small shoot to tune your preferences.</div><div class="progress"><i id="progress"></i></div><div id="error" role="alert"></div><div id="notice" class="hint" role="status"></div>
 <div class="summary" role="group" aria-label="Show photos by recommendation"><button type="button" class="stat" data-bucket="all" style="--c:var(--teal)" aria-pressed="true"><strong id="total">0</strong><span>Photos analysed</span><small>Show all</small></button><button type="button" class="stat" data-bucket="Keep" style="--c:var(--teal)" aria-pressed="false"><strong id="kept" style="color:var(--teal)">0</strong><span>Keep</span><small>Show only Keep</small></button><button type="button" class="stat" data-bucket="Consider" style="--c:var(--amber)" aria-pressed="false"><strong id="considered" style="color:var(--amber)">0</strong><span>Consider</span><small>Show only Consider</small></button><button type="button" class="stat" data-bucket="Drop" style="--c:var(--orange)" aria-pressed="false"><strong id="dropped" style="color:var(--orange)">0</strong><span>Drop</span><small>Show only Drop</small></button></div>
 <div class="toolbar">
 <select id="filter" aria-label="Filter photos"><option value="all">All photos</option><option>Keep</option><option>Consider</option><option>Drop</option><option value="liked">Liked photos</option><option value="manual">Decided manually</option><option value="close">Close burst contenders</option><option value="pending">Not yet analysed</option></select>
 <select id="formatFilter" aria-label="Filter camera formats"><option value="all">All file formats</option><option value="nikon">Nikon NEF / NRW</option><option value="olympus">Olympus / OM System ORF</option><option value="sony">Sony ARW</option><option value="raw">All RAW files</option><option value="other">JPEG / PNG / TIFF</option></select>
 <select id="sort" aria-label="Sort photos"><option value="score">Best score first</option><option value="name">Filename</option><option value="group">Burst order</option><option value="time">Capture time</option></select>
 <label class="hint"><input id="winners" type="checkbox"> Burst winners only</label><span class="spacer"></span>
-<button id="compareLikes">Compare liked photos</button><button id="export">Export decisions</button><button id="lightroom" title="Star ratings and keywords for Adobe Lightroom Classic">Send to Lightroom…</button></div>
+<button id="compareLikes">Compare liked photos</button><button id="export">Export decisions</button></div>
 <div id="pagerTop" class="pager"></div><div id="grid" class="grid"></div><div id="pagerBottom" class="pager"></div>
-<div id="empty" class="empty"><div class="icon">▧</div><h2>Your next shortlist starts here.</h2><p class="muted">Choose a photo folder on this Mac or an external drive.<br>Your files stay where they are. You make the final call.</p></div>
+<div id="empty" class="empty"><div class="icon">▧</div><h2>Your next shortlist starts here.</h2><p class="muted">Choose a photo folder on this Mac or an external drive (Choose folder, at the top).<br>Your files stay where they are. You make the final call.</p><p class="hint">Nikon NEF / NRW · Olympus &amp; OM System ORF · Sony ARW · other RAW · JPEG / PNG / TIFF</p></div>
 <details id="failures" hidden><summary>Files that could not be analysed (<span id="failureCount">0</span>)</summary><p class="hint">These files are not scored. Each one is listed with the reason; the rest of the folder was analysed normally.</p><pre id="failureList" style="white-space:pre-wrap"></pre></details>
 </section></main>
 
@@ -177,7 +185,7 @@ function savePrefs(){rememberFolderSettings();clearTimeout(saveTimer);saveTimer=
 function buildWeights(){const sum=weightSum();
   $('weights').innerHTML=KEYS.map(k=>`<label class="weight"><span class="row">${LABEL[k]}<output id="value-${k}">${sum?Math.round(prefs.weights[k]/sum*100)+'%':'Off'}</output></span><input id="weight-${k}" type="range" min="0" max="100" value="${prefs.weights[k]}"><small>${DESCRIPTION[k]}</small></label>`).join('');
   KEYS.forEach(k=>$('weight-'+k).oninput=e=>{prefs.weights[k]=+e.target.value;const s=weightSum();KEYS.forEach(t=>$('value-'+t).textContent=s?Math.round(prefs.weights[t]/s*100)+'%':'Off');savePrefs();scheduleRender()})}
-function applyPrefs(){buildWeights();for(const id of ['keep','consider']){$(id).value=prefs[id];$(id+'Value').textContent=prefs[id]}for(const id of ['likeness','near_identical']){$(id).value=prefs[id];$(id+'Value').textContent=prefs[id]+' %'}$('gap').value=prefs.gap;$('near_window').value=prefs.near_window;renderLearn();$('recursive').checked=!!prefs.recursive;if(!$('folder').value)$('folder').value=prefs.folder||''}
+function applyPrefs(){buildWeights();for(const id of ['keep','consider']){$(id).value=prefs[id];$(id+'Value').textContent=prefs[id]}for(const id of ['likeness','near_identical']){$(id).value=prefs[id];$(id+'Value').textContent=prefs[id]+' %'}$('gap').value=prefs.gap;$('near_window').value=prefs.near_window;showFolder();renderLearn();$('recursive').checked=!!prefs.recursive;if(!$('folder').value)$('folder').value=prefs.folder||''}
 async function mark(r,fields){Object.assign(r,fields);render();renderLearn();if(current&&current.id===r.id)updateViewer();try{await api('mark',{id:r.id,...fields})}catch(e){showError(e)}}
 
 // ---------- learn from my decisions, profiles ----------
@@ -289,11 +297,12 @@ async function poll(){try{scan=await api('state');const run=scan.running;
   }catch(e){showError(e)}setTimeout(poll,scan.running?700:1500)}
 
 // ---------- actions ----------
-$('browse').onclick=async()=>{try{showError();$('notice').textContent='Choose a folder in the system dialog…';const r=await api('pick',{});if(r.folder)$('folder').value=r.folder;renderLearn();$('notice').textContent=r.folder?'Folder selected. Click Analyse photos.':'No folder chosen.'}catch(e){showError(e)}};
+$('browse').onclick=async()=>{try{showError();$('notice').textContent='Choose a folder in the system dialog…';const r=await api('pick',{});if(r.folder)$('folder').value=r.folder;showFolder();renderLearn();$('notice').textContent=r.folder?'Folder selected. Click Analyse photos.':'No folder chosen.'}catch(e){showError(e)}};
 $('scan').onclick=async()=>{try{showError();$('notice').textContent='';const fs=(prefs.folder_settings||{})[folderKey()];if(fs){useSettings(fs);$('notice').textContent='Using the settings remembered for this folder.'}prefs.recursive=$('recursive').checked;await api('scan',{folder:$('folder').value,recursive:$('recursive').checked});page=0;rowsVersion=-1;lastRowsFetch=0}catch(e){showError(e)}};
 $('cancel').onclick=()=>api('cancel',{}).catch(showError);
 for(const id of ['keep','consider'])$(id).oninput=()=>{prefs[id]=+$(id).value;$(id+'Value').textContent=$(id).value;savePrefs();scheduleRender()};
-$('folder').oninput=renderLearn;
+function showFolder(){const f=$('folder');f.title=f.value;if(document.activeElement!==f)f.scrollLeft=f.scrollWidth}
+$('folder').oninput=()=>{renderLearn();$('folder').title=$('folder').value};$('folder').onblur=showFolder;
 for(const id of ['filter','formatFilter','sort','winners'])$(id).onchange=()=>{page=0;render()};
 document.querySelectorAll('[data-bucket]').forEach(b=>b.onclick=()=>{const f=$('filter');f.value=b.dataset.bucket!=='all'&&f.value===b.dataset.bucket?'all':b.dataset.bucket;page=0;render();$('grid').scrollIntoView({behavior:'smooth',block:'start'})});
 for(const id of ['likeness','near_identical'])$(id).oninput=()=>$(id+'Value').textContent=$(id).value+' %';
@@ -377,9 +386,15 @@ const STARS={Keep:3,Consider:2,Drop:1};
 function localTime(t){const d=new Date(t*1000),p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`}
 function lightroomRows(){derive();const out=[];
   for(const r of rows){if(r.status!=='analysed'&&!r.decision&&!r.liked)continue;const d=r.decision||(r.status==='analysed'?autoDecision(r):null);if(!d&&!r.liked)continue;
-    const i=derived.info.get(r.id)||{},kw=[];if(d)kw.push(d);if(r.liked)kw.push('Liked');if(i.size>1)kw.push('Burst '+String(r.group).padStart(3,'0'));if(r.near_identical)kw.push('Near-identical');if(r.basis==='camera_preview')kw.push('Camera preview');
+    const i=derived.info.get(r.id)||{},kw=[];if(d)kw.push(d);if(r.liked)kw.push('Liked');if(i.size>1)kw.push('Burst '+String(r.group).padStart(3,'0'));if(r.near_identical)kw.push('Near-identical');if(r.basis==='camera_preview')kw.push('Camera preview');if(isBorderline(r))kw.push('Borderline');
     out.push({path:r.path,name:r.name.split('/').pop(),capture:r.timestamp?localTime(r.timestamp):'',rating:r.liked?5:STARS[d],keywords:kw,decision:r.decision||'',suggestion:r.status==='analysed'?autoDecision(r):''})}
   return out}
+// a suggestion within BORDER points of the Keep or Consider threshold: worth a second look in Lightroom
+const BORDER=5;
+function isBorderline(r){if(r.decision||r.liked||r.status!=='analysed')return false;const s=score(r);return s!==null&&(Math.abs(s-prefs.keep)<=BORDER||Math.abs(s-prefs.consider)<=BORDER)}
+// star changes made in Lightroom on photos PhotoSelect rated update the decisions here
+async function syncLightroom(){try{const r=await api('lightroom/sync',{});if(r.changed){await loadRows();if(r.summary)$('notice').textContent=r.summary}}catch(e){}}
+setInterval(syncLightroom,15000);window.addEventListener('focus',syncLightroom);
 const LR_GROUPS=[[3,'Keep','★★★',true],[2,'Consider','★★',false],[1,'Drop','★',false],[5,'♥ Liked','★★★★★',true]];
 let lrChoice=Object.fromEntries(LR_GROUPS.map(g=>[g[0],g[3]])),lrStatus={};
 function pluginStatusText(s){
@@ -401,11 +416,13 @@ function renderLightroomDialog(){const all=lightroomRows(),count=r=>all.filter(x
   $('lrSteps').innerHTML=[`<b>Open in Lightroom Import</b> starts Lightroom Classic (or brings it to the front) and opens its Import window with only these ${n} photos.`,
     'In Lightroom, choose <b>Add</b> (files stay where they are) or <b>Copy</b> at the top of the Import window, then click <b>Import</b>.',
     $('lrAuto').checked?'The stars and keywords are added automatically a few seconds after the import, also if you import these photos later or from Lightroom itself (within 14 days). The plug-in must be running: see its status above. If stars do not appear, use Library → Plug-in Extras → Apply PhotoSelect Selections…'
-      :'Then choose <b>Library → Plug-in Extras → Apply PhotoSelect Selections…</b> to add the stars and keywords.'].map(x=>`<li>${x}</li>`).join('')}
+      :'Then choose <b>Library → Plug-in Extras → Apply PhotoSelect Selections…</b> to add the stars and keywords.',
+    'Review in the <b>PhotoSelect</b> collection set: <b>1 Rescue</b> (★), <b>2 Confirm</b> (★★★), <b>3 Decide</b> (★★), Liked and Borderline. Star changes you make in Lightroom come back to PhotoSelect.'].map(x=>`<li>${x}</li>`).join('')}
 $('lightroom').onclick=async()=>{if(!rows.length){showError('Analyse a folder before sending selections to Lightroom.');return}
   showError();$('lrError').textContent='';$('lrResult').textContent='';renderLightroomDialog();await refreshLightroomStatus();if(!$('lrDialog').open)$('lrDialog').showModal()};
 $('lrAuto').onchange=renderLightroomDialog;
 async function sendToLightroom(open){$('lrError').textContent='';$('lrResult').textContent=open?'Opening Lightroom Classic…':'Saving…';
+  await syncLightroom();   // so this send carries the stars last set in Lightroom rather than undoing them
   const all=lightroomRows(),body={folder:prefs.folder||$('folder').value,rows:all};
   body.auto_apply=$('lrAuto').checked;if(open)body.open=all.filter(x=>lrChoice[x.rating]).map(x=>x.path);
   try{const r=await api('lightroom',body);

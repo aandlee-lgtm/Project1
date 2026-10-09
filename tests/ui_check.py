@@ -78,6 +78,18 @@ def main():
         check('brighter teal accent colour', accent == '#4fe0c8', accent)
         if shots:
             page.screenshot(path=str(shots / 'grid.png'))
+        # 1.6: persistent top bar with the main actions; version label only
+        label = page.text_content('header .version')
+        check('title bar shows only the version', label.startswith('v') and 'LOCAL' not in page.text_content('header')
+              and 'UNTOUCHED' not in page.text_content('header'), label)
+        page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
+        page.wait_for_timeout(300)
+        tops = page.evaluate("['browse','scan','lightroom','status'].map(i => document.getElementById(i).getBoundingClientRect().top)")
+        check('Choose folder, Analyse photos, Send to Lightroom and status stay on screen when scrolled',
+              page.evaluate('window.scrollY') > 0 and all(0 <= t < 140 for t in tops), tops)
+        if shots:
+            page.screenshot(path=str(shots / 'scrolled.png'))
+        page.evaluate('window.scrollTo(0, 0)')
 
         # Summary tiles act as filters: each shows exactly its bucket in the grid.
         tile_ok = []
@@ -294,6 +306,17 @@ def main():
             check('missing Lightroom Classic explained, selections still saved',
                   'not found on this Mac' in page.text_content('#lrError'), page.text_content('#lrError')[:120])
         page.click('[data-close="lrDialog"]')
+        # 1.6: star changes made in Lightroom come back (as the plug-in reports them)
+        support = (Path(os.environ['PHOTOSELECT_HOME']) / 'support' if os.environ.get('PHOTOSELECT_HOME')
+                   else Path.home() / 'Library/Application Support/PhotoSelect')
+        target = page.evaluate("rows.find(r => r.status === 'analysed' && !r.liked && r.decision !== 'Drop')")
+        changes = support / 'Lightroom' / 'lightroom-changes.tsv'
+        changes.parent.mkdir(parents=True, exist_ok=True)
+        changes.write_text(f"{time.time():.0f}\t3\t1\t{target['path']}\n", encoding='utf-8')
+        page.evaluate('syncLightroom()')
+        wait("document.getElementById('notice').textContent.startsWith('From Lightroom')", 30_000)
+        check('star change made in Lightroom updates the decision', page.evaluate(
+            f"byId.get('{target['id']}').decision") == 'Drop', page.text_content('#notice'))
         check('no JavaScript errors', not errors, '; '.join(errors[:3]))
         browser.close()
 

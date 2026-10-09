@@ -15,5 +15,5 @@ return {
   LrLibraryMenuItems = {
     { title = 'Apply PhotoSelect Selections...', file = 'ApplySelections.lua' },
   },
-  VERSION = { major = 1, minor = 5, revision = 0 },
+  VERSION = { major = 1, minor = 6, revision = 0 },
 }

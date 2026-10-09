@@ -200,7 +200,7 @@ class AppTests(unittest.TestCase):
         with patch.dict(os.environ, {'PHOTOSELECT_HOME': str(home), 'PHOTOSELECT_LR_MODULES': str(modules),
                                      'PHOTOSELECT_LR_APP': ''}):
             s = self.get('/api/lightroom/status').get_json()
-            self.assertEqual((s['plugin_installed'], s['plugin_running'], s['bundled_version']), (False, False, '1.5.0'))
+            self.assertEqual((s['plugin_installed'], s['plugin_running'], s['bundled_version']), (False, False, '1.6.0'))
             self.post('/api/lightroom/install', {})
             folder = home / 'support' / 'Lightroom'
             (folder / 'plugin-status.txt').write_text(
@@ -208,9 +208,36 @@ class AppTests(unittest.TestCase):
                 f'applied_at\t{time.time() - 30:.0f}\napplied_count\t27\nwaiting\t3\n')
             s = self.get('/api/lightroom/status').get_json()
             self.assertEqual((s['installed_version'], s['plugin_running'], s['running_version'], s['last_applied_count'],
-                              s['waiting']), ('1.5.0', True, '1.4.0', 27, 3))
+                              s['waiting']), ('1.6.0', True, '1.4.0', 27, 3))
             (folder / 'plugin-status.txt').write_text(f'version\t1.5.0\nchecked\t{time.time() - 600:.0f}\n')
             self.assertFalse(self.get('/api/lightroom/status').get_json()['plugin_running'])   # Lightroom closed
+
+    def test_star_changes_in_lightroom_flow_back(self):
+        home = Path(self.tmp.name) / 'home'
+        with patch.dict(os.environ, {'PHOTOSELECT_HOME': str(home)}):
+            self.assertEqual(self.post('/api/lightroom/sync', {}).get_json()['changed'], 0)    # nothing reported
+            self.post('/api/scan', {'folder': str(self.photos)})
+            self.wait()
+            a, b = str(self.photos / 'a.jpg'), str(self.photos / 'b.JPG')
+            folder = home / 'support' / 'Lightroom'
+            folder.mkdir(parents=True)
+            # written by the plug-in: time, stars before, stars now, PhotoSelect path
+            (folder / 'lightroom-changes.tsv').write_text(
+                f'1\t1\t3\t{a}\n2\t3\t5\t{b}\n3\t5\t4\t{b}\n4\t2\t0\t/elsewhere/c.NEF\nnot a change\n')
+            version = self.get('/api/state').get_json()['version']
+            r = self.post('/api/lightroom/sync', {}).get_json()
+            self.assertEqual(r['changed'], 3)
+            self.assertEqual(r['summary'], 'From Lightroom: 1 Drop → Keep')   # b: Keep → Liked → Keep (no change)
+            self.assertFalse((folder / 'lightroom-changes.tsv').exists())        # each change handled once
+            rows = {x['name']: x for x in self.get('/api/rows').get_json()['rows']}
+            self.assertEqual((rows['a.jpg']['decision'], rows['a.jpg']['liked']), ('Keep', False))
+            self.assertEqual((rows['b.JPG']['decision'], rows['b.JPG']['liked']), ('Keep', False))
+            self.assertGreater(self.get('/api/state').get_json()['version'], version)
+            (folder / 'lightroom-changes.tsv').write_text(f'5\t3\t1\t{a}\n6\t3\t5\t{b}\n')
+            self.assertEqual(self.post('/api/lightroom/sync', {}).get_json()['summary'],
+                             'From Lightroom: 1 Keep → Drop, 1 Keep → Liked')
+            rows = {x['name']: x for x in self.get('/api/rows').get_json()['rows']}
+            self.assertEqual((rows['a.jpg']['decision'], rows['b.JPG']['liked']), ('Drop', True))
 
     def test_export_never_overwrites_an_original(self):
         self.post('/api/scan', {'folder': str(self.photos)})

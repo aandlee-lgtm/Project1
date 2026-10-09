@@ -329,7 +329,8 @@ Built when the owner sent **build_new** after items 13 and 14 were discussed (be
   - slider redraws batched;
   - new timings in the diagnostic report and the acceptance tests.
 
-### After 1.5.0 (planned for the next version: waiting for build_new)
+### 1.6.0: top bar, review passes in Lightroom, Lightroom changes flow back
+Built when the owner sent **build_new** after items 15–19 were discussed (below; 16 was withdrawn).
 15. **Main actions in a persistent top bar.** The owner wants Send to Lightroom placed near the top, and
     asked for the title bar to stay visible while scrolling, holding Choose folder, Analyse photos and
     Send to Lightroom.
@@ -357,6 +358,27 @@ Built when the owner sent **build_new** after items 13 and 14 were discussed (be
     keyword. Nothing is added to PhotoSelect, and all groups are sent once.
 19. **Title bar label.** The owner likes the version shown at the top of the app, but asked to remove
     "LOCAL PROCESSING" and "ORIGINALS UNTOUCHED" there. Those facts stay in Help → About and the docs.
+
+**Shipped in 1.6.0.**
+- (15) A top bar that stays in place while scrolling: PhotoSelect, the folder (full path on hover;
+  the end of the path stays visible), Subfolders, **Choose folder**, **Analyse photos** (**Cancel** while
+  analysing), **Send to Lightroom…**, the one-line status, messages and the progress line. Filters and
+  Export stay in the toolbar. On a narrow window the bar wraps.
+- (17) Star changes made in Lightroom come back:
+  - the plug-in remembers the stars each photo had after PhotoSelect rated it (tracked.txt, for 90
+    days) and checks about every 16 s for changes, writing them to lightroom-changes.tsv;
+  - PhotoSelect reads them every 15 s and when its window comes to the front, and sets the decision:
+    5★ Liked (and Keep), 3★ or 4★ Keep, 2★ Consider, 1★ Drop; removing the stars (0★) changes nothing;
+  - the message line shows a summary, e.g. "From Lightroom: 6 Drop → Keep, 2 Keep → Drop";
+  - they become your own decisions, so they count for **Learn from my decisions**, and the next
+    Send to Lightroom carries them (PhotoSelect reads the changes first) instead of undoing them.
+- (18) The plug-in creates a **PhotoSelect** collection set with Smart Collections **1 Rescue** (1★),
+  **2 Confirm** (3★), **3 Decide** (2★), **Liked** (5★) and **Borderline**. Each holds photos PhotoSelect
+  rated (keyword *From PhotoSelect*) that now have those stars, so a photo moves between them as you
+  change its stars. Photos without your own decision whose score is within 5 points of the Keep or
+  Consider threshold get the keyword *PhotoSelect › Borderline*. Nothing was added to PhotoSelect
+  except one line in the Lightroom window's steps.
+- (19) The title bar shows only the version, e.g. "v1.6.0".
 
 ---
 
@@ -390,7 +412,10 @@ Built when the owner sent **build_new** after items 13 and 14 were discussed (be
 | **Send to Lightroom…** | Opens the Lightroom window: the plug-in status, the star groups to import, **Open in Lightroom Import** and **Only save selections**. Selections are saved in ~/Library/Application Support/PhotoSelect/Lightroom (never in the photo folders). |
 | **Open in Lightroom Import** | Starts Lightroom Classic and opens its Import window with only the photos in the ticked star groups; you choose Add or Copy and click Import. |
 | **Automatic star rating** | The plug-in adds the stars and keywords by itself a few seconds after photos with PhotoSelect selections are in the catalog, however they were imported (within 14 days of Send to Lightroom; 3 hours for Open in Lightroom Import). Each photo is rated once; stars already set in Lightroom are kept. |
-| **Borderline** *(planned)* | A PhotoSelect keyword in Lightroom for photos within a few points of the Keep or Consider threshold: the close calls worth a second look. |
+| **Borderline** | A PhotoSelect keyword in Lightroom for photos without your own decision whose score is within 5 points of the Keep or Consider threshold: the close calls worth a second look. Also a Smart Collection. |
+| **Top bar** | The bar at the top of PhotoSelect that stays visible while scrolling: folder, Choose folder, Analyse photos / Cancel, Send to Lightroom…, status and progress. |
+| **PhotoSelect collection set** | Smart Collections the plug-in makes in Lightroom for the review passes: 1 Rescue (1★), 2 Confirm (3★), 3 Decide (2★), Liked (5★) and Borderline. They hold only photos PhotoSelect rated, and update as stars change. |
+| **From Lightroom** | Star changes you make in Lightroom on photos PhotoSelect rated update PhotoSelect's decisions (5★ Liked, 3★/4★ Keep, 2★ Consider, 1★ Drop) and count for Learn from my decisions. Shown as e.g. "From Lightroom: 6 Drop → Keep". |
 | **Plug-in status** | The top line of PhotoSelect's Lightroom window: whether the plug-in is running in Lightroom, its version, and when it last rated photos. |
 | **Analysis decode** | How PhotoSelect decodes RAW for scoring: half size for 33 MP+ photos, a fast demosaic for smaller ones. Inspection always uses the full-quality decode. |
 | **Sony ARW** | Sony's RAW format; A7 and A9 bodies are checked against the public sample archive in every build. |
@@ -400,7 +425,7 @@ Built when the owner sent **build_new** after items 13 and 14 were discussed (be
 | **Could not be analysed** | A file that was listed but not scored, with a specific reason (damaged, empty, unreadable or unsupported). |
 | **Diagnostic report** | Help → Create Diagnostic Report…: a text file for troubleshooting, with no images and no full paths. |
 | **Lightroom stars** | How PhotoSelect results appear in Lightroom Classic: Keep 3★, Consider 2★, Drop 1★, Liked 5★. Your decision wins over the suggestion. |
-| **PhotoSelect keywords** | Keywords added in Lightroom under PhotoSelect › (Keep, Consider, Drop, Liked, Burst NNN, Near-identical, Camera preview) for Smart Collections. They are not included when exporting images. |
+| **PhotoSelect keywords** | Keywords added in Lightroom under PhotoSelect › (Keep, Consider, Drop, Liked, Burst NNN, Near-identical, Camera preview, Borderline, From PhotoSelect) for Smart Collections. They are not included when exporting images. |
 | **build_new** | The owner's keyword that authorises building and releasing a new version from the planned backlog items. First used for 1.3.0. |
 
 ---

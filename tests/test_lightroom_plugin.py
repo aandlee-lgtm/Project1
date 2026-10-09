@@ -178,7 +178,9 @@ class ApplySelectionsTests(unittest.TestCase):
                 {'path': '/Pictures/2026/OTHER.NEF', 'fileName': 'OTHER.NEF', 'time': '2026-05-02 09:00:00', 'rating': 2}]
 
     def state(self, lua):
-        return {p.fileName: (p.rating, sorted(lua.eval('keywordNames')(p).values())) for p in lua.globals().PHOTOS.values()}
+        # every photo PhotoSelect rated also gets "From PhotoSelect" (checked in test_smart_collections...)
+        return {p.fileName: (p.rating, sorted(k for k in lua.eval('keywordNames')(p).values() if k != 'PhotoSelect/From PhotoSelect'))
+                for p in lua.globals().PHOTOS.values()}
 
     def test_apply_sets_stars_and_keywords(self):
         lua = self.run_plugin(self.folder, self.photos())
@@ -191,7 +193,7 @@ class ApplySelectionsTests(unittest.TestCase):
             'DSC_0003.NEF': (4, ['PhotoSelect/Consider']),        # existing 4 stars kept; old keyword replaced
             'OTHER.NEF': (2, []),
         })
-        self.assertEqual(g.WRITES, 1)
+        self.assertEqual(g.WRITES, 2)                                   # selections, then the Smart Collections
         self.assertIn('2 star ratings set', g.MESSAGE)
 
     def test_overwrite_existing_ratings_when_ticked(self):
@@ -245,7 +247,7 @@ class ApplySelectionsTests(unittest.TestCase):
         self.assertFalse((self.folder / 'pending.import').exists())  # all done
         self.assertIn('stars applied to 1 imported photos', lua.globals().BEZEL)
         status = dict(l.split('\t') for l in (self.folder / 'plugin-status.txt').read_text().splitlines())
-        self.assertEqual((status['version'], status['applied_count']), ('1.5.0', '1'))
+        self.assertEqual((status['version'], status['applied_count']), ('1.6.0', '1'))
 
     def test_auto_apply_after_any_import_of_sent_selections(self):
         # "Send to Lightroom" with automatic rating, then an ordinary import started in Lightroom (renamed files).
@@ -269,7 +271,7 @@ class ApplySelectionsTests(unittest.TestCase):
             p.rating = 0
         ops.reset()
         self.assertEqual(ops.autoApply(16, 8), 0)
-        self.assertEqual(lua.globals().WRITES, 1)
+        self.assertEqual(lua.globals().WRITES, 2)
 
     def test_auto_apply_requests_expire(self):
         self.pending([row('DSC_0001.NEF', 3)], age=4 * 3600)                       # Open in Lightroom: 3 hours
@@ -285,7 +287,40 @@ class ApplySelectionsTests(unittest.TestCase):
         lua = self.run_plugin(self.folder, self.photos(), script='Init.lua')   # mock sleep runs Shutdown.lua
         self.assertEqual(lua.globals().SLEEPS, 1)
         self.assertEqual(self.state(lua)['DSC_0001.NEF'][0], 3)
-        self.assertIn('version\t1.5.0', (self.folder / 'plugin-status.txt').read_text())
+        self.assertIn('version\t1.6.0', (self.folder / 'plugin-status.txt').read_text())
+
+    def test_smart_collections_and_from_photoselect_keyword(self):
+        lua = self.run_plugin(self.folder, self.photos())
+        named = {p.fileName: 'PhotoSelect/From PhotoSelect' in lua.eval('keywordNames')(p).values()
+                 for p in lua.globals().PHOTOS.values()}
+        self.assertEqual(named, {'DSC_0001.NEF': True, 'DSC_0002.NEF': True, 'DSC_0003.NEF': True, 'OTHER.NEF': False})
+        rules = {k: (v.criteria, v.operation, v.value) for k, v in lua.globals().COLLECTIONS.items()}
+        self.assertEqual(rules, {'PhotoSelect/1 Rescue': ('rating', '==', 1), 'PhotoSelect/2 Confirm': ('rating', '==', 3),
+                                 'PhotoSelect/3 Decide': ('rating', '==', 2), 'PhotoSelect/Liked': ('rating', '==', 5),
+                                 'PhotoSelect/Borderline': ('keywords', 'words', 'Borderline')})
+
+    def test_star_changes_in_lightroom_are_reported(self):
+        lua = self.run_plugin(self.folder, self.photos())
+        ops = lua.eval("require 'LightroomOps'")
+        tracked = (self.folder / 'tracked.txt').read_text().splitlines()
+        self.assertEqual(sorted(l.split('\t')[1] + ' ' + l.split('\t')[3] for l in tracked),
+                         ['1 /Volumes/Card/DCIM/DSC_0002.NEF', '4 /Volumes/Card/DCIM/DSC_0003.NEF',
+                          '5 /Volumes/Card/DCIM/DSC_0001.NEF'])                 # stars after applying (4 was kept)
+        self.assertEqual(ops.syncBack(), 0)
+        photos = list(lua.globals().PHOTOS.values())
+        photos[1].rating = 3                                                     # Drop rescued to Keep
+        photos[0].rating = 2                                                     # Liked demoted to Consider
+        photos[3].rating = 5                                                     # not from PhotoSelect: ignored
+        self.assertEqual(ops.syncBack(), 2)
+        self.assertEqual(ops.syncBack(), 0)                                      # reported once
+        ops.reset()                                                              # Lightroom restarted
+        self.assertEqual(ops.syncBack(), 0)
+        photos[2].removed = True                                                 # removed from the catalog
+        self.assertEqual(ops.syncBack(), 0)
+        self.assertEqual(len((self.folder / 'tracked.txt').read_text().splitlines()), 2)
+        changes = [l.split('\t')[1:] for l in (self.folder / 'lightroom-changes.tsv').read_text().splitlines()]
+        self.assertEqual(sorted(changes), [['1', '3', '/Volumes/Card/DCIM/DSC_0002.NEF'],
+                                           ['5', '2', '/Volumes/Card/DCIM/DSC_0001.NEF']])
 
     def test_no_selections_explains_what_to_do(self):
         lua = self.run_plugin(self.folder / 'missing', self.photos())
@@ -327,7 +362,8 @@ function Photo:removeKeyword(k)
   for i, x in ipairs(self.keywords) do if x == k then table.remove(self.keywords, i) return end end
 end
 function addPhoto(t)
-  local p = setmetatable({ path = t.path, fileName = t.fileName, preserved = t.preserved, time = t.time, rating = t.rating, keywords = {} }, Photo)
+  local p = setmetatable({ path = t.path, fileName = t.fileName, preserved = t.preserved, time = t.time, rating = t.rating,
+                          keywords = {}, localIdentifier = #PHOTOS + 101 }, Photo)
   if t.oldKeyword then table.insert(p.keywords, makeKeyword(t.oldKeyword, makeKeyword('PhotoSelect'))) end
   table.insert(PHOTOS, p)
 end
@@ -356,6 +392,22 @@ function catalog:findPhotos(args)
     if day >= d.value and day <= d.value2 then table.insert(out, p) end
   end
   return out
+end
+function catalog:getPhotoByLocalId(id)
+  for _, p in ipairs(PHOTOS) do if p.localIdentifier == id and not p.removed then return p end end
+  return nil
+end
+COLLECTIONS = {}
+function catalog:createCollectionSet(name, parent, returnExisting)
+  assert(writing, 'createCollectionSet outside withWriteAccessDo')
+  assert(parent == nil and returnExisting == true)
+  return { name = name }
+end
+function catalog:createSmartCollection(name, desc, parent, returnExisting)
+  assert(writing, 'createSmartCollection outside withWriteAccessDo')
+  assert(parent and parent.name == 'PhotoSelect' and returnExisting == true)
+  assert(desc.combine == 'intersect' and #desc == 2 and desc[2].criteria == 'keywords' and desc[2].value == 'From PhotoSelect')
+  COLLECTIONS[parent.name .. '/' .. name] = desc[1]
 end
 function catalog:batchGetRawMetadata(photos, keys)
   local out = {}

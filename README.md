@@ -1,4 +1,4 @@
-# PhotoSelect 1.5 — Apple silicon Mac app
+# PhotoSelect 1.6 — Apple silicon Mac app
 
 PhotoSelect helps you cull bursts of sailing and sports photos. Point it at a folder of Nikon
 (NEF/NRW), Olympus / OM System (ORF), Sony (ARW), other RAW, JPEG, PNG or TIFF files. It decodes each photo
@@ -14,7 +14,9 @@ nothing is deleted, renamed, moved, uploaded, or written to your photo folders.
 
 ## Using it
 
-1. **Choose folder** (native macOS dialog; external drives work). Tick *Include subfolders* if needed.
+1. **Choose folder** (native macOS dialog; external drives work), or paste a path. Tick *Subfolders* if needed.
+   Choose folder, Analyse photos, Send to Lightroom…, the status and progress stay in the top bar while
+   you scroll.
 2. **Analyse photos.** RAW files first show the camera's embedded preview, labelled
    *"embedded camera preview · analysis pending"*. Each file is then fully decoded by LibRaw
    and scored. Scores are provisional until the scan finishes. **Cancel** keeps everything
@@ -57,7 +59,17 @@ nothing is deleted, renamed, moved, uploaded, or written to your photo folders.
    fallback.
    * Stars: Keep ★★★, Consider ★★, Drop ★, ♥ Liked ★★★★★ (your decision wins over the suggestion).
    * Keywords go under *PhotoSelect*: Keep / Consider / Drop / Liked / Burst NNN / Near-identical /
-     Camera preview, for Smart Collections. They are not included when exporting images.
+     Camera preview / Borderline / From PhotoSelect. They are not included when exporting images.
+     *Borderline* marks photos without your own decision whose score is within 5 points of the Keep or
+     Consider threshold.
+   * **Review passes in Lightroom.** The plug-in adds a *PhotoSelect* collection set with Smart
+     Collections **1 Rescue** (★), **2 Confirm** (★★★), **3 Decide** (★★), **Liked** and **Borderline**.
+     Send all groups once, then work through them in Lightroom, where you can edit before deciding.
+     A photo moves between them as you change its stars.
+   * **Changes come back.** When you change the stars of a photo PhotoSelect rated, PhotoSelect updates
+     its decision within about 30 s (5★ Liked, 3★ or 4★ Keep, 2★ Consider, 1★ Drop; removing the stars
+     changes nothing) and shows e.g. "From Lightroom: 6 Drop → Keep, 2 Keep → Drop". These count as
+     your decisions for *Learn from my decisions*, and the next Send to Lightroom keeps them.
    * Apply PhotoSelect Selections works on the selected photos, or on every photo shown when at most
      one is selected. Photos are matched by file, then file name and capture time, including Copy as
      DNG imports and time-zone offsets, then a unique name or capture time. The summary lists any

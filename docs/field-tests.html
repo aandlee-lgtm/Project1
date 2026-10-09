@@ -61,11 +61,11 @@ textarea{min-height:64px;resize:vertical}
 
 <div class="wrap">
   <section class="intro">
-    <div class="eyebrow">PhotoSelect 1.5.0 · on your own Mac</div>
+    <div class="eyebrow">PhotoSelect 1.6.0 · on your own Mac</div>
     <h1>Field tests for your M2</h1>
     <p>Run these on your Mac with your own Nikon and Olympus files. Nothing needs uploading: fill in the boxes as you go, attach the diagnostic report the app creates, then press <b>Copy results</b> and paste the text into our chat. Your answers are kept in this browser as you type, so you can stop and come back.</p>
     <div class="how">
-      <div><b>1 · Get the app</b><span id="dmgLine">Download <a href="https://github.com/aandlee-lgtm/Project1/releases/tag/v1.5.0" target="_blank" rel="noopener">PhotoSelect 1.5.0</a> and download PhotoSelect-AppleSilicon.dmg. Open the DMG and drag PhotoSelect to Applications.</span></div>
+      <div><b>1 · Get the app</b><span id="dmgLine">Download <a href="https://github.com/aandlee-lgtm/Project1/releases/tag/v1.6.0" target="_blank" rel="noopener">PhotoSelect 1.6.0</a> and download PhotoSelect-AppleSilicon.dmg. Open the DMG and drag PhotoSelect to Applications.</span></div>
       <div><b>2 · Run the tests</b>Do them in order; T4 and T5 matter most. Mark each one Pass, Issue or Skipped. Skipping is fine, just say why.</div>
       <div><b>3 · Report back</b>Help → <i>Create Diagnostic Report…</i> after T2 and T8. Copy the results below and paste them in chat, with the report files attached or pasted.</div>
     </div>
@@ -206,7 +206,16 @@ const TESTS=[
     ['first17','Minutes until the first complete burst could be culled','number',''],['smooth17','Mac while analysing','select',['','Smooth','Sluggish but usable','Froze at times']],
     ['inspect17','Inspector ← → between photos','select',['','Instant','About a second','Several seconds']],['diag17','Diagnostic "Last scan" lines','text','']],
   expect:'Clearly faster than 1.4 with the Mac staying responsive; bursts become available in capture order while the rest is analysed.',
-  react:'Slow steps show up in the diagnostic timings (decode vs analysis, workers, CPU time); I will tune the worker count or decode settings for your Mac from them.'}
+  react:'Slow steps show up in the diagnostic timings (decode vs analysis, workers, CPU time); I will tune the worker count or decode settings for your Mac from them.'},
+ {id:'T18',title:'Review passes in Lightroom, changes back to PhotoSelect',why:'1.6 makes Smart Collections for your three passes and brings your star changes back into PhotoSelect.',
+  steps:['Reinstall the plug-in from Send to Lightroom… and restart Lightroom Classic (once, for plug-in 1.6).','Send all four groups to Lightroom and import them; wait for the stars.','In Lightroom, open Collections → PhotoSelect: work through 1 Rescue, 2 Confirm and 3 Decide, changing stars where you disagree (edit first if you like).','Switch back to PhotoSelect: within about 30 s the message line should read "From Lightroom: …" and the decisions should match your new stars.','Scroll down a long grid: Choose folder, Analyse photos and Send to Lightroom… stay at the top.'],
+  fields:[['coll18','PhotoSelect collection set with 1 Rescue, 2 Confirm, 3 Decide, Liked, Borderline?','select',YN],
+    ['moved18','Photos moved between collections as you changed stars?','select',YN],
+    ['back18','"From Lightroom" summary shown in PhotoSelect (paste it)','text','From Lightroom: 6 Drop → Keep'],
+    ['border18','Borderline photos: were they really the close calls?','select',['','Yes','Mostly','No']],
+    ['bar18','Top bar useful when scrolling?','select',['','Yes','Needs changes']]],
+  expect:'Collections appear after the first rating; your star changes reach PhotoSelect within about 30 s and count as your decisions.',
+  react:'If changes do not come back, send me the plug-in status line from Send to Lightroom…; if Borderline is too wide or narrow, tell me and I will change the 5-point margin.'}
 ];
 const KEY='photoselect-field-tests-v1';
 let state={};
@@ -241,7 +250,7 @@ function update(){
   document.getElementById('output').value=report();
 }
 function report(){
-  const lines=['PhotoSelect 1.5.0 field test results',''];
+  const lines=['PhotoSelect 1.6.0 field test results',''];
   TESTS.forEach(t=>{const s=state[t.id]||{};lines.push(`${t.id} ${t.title}: ${s.status||'not done'}`);
     t.fields.forEach(([k,label])=>{if(s[k])lines.push(`  ${label}: ${s[k]}`)});
     if(s.notes)lines.push(`  Notes: ${s.notes.replace(/\n/g,' / ')}`);lines.push('')});

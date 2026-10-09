@@ -22,7 +22,7 @@ import raw_io
 import store as store_module
 from engine import Library
 
-APP_VERSION = '1.5.0'
+APP_VERSION = '1.6.0'
 log = logging.getLogger('photoselect.app')
 
 
@@ -125,6 +125,51 @@ def lightroom_selections(folder, rows, auto=False):
         lines.append('\t'.join(_tsv_field(v) for v in (r['path'], r['name'], r.get('capture') or '', rating, keywords,
                                                          r.get('decision') or '', r.get('suggestion') or '')))
     return '\n'.join(lines) + '\n'
+
+
+LIGHTROOM_CHANGES = 'lightroom-changes.tsv'
+STAR_LABELS = {5: 'Liked', 4: 'Keep', 3: 'Keep', 2: 'Consider', 1: 'Drop', 0: 'Unrated'}
+
+
+def take_lightroom_changes():
+    """Star changes the plug-in reported (time, stars before, stars now, PhotoSelect path), oldest first.
+    The file is taken away so each change is handled once."""
+    source = lightroom_dir() / LIGHTROOM_CHANGES
+    taking = source.with_suffix('.taking')
+    try:
+        os.replace(source, taking)
+    except FileNotFoundError:
+        return []
+    try:
+        text = taking.read_text(encoding='utf-8', errors='replace')
+    finally:
+        taking.unlink(missing_ok=True)
+    changes = []
+    for line in text.splitlines():
+        parts = line.split('\t', 3)
+        if len(parts) == 4 and parts[1].isdigit() and parts[2].isdigit() and parts[3]:
+            changes.append((int(parts[1]), int(parts[2]), parts[3]))
+    return changes
+
+
+def apply_lightroom_changes(store, changes):
+    """Make PhotoSelect's decisions match the stars set in Lightroom: 5 Liked (and Keep), 3 or 4 Keep,
+    2 Consider, 1 Drop; stars removed (0) change nothing. Returns {'Drop → Keep': n, ...}."""
+    first = {}
+    for old, new, path in changes:   # several changes to one photo: from its first stars to its last
+        first[path] = (first[path][0] if path in first else old, new)
+    moves = {}
+    for path, (old, new) in first.items():
+        if new not in STAR_LABELS or new == 0:
+            continue
+        if new == 5:
+            store.set_mark(path, decision='Keep', liked=True)
+        else:
+            store.set_mark(path, decision=STAR_LABELS[new], liked=False)
+        before, after = STAR_LABELS.get(old, 'Unrated'), STAR_LABELS[new]
+        if before != after:
+            moves[f'{before} → {after}'] = moves.get(f'{before} → {after}', 0) + 1
+    return moves
 
 
 def _default_pick_folder():
@@ -383,6 +428,18 @@ def create_app(library=None, store=None, token=None):
             return jsonify(error='Show in Finder is only available on macOS.', path=str(target)), 400
         subprocess.run(['/usr/bin/open', '-R', str(target)], check=False)
         return jsonify(ok=True, path=str(target))
+
+    @app.post('/api/lightroom/sync')
+    def lightroom_sync():
+        """Star changes made in Lightroom flow back into PhotoSelect's decisions (polled by the page)."""
+        changes = take_lightroom_changes()
+        moves = apply_lightroom_changes(store, changes) if changes else {}
+        if changes:
+            library.version += 1
+            log.info('Lightroom star changes: %d photos (%s)', len(changes), moves)
+        summary = ', '.join(f'{n} {move}' for move, n in sorted(moves.items(), key=lambda m: (-m[1], m[0])))
+        return jsonify(changed=len({c[2] for c in changes}), moves=moves,
+                       summary=f'From Lightroom: {summary}' if summary else '')
 
     @app.post('/api/lightroom')
     def lightroom():
