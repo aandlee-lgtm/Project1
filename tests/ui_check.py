@@ -130,9 +130,14 @@ def main():
                   and page.input_value('#keep') == '50')
         page.select_option('#sort', 'score')
 
+        def settle():
+            # slider changes redraw the grid on the next animation frame (scheduleRender, since 1.5)
+            page.evaluate('() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))')
+
         def set_range(sel, value):
             page.fill(sel, str(value))
             page.dispatch_event(sel, 'input')
+            settle()
         # contrasting baseline: focus only, strict thresholds
         for k, v in (('sharpness', 0), ('focus', 100), ('composition', 0), ('exposure', 0)):
             set_range(f'#weight-{k}', v)
@@ -140,14 +145,11 @@ def main():
         set_range('#consider', 49)
         base_order, base_counts = order(), counts()
         for k, v in (('sharpness', 0), ('focus', 0), ('composition', 100), ('exposure', 0)):
-            page.fill(f'#weight-{k}', str(v))
-            page.dispatch_event(f'#weight-{k}', 'input')
+            set_range(f'#weight-{k}', v)
         changed = order()
         check('weight sliders re-rank immediately', changed != base_order or n < 2, f'top before {base_order[:2]} after {changed[:2]}')
-        page.fill('#keep', '50')
-        page.dispatch_event('#keep', 'input')
-        page.fill('#consider', '10')
-        page.dispatch_event('#consider', 'input')
+        set_range('#keep', 50)
+        set_range('#consider', 10)
         check('thresholds change Keep/Consider/Drop counts', counts() != base_counts or n < 2, f'{base_counts} -> {counts()}')
 
         first = page.locator('.card').first
