@@ -403,6 +403,29 @@ Built when the owner sent **build_new** after item 20 was discussed (below).
   - screen readers hear "Step 1: Choose folder", and so on.
 - The Lightroom plug-in is unchanged (still 1.6.0), so no reinstall is needed.
 
+### After 1.7.0 (questions and plans for the next version)
+21. **Why a plug-in? Can it be bypassed?** The owner asked why the plug-in is needed and whether the
+    step can be skipped.
+    - Explained:
+      - Lightroom Classic keeps stars, keywords and collections in its catalog, a database that only
+        Lightroom itself (and plug-ins running inside it) may change while it is open. Adobe offers no
+        other way in: writing the catalog from outside risks corrupting it.
+      - The plug-in is a one-time install. Since 1.5 it works by itself in the background: it rates
+        photos after any import, creates the PhotoSelect Smart Collections, and sends star changes
+        back to PhotoSelect.
+    - The only route without the plug-in is **XMP sidecar files**: small `.xmp` files next to each RAW
+      file (e.g. `DSC_1234.xmp`) holding the stars and keywords. Lightroom reads them when it imports
+      the RAW files, so the stars appear with no plug-in. Limits:
+      - they only take effect at the first import, not for photos already in Lightroom;
+      - they work for RAW files, not JPEG, HEIC or DNG (Lightroom reads those files' own metadata,
+        and PhotoSelect never changes your files);
+      - they add files to the photo folders or card (the originals are untouched);
+      - no Smart Collections are made automatically, and no star changes come back to PhotoSelect;
+      - existing sidecars (from another app) would have to be merged.
+    - This was the trade-off considered for 1.3, when the owner chose the plug-in.
+    - Offered: an optional "Write XMP sidecars (no plug-in)" choice in the Send to Lightroom window,
+      next to the plug-in. Waiting for the owner's decision.
+
 ---
 
 ## 2. Definitions (draft glossary for the user instructions)
