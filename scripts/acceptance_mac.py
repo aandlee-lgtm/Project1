@@ -467,14 +467,21 @@ def ui_check(app, folder, out, expect_persisted, label, lightroom_received=None)
         cmd.append('--expect-persisted')
     if lightroom_received:
         cmd += ['--lightroom-received', str(lightroom_received)]
+    t0 = time.time()
     r = run(*cmd, check_=False, timeout=3600)
+    results = 0
     for line in r.stdout.splitlines():
         if line.startswith(('PASS ', 'FAIL ')):
             status, _, rest = line.partition(' ')
             name, _, detail = rest.partition(' — ')
             record(f'UI ({label}): {name}', status, detail)
+            results += 1
     if r.returncode != 0 and 'Traceback' in (r.stdout + r.stderr):
         record(f'UI ({label}) harness stopped early', 'FAIL', (r.stdout + r.stderr)[-1800:])
+    elif r.returncode != 0 or not results:
+        # e.g. the browser crashed or never started: say so, with whatever it printed
+        record(f'UI ({label}) did not run', 'FAIL', f'exit code {r.returncode} after {time.time() - t0:.1f} s, '
+               f'{results} results; output: {(r.stdout + r.stderr)[-1800:] or "(none)"}')
 
 
 def screenshot(out, name):
