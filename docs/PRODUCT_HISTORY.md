@@ -425,6 +425,18 @@ Built when the owner sent **build_new** after item 20 was discussed (below).
     - This was the trade-off considered for 1.3, when the owner chose the plug-in.
     - Offered: an optional "Write XMP sidecars (no plug-in)" choice in the Send to Lightroom window,
       next to the plug-in. Waiting for the owner's decision.
+22. **Stars still need the manual command after import.** The owner reports that even with 1.7.0 they
+    import, then run the plug-in command before the stars appear.
+    - Found: automatic rating after an ordinary import depends on a catalog search by capture date,
+      which runs in the plug-in's background task. That search is wrapped in Lua's plain `pcall`.
+      Lightroom pauses the task during catalog searches, and plain `pcall` cannot handle the pause, so
+      the search failed every time without any message. Only photos handed over with Open in
+      Lightroom Import and imported with Add (found by file path, without a search) could be rated
+      automatically. The tests used a simulated catalog that never paused, so they passed.
+    - Planned (backlog 22): the fix, a file-name fallback search, visible plug-in errors in PhotoSelect's
+      Lightroom window, and tests that simulate Lightroom's pauses.
+    - Until then: Open in Lightroom Import with **Add** in Lightroom's Import window rates automatically;
+      otherwise use the menu command.
 
 ---
 
