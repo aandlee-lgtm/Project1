@@ -1,4 +1,19 @@
-# PhotoSelect validation report (1.0.0, updated for 1.9.0)
+# PhotoSelect validation report (1.0.0, updated for 1.10.0)
+
+## 1.10.0 results
+Build and acceptance run: https://github.com/aandlee-lgtm/Project1/actions/runs/38052012113. The installed
+DMG passed on clean macOS 14.8 and 15.7 runners: 123 passed or informational, 0 failed, on each.
+
+**New checks (WebKit, before and after relaunch):**
+- On every thumbnail, the outline sits at 25 % / 25 % / 50 % / 50 % of the picture, measured against
+  the image itself, not the card. It is dashed for the default area and solid for your own region
+  (after relaunch, the region drawn in launch 1 shows as solid).
+- The *Show focus area* switch hides and shows the outlines.
+- Your region is drawn solid in the viewer and on its card.
+- In the full-resolution inspector, the outline lies inside the picture, and the fit view still
+  fits the window.
+
+**250-RAW-file folder:** 169 s on macOS 14 and 237 s on macOS 15. 1.10.0 does not change analysis.
 
 ## 1.9.0 results
 Build and acceptance run: https://github.com/aandlee-lgtm/Project1/actions/runs/38037361511. The installed

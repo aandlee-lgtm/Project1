@@ -1,5 +1,18 @@
 # PhotoSelect releases
 
+## 1.10.0
+- **See where focus is measured.** Every photo now shows the area PhotoSelect uses for *Subject
+  focus*:
+  - a dashed light-grey outline for the default area (the central half of the frame);
+  - a solid teal outline for a region you drew over the subject;
+  - a dark edge keeps both visible on bright sky and dark water.
+- The outline appears on the thumbnails, in the viewer, in the full-resolution inspector and in the
+  burst comparison, so you can spot photos whose subject sits outside the measured area. Drag a
+  rectangle over the subject to measure there instead.
+- *Show focus area* in the toolbar hides the outlines, and PhotoSelect remembers your choice.
+- The Lightroom plug-in is unchanged (1.8.0): no reinstall needed.
+- Tested: the installed DMG passed all 123 acceptance checks on macOS 14.8 and 15.7 (run 38052012113).
+
 ## 1.9.0
 - **Best of each series.** In a burst or series of near-identical frames, PhotoSelect now suggests
   Keep only for the best frame, not for every frame that scores well.
