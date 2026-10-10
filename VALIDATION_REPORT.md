@@ -1,4 +1,27 @@
-# PhotoSelect validation report (1.0.0, updated for 1.8.0)
+# PhotoSelect validation report (1.0.0, updated for 1.9.0)
+
+## 1.9.0 results
+Build and acceptance run: https://github.com/aandlee-lgtm/Project1/actions/runs/38037361511. The installed
+DMG passed on clean macOS 14.8 and 15.7 runners: 115 passed or informational, 0 failed, on each.
+
+**New checks:**
+- Best of each series, checked in WebKit before and after relaunch. With every frame above Keep:
+  - at most one Keep per series, and it is the best frame;
+  - frames within 3 points of it are Consider and the rest Drop;
+  - "keep all" gives more Keeps;
+  - the reason names the frame's place in its series.
+- The setting defaults to 1 and is saved (unit test).
+
+**First run (38036716714):** on macOS 14 the launch-1 UI check ended within a second with no results
+and no Python traceback. The harness only recorded failures that came with a traceback, so this
+exit went unrecorded. Launch 2 then found no decisions, regions or settings to restore (4 failures).
+- macOS 15 passed everything in the same run.
+- The cause could not be seen in the log. The harness now records any UI check that exits without
+  results, with its exit code and output.
+- The next run passed on both systems. This looks like a one-off browser start-up failure on the
+  runner, but that is not confirmed.
+
+**250-RAW-file folder:** 222 s on macOS 14 and 192 s on macOS 15. 1.9.0 does not change analysis.
 
 ## 1.8.0 results
 Build and acceptance run: https://github.com/aandlee-lgtm/Project1/actions/runs/38034081519. The installed

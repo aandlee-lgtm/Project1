@@ -1,5 +1,21 @@
 # PhotoSelect releases
 
+## 1.9.0
+- **Best of each series.** In a burst or series of near-identical frames, PhotoSelect now suggests
+  Keep only for the best frame, not for every frame that scores well.
+  - Other frames within 3 points of the best are suggested **Consider**, so you can compare the close
+    calls.
+  - The rest of the series is suggested **Drop**, with the reason, e.g. "Drop: #4 of 9 in this
+    series, 12.0 points below the best frame".
+  - Change it under *Recommendation thresholds → Best of each series*: keep the best frame (default),
+    the best 2, the best 3, or all that reach Keep.
+  - Your own decisions always win. Profiles and folder settings remember the setting, and *Learn from
+    my decisions* can propose it.
+  - Lightroom stars, keywords and Smart Collections follow the new suggestions: frames that lost to a
+    better one in their series become 1★ (1 Rescue).
+- The Lightroom plug-in is unchanged (1.8.0): no reinstall needed.
+- Tested: the installed DMG passed all 115 acceptance checks on macOS 14.8 and 15.7 (run 38037361511).
+
 ## 1.8.0
 - **Fixed: stars now appear in Lightroom by themselves after any import.** In 1.5–1.7 they only came
   automatically after Open in Lightroom Import with Add. After an ordinary import you had to run
