@@ -504,6 +504,19 @@ Built when the owner sent **build_new** after item 23 was discussed (below).
   - Lightroom stars, keywords and Smart Collections follow the new suggestions.
 - Plug-in unchanged (1.8.0): no reinstall needed.
 
+### After 1.9.0 (planned for the next version: waiting for build_new)
+24. **Show the focus area.** The owner asked to see, on each photo, where subject focus was measured,
+    as a light grey or contrasting rectangle outline.
+    - Explained: unless you draw your own region, subject focus is measured in a fixed default area,
+      the central half of the frame (25 % in from each edge). Today only a region you drew is shown,
+      and only in the viewer.
+    - Planned (backlog 24): an outline on every thumbnail, in the viewer, the inspector and the burst
+      comparison. The default area is a dashed light-grey line with a dark edge, and your own region a
+      solid teal line, so each is visible on any background. A *Show focus area* switch is on by
+      default.
+    - Noted: the outline will show when the subject sits outside the default area. Finding the subject
+      automatically is a possible later item, not part of this one.
+
 ---
 
 ## 2. Definitions (draft glossary for the user instructions)
@@ -519,7 +532,7 @@ Built when the owner sent **build_new** after item 23 was discussed (below).
 | **Score** | 0–100, relative to the current folder (the folder's 10th–90th percentile maps to 15–95). It is not an absolute quality rating: even a folder of soft photos has a top frame. |
 | **Sharpness** | Edge detail across the whole frame, divided by contrast. Water, foliage and noise also count as detail. |
 | **Subject focus** | Edge detail inside the focus region, measured on the full-resolution image, with expected sensor noise subtracted. |
-| **Focus region** | The area where subject focus is measured: the central half by default, or a rectangle you drag over the subject. It is remembered per photo. |
+| **Focus region** | The area where subject focus is measured: the central half by default, or a rectangle you drag over the subject. It is remembered per photo. From the next version it is outlined on every photo (dashed grey: default; solid teal: yours). |
 | **Composition** | A heuristic: where the detail sits relative to rule-of-thirds points, minus clutter at the edges. Not an aesthetic judgement. |
 | **Exposure** | The share of pixels not clipped to near-black or near-white. |
 | **Weights (importance sliders)** | How much each of the four scores counts towards the combined score. Defaults: sharpness 30, focus 50, composition 15, exposure 5. |
