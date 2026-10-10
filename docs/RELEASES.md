@@ -1,5 +1,15 @@
 # PhotoSelect releases
 
+## 1.7.0
+- **Numbered steps.** The three main actions in the top bar show their order: **1** Choose folder,
+  **2** Analyse photos, **3** Send to Lightroom….
+  - The numbers are larger than the button text, in the app's light grey. On the teal Analyse photos
+    button, the number is a faded dark teal so it stays readable.
+  - The top bar keeps its height, and screen readers announce each button as "Step 1: Choose folder",
+    and so on.
+- The Lightroom plug-in is unchanged (1.6.0): no reinstall is needed.
+- Tested: the installed DMG passed all 113 acceptance checks on macOS 14.8 and 15.7 (run 38020186387).
+
 ## 1.6.0
 - **Main actions always at hand.** A top bar stays in place while you scroll. It holds the folder
   (full path on hover), **Choose folder**, **Analyse photos** (**Cancel** while analysing),

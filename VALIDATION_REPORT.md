@@ -1,4 +1,24 @@
-# PhotoSelect validation report (1.0.0, updated for 1.6.0)
+# PhotoSelect validation report (1.0.0, updated for 1.7.0)
+
+## 1.7.0 results
+Build and acceptance run: https://github.com/aandlee-lgtm/Project1/actions/runs/38020186387. The installed
+DMG passed on clean macOS 14.8 and 15.7 runners: 113 passed or informational, 0 failed, on each.
+
+**New check:** step numbers 1, 2 and 3 on Choose folder, Analyse photos and Send to Lightroom…, checked
+in WebKit before and after relaunch:
+- 1.5× the label size;
+- muted grey rgb(158, 171, 180), and dark teal on the primary button;
+- "Step N:" accessible names;
+- buttons 37 px high, the same as the folder field.
+
+**Test fix:** the first 1.7.0 run (38019571422) failed one check on macOS 14 only, "weight sliders
+re-rank immediately" after relaunch. Since 1.5, slider changes redraw the grid on the next animation
+frame, but the check read the grid order straight away. It compared two stale orders. The check now
+waits for the redraw. The app was not changed.
+
+**250-RAW-file folder:** 186 s on macOS 14 and 309 s on macOS 15. The macOS 15 runner used 1.9 CPU s per
+file, against 1.1–1.3 s in the other runs, which points to a slower shared runner. 1.7.0 does not change
+analysis.
 
 ## 1.6.0 results
 Build and acceptance run: https://github.com/aandlee-lgtm/Project1/actions/runs/38003122912. The installed
