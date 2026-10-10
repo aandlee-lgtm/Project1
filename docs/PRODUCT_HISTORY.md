@@ -380,6 +380,13 @@ Built when the owner sent **build_new** after items 15–19 were discussed (belo
   except one line in the Lightroom window's steps.
 - (19) The title bar shows only the version, e.g. "v1.6.0".
 
+### After 1.6.0 (planned for the next version: waiting for build_new)
+20. **Step numbers on the main actions.** The owner asked for a larger, light-grey **1**, **2** and **3**
+    on Choose folder, Analyse photos and Send to Lightroom…, to show them as steps.
+    - Planned (backlog 20): a quiet light-grey number before each button label, larger than the label
+      text. Cancel keeps step 2's place while analysing. Screen readers hear "Step 1: Choose folder"
+      and so on. The numbers stay with their buttons when the bar wraps.
+
 ---
 
 ## 2. Definitions (draft glossary for the user instructions)
@@ -414,6 +421,7 @@ Built when the owner sent **build_new** after items 15–19 were discussed (belo
 | **Automatic star rating** | The plug-in adds the stars and keywords by itself a few seconds after photos with PhotoSelect selections are in the catalog, however they were imported (within 14 days of Send to Lightroom; 3 hours for Open in Lightroom Import). Each photo is rated once; stars already set in Lightroom are kept. |
 | **Borderline** | A PhotoSelect keyword in Lightroom for photos without your own decision whose score is within 5 points of the Keep or Consider threshold: the close calls worth a second look. Also a Smart Collection. |
 | **Top bar** | The bar at the top of PhotoSelect that stays visible while scrolling: folder, Choose folder, Analyse photos / Cancel, Send to Lightroom…, status and progress. |
+| **Steps 1–2–3** *(planned)* | The numbered main actions in the top bar: 1 Choose folder, 2 Analyse photos, 3 Send to Lightroom…. |
 | **PhotoSelect collection set** | Smart Collections the plug-in makes in Lightroom for the review passes: 1 Rescue (1★), 2 Confirm (3★), 3 Decide (2★), Liked (5★) and Borderline. They hold only photos PhotoSelect rated, and update as stars change. |
 | **From Lightroom** | Star changes you make in Lightroom on photos PhotoSelect rated update PhotoSelect's decisions (5★ Liked, 3★/4★ Keep, 2★ Consider, 1★ Drop) and count for Learn from my decisions. Shown as e.g. "From Lightroom: 6 Drop → Keep". |
 | **Plug-in status** | The top line of PhotoSelect's Lightroom window: whether the plug-in is running in Lightroom, its version, and when it last rated photos. |
