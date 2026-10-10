@@ -386,6 +386,12 @@ Built when the owner sent **build_new** after items 15–19 were discussed (belo
     - Planned (backlog 20): a quiet light-grey number before each button label, larger than the label
       text. Cancel keeps step 2's place while analysing. Screen readers hear "Step 1: Choose folder"
       and so on. The numbers stay with their buttons when the bar wraps.
+    - The owner left the size and colour to our discretion, for cohesion. Decided:
+      - about 1.5× the label size, semi-bold;
+      - the app's light grey (the muted text colour) on the dark buttons;
+      - on the teal Analyse photos button, its own dark text colour at reduced opacity, because grey
+        would wash out on teal;
+      - one baseline with the label, and no change to the bar's height.
 
 ---
 
