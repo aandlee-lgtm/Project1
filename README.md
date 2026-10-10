@@ -1,4 +1,4 @@
-# PhotoSelect 1.8 — Apple silicon Mac app
+# PhotoSelect 1.9 — Apple silicon Mac app
 
 PhotoSelect helps you cull bursts of sailing and sports photos. Point it at a folder of Nikon
 (NEF/NRW), Olympus / OM System (ORF), Sony (ARW), other RAW, JPEG, PNG or TIFF files. It decodes each photo
@@ -122,9 +122,15 @@ probabilities or absolute quality. Even a folder of soft photos has a top frame.
 
 Each photo lists the **reasons** behind its suggestion: threshold comparison, weighted
 contributions, where focus was measured, clipping, a *high noise* warning when the frame is
-among the noisiest in the folder, and its rank and gap within its burst. A frame is **never
-marked Drop just for not winning its burst**. Frames within 3 points of the burst's top frame
-are flagged *close to burst top · compare*.
+among the noisiest in the folder, and its rank and gap within its burst.
+
+**Best of each series** (since 1.9, in *Recommendation thresholds*): in a burst or series of
+near-identical frames, only the best frame that reaches Keep is suggested Keep (or the best 2 or 3,
+or all, if you choose). Other frames within 3 points of it are suggested **Consider** so you can
+compare them; the rest of the series is suggested **Drop**, e.g. "Drop: #4 of 9 in this series,
+12.0 points below the best frame". Your own decisions always win, and *Learn from my decisions*
+also proposes this setting. Frames within 3 points of the burst's top frame are flagged
+*close to burst top · compare*.
 
 **Not implemented:** eye or face detection, subject recognition, motion-blur detection, artistic
 judgement, XMP sidecar files. The learning feature only fits the four slider weights and two

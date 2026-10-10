@@ -60,6 +60,8 @@ DEFAULT_PREFS = {
     'weights': {'sharpness': 30, 'focus': 50, 'composition': 15, 'exposure': 5},
     'keep': 75, 'consider': 45, 'gap': 2.0, 'likeness': 70, 'near_identical': 90, 'near_window': 10.0,
     'recursive': False, 'folder': '', 'page_size': 120,
+    # 1.9: how many frames of each burst / near-identical series may be suggested Keep (0 = all)
+    'best_of': 1,
     # 1.3: named settings profiles, settings remembered per folder, and the settings before the last
     # "learn from my decisions" change (for Undo).
     'profiles': {}, 'folder_settings': {}, 'undo_settings': None,

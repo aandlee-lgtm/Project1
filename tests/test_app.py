@@ -116,6 +116,11 @@ class AppTests(unittest.TestCase):
         self.store.set_prefs({'likeness': 60})
         self.assertEqual(self.store.prefs()['likeness'], 60)
 
+    def test_best_of_each_series_setting(self):
+        self.assertEqual(self.get('/api/prefs').get_json()['best_of'], 1)        # 1.9 default: keep the best frame
+        self.post('/api/prefs', {'best_of': 0})
+        self.assertEqual(self.get('/api/prefs').get_json()['best_of'], 0)
+
     def test_profiles_and_folder_settings_persist(self):
         settings = {'weights': {'sharpness': 10, 'focus': 70, 'composition': 10, 'exposure': 10}, 'keep': 80, 'consider': 40}
         self.post('/api/prefs', {'profiles': {'Sailing': settings}, 'folder_settings': {'/x': settings},

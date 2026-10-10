@@ -64,7 +64,8 @@ a{color:var(--teal)}kbd{border:1px solid var(--line);border-radius:4px;padding:0
 <div class="section"><h2>Recommendation thresholds</h2>
 <label class="weight"><span class="row">Keep from <output id="keepValue">75</output></span><input id="keep" type="range" min="50" max="95" value="75"></label>
 <label class="weight"><span class="row">Consider from <output id="considerValue">45</output></span><input id="consider" type="range" min="10" max="49" value="45"></label>
-<p class="hint">Suggestions only. Nothing is deleted or moved, and a frame is never marked Drop just because another frame in its burst scored higher.</p></div>
+<label class="weight"><span class="row">Best of each series</span><select id="best_of" aria-describedby="bestOfHint"><option value="1">Keep the best frame</option><option value="2">Keep the best 2</option><option value="3">Keep the best 3</option><option value="0">Keep all that reach the threshold</option></select></label>
+<p id="bestOfHint" class="hint">In a burst or series of near-identical frames, only the best frame (or best 2 or 3) reaching Keep is suggested Keep. Frames within 3 points of it are suggested Consider so you can compare; the rest of the series is suggested Drop. Suggestions only: nothing is deleted or moved.</p></div>
 <div class="section"><h2>Learn from my decisions</h2>
 <p id="learnStatus" class="hint"></p><button id="learn">Suggest settings from my decisions</button>
 <div id="proposal" hidden><ul id="proposalText" class="reasons hint"></ul><button id="applyLearn" class="primary">Apply</button> <button id="dismissLearn">Dismiss</button></div>
@@ -150,11 +151,19 @@ function showError(e){$('error').textContent=e?(e.message||String(e)):''}
 // ---------- scoring (client side so sliders respond instantly) ----------
 function weightSum(){return KEYS.reduce((a,k)=>a+(+prefs.weights[k]||0),0)}
 function score(r){if(r.status!=='analysed')return null;const s=weightSum();return s?KEYS.reduce((a,k)=>a+prefs.weights[k]*(r.scores[k]||0),0)/s:0}
-function autoDecision(r){const s=score(r);if(s===null)return 'Pending';return s>=+prefs.keep?'Keep':s>=+prefs.consider?'Consider':'Drop'}
+// The suggestion for a score, given its place in its series (burst or near-identical group).
+// Only the best n frames of a series may be Keep (n 0 = no limit); the others are Consider when within
+// CLOSE points of the n-th best frame (and Consider or better on their own), otherwise Drop.
+function suggest(s,keep,consider,n,info){const base=s>=keep?'Keep':s>=consider?'Consider':'Drop';
+  if(!n||!info||info.size<2||info.rank<=n||base==='Drop')return base;
+  return info.scores[Math.min(n,info.size)-1]-s<=CLOSE?'Consider':'Drop'}
+function autoDecision(r){const s=score(r);if(s===null)return 'Pending';return suggest(s,+prefs.keep,+prefs.consider,+prefs.best_of,derived&&derived.info.get(r.id))}
+// what the score alone would suggest, without the best-of-series rule
+function scoreDecision(s){return s>=+prefs.keep?'Keep':s>=+prefs.consider?'Consider':'Drop'}
 function decision(r){return r.decision||autoDecision(r)}
 function derive(){const groups=new Map();for(const r of rows){if(r.status!=='analysed')continue;if(!groups.has(r.group))groups.set(r.group,[]);groups.get(r.group).push(r)}
-  const info=new Map();for(const [g,list] of groups){list.sort((a,b)=>score(b)-score(a));const top=score(list[0]);
-    list.forEach((r,i)=>info.set(r.id,{rank:i+1,size:list.length,gap:top-score(r),next:list.length>1?score(list[0])-score(list[1]):null}))}
+  const info=new Map();for(const [g,list] of groups){list.sort((a,b)=>score(b)-score(a));const top=score(list[0]),scores=list.map(score);
+    list.forEach((r,i)=>info.set(r.id,{rank:i+1,size:list.length,gap:top-score(r),next:list.length>1?score(list[0])-score(list[1]):null,scores}))}
   derived={groups,info};return derived}
 function cardReason(r,why){if(r.status!=='analysed')return why[0];why=why.filter(w=>w!==notice(r));return why[0]+' '+(why.find(w=>/burst/.test(w))||'')}
 function notice(r){return r.basis==='camera_preview'?(r.notice||'Scored from the embedded camera JPEG, not the RAW pixels.'):null}
@@ -169,7 +178,10 @@ function reasons(r){
   const out=[],s=score(r),d=decision(r),i=derived.info.get(r.id),sum=weightSum();
   if(notice(r))out.push(notice(r));
   if(r.decision)out.push(`Your decision: ${r.decision} (automatic suggestion would be ${autoDecision(r)}).`);
-  else out.push(`${d}: weighted score ${s.toFixed(1)} ${d==='Keep'?'≥ Keep threshold '+prefs.keep:d==='Consider'?'≥ Consider threshold '+prefs.consider+' and < '+prefs.keep:'< Consider threshold '+prefs.consider}.`);
+  else if(d!==scoreDecision(s)){const n=+prefs.best_of,ref=i.scores[Math.min(n,i.size)-1],best=n===1?'the best frame':`the best ${n} frames`;
+    out.push(d==='Consider'?`Consider: #${i.rank} of ${i.size} in this series, within ${CLOSE} points of ${best} (weighted score ${s.toFixed(1)}; ${(ref-s).toFixed(1)} points below). Compare them.`
+      :`Drop: #${i.rank} of ${i.size} in this series, ${(ref-s).toFixed(1)} points below ${best} (weighted score ${s.toFixed(1)} would be ${scoreDecision(s)} on its own).`)}
+  else out.push(`${d}: weighted score ${s.toFixed(1)} ${d==='Keep'?'≥ Keep threshold '+prefs.keep:d==='Consider'?'≥ Consider threshold '+prefs.consider+' and < '+prefs.keep:'< Consider threshold '+prefs.consider}.`+(d==='Keep'&&i&&i.size>1&&+prefs.best_of?` Best frame${+prefs.best_of>1?'s':''} of its series.`:''));
   if(sum){const parts=KEYS.filter(k=>prefs.weights[k]>0).map(k=>({k,c:prefs.weights[k]*(r.scores[k]||0)/sum})).sort((a,b)=>b.c-a.c);
     out.push('Contributions: '+parts.map(p=>`${LABEL[p.k]} ${r.scores[p.k]} × ${Math.round(prefs.weights[p.k]/sum*100)}%`).join(' · ')+'.')}
   if(r.roi)out.push(r.roi_state==='full'?'Subject focus measured in your region on the full-resolution decode.':r.roi_state==='error'?'Your region could not be measured; the central region is used.':'Measuring your region at full resolution…');
@@ -189,16 +201,20 @@ function savePrefs(){rememberFolderSettings();clearTimeout(saveTimer);saveTimer=
 function buildWeights(){const sum=weightSum();
   $('weights').innerHTML=KEYS.map(k=>`<label class="weight"><span class="row">${LABEL[k]}<output id="value-${k}">${sum?Math.round(prefs.weights[k]/sum*100)+'%':'Off'}</output></span><input id="weight-${k}" type="range" min="0" max="100" value="${prefs.weights[k]}"><small>${DESCRIPTION[k]}</small></label>`).join('');
   KEYS.forEach(k=>$('weight-'+k).oninput=e=>{prefs.weights[k]=+e.target.value;const s=weightSum();KEYS.forEach(t=>$('value-'+t).textContent=s?Math.round(prefs.weights[t]/s*100)+'%':'Off');savePrefs();scheduleRender()})}
-function applyPrefs(){buildWeights();for(const id of ['keep','consider']){$(id).value=prefs[id];$(id+'Value').textContent=prefs[id]}for(const id of ['likeness','near_identical']){$(id).value=prefs[id];$(id+'Value').textContent=prefs[id]+' %'}$('gap').value=prefs.gap;$('near_window').value=prefs.near_window;showFolder();renderLearn();$('recursive').checked=!!prefs.recursive;if(!$('folder').value)$('folder').value=prefs.folder||''}
+function applyPrefs(){buildWeights();for(const id of ['keep','consider']){$(id).value=prefs[id];$(id+'Value').textContent=prefs[id]}for(const id of ['likeness','near_identical']){$(id).value=prefs[id];$(id+'Value').textContent=prefs[id]+' %'}$('gap').value=prefs.gap;$('near_window').value=prefs.near_window;$('best_of').value=String(+prefs.best_of);showFolder();renderLearn();$('recursive').checked=!!prefs.recursive;if(!$('folder').value)$('folder').value=prefs.folder||''}
 async function mark(r,fields){Object.assign(r,fields);render();renderLearn();if(current&&current.id===r.id)updateViewer();try{await api('mark',{id:r.id,...fields})}catch(e){showError(e)}}
 
 // ---------- learn from my decisions, profiles ----------
 const LEARN_MIN=30,LABEL_RANK={Drop:0,Consider:1,Keep:2},RANK_LABEL=['Drop','Consider','Keep'];
-function settingsNow(){return {weights:{...prefs.weights},keep:+prefs.keep,consider:+prefs.consider}}
-function useSettings(x){prefs.weights={...x.weights};prefs.keep=+x.keep;prefs.consider=+x.consider;applyPrefs();savePrefs();render()}
+function settingsNow(){return {weights:{...prefs.weights},keep:+prefs.keep,consider:+prefs.consider,best_of:+prefs.best_of}}
+function useSettings(x){prefs.weights={...x.weights};prefs.keep=+x.keep;prefs.consider=+x.consider;if(x.best_of!==undefined)prefs.best_of=+x.best_of;applyPrefs();savePrefs();render()}
 function labelled(){return rows.filter(r=>r.status==='analysed'&&(r.decision||r.liked)).map(r=>({r,y:LABEL_RANK[r.decision||'Keep']}))}
-function agreement(list,w,keep,consider){const sum=KEYS.reduce((a,k)=>a+w[k],0);let n=0;
-  for(const {r,y} of list){const s=sum?KEYS.reduce((a,k)=>a+w[k]*(r.scores[k]||0),0)/sum:0;n+=(s>=keep?2:s>=consider?1:0)===y}return n}
+function scoreWith(r,w){const sum=KEYS.reduce((a,k)=>a+w[k],0);return sum?KEYS.reduce((a,k)=>a+w[k]*(r.scores[k]||0),0)/sum:0}
+// each analysed photo's place in its series under weights w (as derive() does for the current weights)
+function seriesRanks(w){const groups=new Map();for(const r of rows){if(r.status!=='analysed')continue;if(!groups.has(r.group))groups.set(r.group,[]);groups.get(r.group).push([r,scoreWith(r,w)])}
+  const out=new Map();for(const list of groups.values()){list.sort((a,b)=>b[1]-a[1]);const scores=list.map(x=>x[1]);list.forEach(([r],i)=>out.set(r.id,{rank:i+1,size:list.length,scores}))}return out}
+function agreement(list,w,keep,consider,n){const ranks=seriesRanks(w);let a=0;
+  for(const {r,y} of list)a+=LABEL_RANK[suggest(scoreWith(r,w),keep,consider,+n||0,ranks.get(r.id))]===y;return a}
 function learnSettings(){const list=labelled();if(list.length<LEARN_MIN)return null;
   const cur=settingsNow(),cs=KEYS.reduce((a,k)=>a+cur.weights[k],0)||1,curW=KEYS.map(k=>cur.weights[k]/cs*100);
   const S=list.map(({r})=>KEYS.map(k=>+r.scores[k]||0)),Y=list.map(x=>x.y);let best=null;
@@ -212,7 +228,10 @@ function learnSettings(){const list=labelled();if(list.length<LEARN_MIN)return n
     for(let t=50;t<=95;t++){const v=h[1][t]+n2-h[2][t],d=Math.abs(t-cur.keep);if(!bk||v>bk.v||(v===bk.v&&d<bk.d))bk={t,v,d}}
     const agree=bc.v+bk.v,dist=w.reduce((acc,x,i)=>acc+Math.abs(x-curW[i]),0)+bc.d+bk.d;
     if(!best||agree>best.agree||(agree===best.agree&&dist<best.dist))best={agree,dist,weights:Object.fromEntries(KEYS.map((k,i)=>[k,w[i]])),keep:bk.t,consider:bc.t}}
-  best.total=list.length;best.before=agreement(list,cur.weights,cur.keep,cur.consider);best.after=agreement(list,best.weights,best.keep,best.consider);
+  // then how many frames of each series to keep, judged with the series rule (your own picks per series)
+  let bn=null;for(const n of [cur.best_of,1,2,3,0]){const v=agreement(list,best.weights,best.keep,best.consider,n);if(!bn||v>bn.v)bn={n,v}}
+  best.best_of=bn.n;
+  best.total=list.length;best.before=agreement(list,cur.weights,cur.keep,cur.consider,cur.best_of);best.after=bn.v;
   if(best.after<=best.before)best.same=true;
   // what distinguishes the photos you keep from the ones you drop (or consider)
   const hi=list.filter(x=>x.y===2),lo=list.filter(x=>x.y===0).length?list.filter(x=>x.y===0):list.filter(x=>x.y===1);
@@ -224,6 +243,7 @@ function describeProposal(p){const cur=settingsNow(),cs=KEYS.reduce((a,k)=>a+cur
   if(p.same){out.push(`Your current settings already match your decisions as well as any: ${p.before} of ${p.total} photos.`);return out}
   out.push(`Matches ${p.after} of your ${p.total} decisions (your current settings match ${p.before}).`);
   for(const k of KEYS){const a=Math.round(cur.weights[k]/cs*100),b=p.weights[k];if(Math.abs(a-b)>=5)out.push(`${LABEL[k]} counts ${b>a?'more':'less'}: ${a} % → ${b} %.`)}
+  if(p.best_of!==cur.best_of){const t=n=>n?`keep the best ${n===1?'frame':n}`:'keep all that reach Keep';out.push(`Best of each series: ${t(cur.best_of)} → ${t(p.best_of)}.`)}
   if(p.keep!==cur.keep)out.push(`Keep from ${cur.keep} → ${p.keep}.`);if(p.consider!==cur.consider)out.push(`Consider from ${cur.consider} → ${p.consider}.`);
   if(p.pattern){const t=p.pattern[0],l=p.pattern[p.pattern.length-1];out.push(`Why: your Keeps average ${LABEL[t.k].toLowerCase()} ${t.hi.toFixed(0)} against ${t.lo.toFixed(0)} for your ${p.loLabel}`+(Math.abs(l.hi-l.lo)<6?`, while ${LABEL[l.k].toLowerCase()} barely differs (${l.hi.toFixed(0)} vs ${l.lo.toFixed(0)}).`:'.'))}
   return out}
@@ -304,6 +324,7 @@ async function poll(){try{scan=await api('state');const run=scan.running;
 $('browse').onclick=async()=>{try{showError();$('notice').textContent='Choose a folder in the system dialog…';const r=await api('pick',{});if(r.folder)$('folder').value=r.folder;showFolder();renderLearn();$('notice').textContent=r.folder?'Folder selected. Click Analyse photos.':'No folder chosen.'}catch(e){showError(e)}};
 $('scan').onclick=async()=>{try{showError();$('notice').textContent='';const fs=(prefs.folder_settings||{})[folderKey()];if(fs){useSettings(fs);$('notice').textContent='Using the settings remembered for this folder.'}prefs.recursive=$('recursive').checked;await api('scan',{folder:$('folder').value,recursive:$('recursive').checked});page=0;rowsVersion=-1;lastRowsFetch=0}catch(e){showError(e)}};
 $('cancel').onclick=()=>api('cancel',{}).catch(showError);
+$('best_of').onchange=()=>{prefs.best_of=+$('best_of').value;savePrefs();scheduleRender()};
 for(const id of ['keep','consider'])$(id).oninput=()=>{prefs[id]=+$(id).value;$(id+'Value').textContent=$(id).value;savePrefs();scheduleRender()};
 function showFolder(){const f=$('folder');f.title=f.value;if(document.activeElement!==f)f.scrollLeft=f.scrollWidth}
 $('folder').oninput=()=>{renderLearn();$('folder').title=$('folder').value};$('folder').onblur=showFolder;

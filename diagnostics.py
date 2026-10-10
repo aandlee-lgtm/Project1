@@ -165,7 +165,7 @@ def build(library, prefs, app_version):
     w('## Settings')
     w(f"- weights: {json.dumps(weights)}; keep ≥ {prefs['keep']}; consider ≥ {prefs['consider']}; "
       f"burst gap {prefs['gap']} s; similarity ≥ {prefs['likeness']} %; near-identical ≥ {prefs['near_identical']} % "
-      f"within {prefs['near_window']} s")
+      f"within {prefs['near_window']} s; best of each series: {prefs.get('best_of', 1) or 'all'}")
     marks = library.store.marks([r['path'] for r in rows])
     decided = [m for m in marks.values() if m.get('decision')]
     w(f"- manual decisions: {len(decided)} ({dict(Counter(m['decision'] for m in decided))}); "

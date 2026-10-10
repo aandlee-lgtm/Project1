@@ -151,6 +151,37 @@ def main():
         set_range('#keep', 50)
         set_range('#consider', 10)
         check('thresholds change Keep/Consider/Drop counts', counts() != base_counts or n < 2, f'{base_counts} -> {counts()}')
+        # 1.9: best of each series. With every frame above Keep, only each series' best frame stays Keep;
+        # frames within 3 points of it are Consider, the rest Drop, with the reason given.
+        set_range('#keep', 50)
+        set_range('#consider', 10)
+        series = page.evaluate("""() => { derive(); return [...derived.groups.values()].filter(g => g.length > 1).map(g => g.map(r => r.id)) }""")
+        if series:
+            def per_series():
+                return page.evaluate("""(series) => series.map(ids => ids.map(id => { const r = byId.get(id); return [autoDecision(r), score(r)] }))""", series)
+            page.select_option('#best_of', '0')
+            settle()
+            all_mode = per_series()
+            page.select_option('#best_of', '1')
+            settle()
+            best_mode = per_series()
+            def ok_series(frames):
+                top = max(s for _, s in frames)
+                keeps = [d for d, s in frames if d == 'Keep']
+                return len(keeps) <= 1 and all(d == ('Consider' if top - s <= 3 else 'Drop') for d, s in frames
+                                                   if d != 'Keep' and s >= 50) and (frames[0][0] == 'Keep' or top < 50)
+            # frames are listed best first after derive(); the best frame keeps its own suggestion
+            best_mode = [sorted(f, key=lambda x: -x[1]) for f in best_mode]
+            more_keeps = sum(d == 'Keep' for f in all_mode for d, _ in f) > sum(d == 'Keep' for f in best_mode for d, _ in f)
+            loser = page.evaluate("""(series) => { for (const ids of series) { const g = ids.map(id => byId.get(id)).sort((a, b) => score(b) - score(a));
+                for (const r of g.slice(1)) if (!r.decision && autoDecision(r) !== 'Keep' && score(r) >= 50) return reasons(r)[0] } return '' }""", series)
+            check('best of each series: one Keep per series, close frames Consider, the rest Drop',
+                  all(ok_series(f) for f in best_mode) and more_keeps and 'in this series' in loser,
+                  f'{len(series)} series; {loser}')
+            if shots:
+                page.screenshot(path=str(shots / 'best-of-series.png'))
+        else:
+            check('best of each series (no multi-frame series in this folder)', True)
 
         first = page.locator('.card').first
         name = first.locator('.filename').text_content()
