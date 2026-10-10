@@ -452,6 +452,20 @@ still waiting for the owner's decision.
 - Update once: Send to Lightroom… → Reinstall plug-in, then restart Lightroom (PhotoSelect warns while
   the older plug-in is running).
 
+### After 1.8.0 (planned for the next version: waiting for build_new)
+23. **Too many frames kept from a series of similar photos.** The owner tested with many similar photos:
+    PhotoSelect did not keep just the best of each series, but suggested Keep for quite a few.
+    - Explained: until now each frame's suggestion depended only on its own score against the Keep and
+      Consider thresholds. That was a deliberate rule from 1.2 ("a frame is never suggested Drop just
+      for not winning its burst"): the burst rank was shown, but did not change the suggestion. So in
+      a series of good, similar frames, all of them could be Keep.
+    - Planned (backlog 23): a **Best of each series** setting (default: keep 1). The rest of the
+      series is suggested Drop, except frames within 3 points of the best, which are suggested
+      Consider. Your own decisions still win.
+    - Asked: were the similar frames grouped into one series (a "BURST n · TOP OF k" badge, sorted by
+      Burst order), and how far apart were they shot? If they were not grouped, the grouping also needs
+      widening for similar shots taken further apart.
+
 ---
 
 ## 2. Definitions (draft glossary for the user instructions)
@@ -474,6 +488,7 @@ still waiting for the owner's decision.
 | **Thresholds** | The combined scores that separate Keep, Consider and Drop. |
 | **Burst** | Frames taken close together in time (default within 2 s) that also look alike. They are compared and ranked together. From the next version, likeness is shown as a %. |
 | **Close to burst top** | A frame within 3 points of its burst's best frame. Worth comparing by eye. |
+| **Best of each series** *(planned)* | How many frames of each burst or near-identical series are suggested Keep (default 1). The others are suggested Drop, or Consider when within 3 points of the best. |
 | **Likeness %** | How alike two frames look, from 0 % (unrelated) to 100 % (identical). It compares a 16 × 12 grey-level version of each frame and its average colour. |
 | **Similarity ≥ %** | The minimum likeness for a frame to continue a burst (default 70 %). Replaces 1.2's "similarity tolerance"; the old default 14 equals 70 %. |
 | **Near-identical** | Frames at least the near-identical % alike (default 90 %) that are grouped even when shot up to the near-identical window apart (default 10 s), with other frames in between. Marked with a NEAR-IDENTICAL badge. |
