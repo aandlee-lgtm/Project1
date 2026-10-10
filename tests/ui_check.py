@@ -82,6 +82,15 @@ def main():
         label = page.text_content('header .version')
         check('title bar shows only the version', label.startswith('v') and 'LOCAL' not in page.text_content('header')
               and 'UNTOUCHED' not in page.text_content('header'), label)
+        # 1.7: step numbers 1-2-3 on the three main actions, light grey, larger than the label, same bar height
+        steps = page.evaluate("""['browse','scan','lightroom'].map(i => { const b = document.getElementById(i), n = b.querySelector('.step');
+            return [n.textContent, parseFloat(getComputedStyle(n).fontSize) / parseFloat(getComputedStyle(b).fontSize),
+                    getComputedStyle(n).color, b.getAttribute('aria-label'), Math.round(b.getBoundingClientRect().height)] })""")
+        field = round(page.evaluate("document.getElementById('folder').getBoundingClientRect().height"))
+        check('step numbers 1, 2, 3 on Choose folder, Analyse photos, Send to Lightroom',
+              [x[0] for x in steps] == ['1', '2', '3'] and all(1.3 <= x[1] <= 1.7 for x in steps)
+              and steps[0][2] == steps[2][2] == 'rgb(158, 171, 180)' and all(x[3].startswith(f'Step {i}:') for i, x in enumerate(steps, 1))
+              and all(abs(x[4] - field) <= 2 for x in steps), f'{steps}; folder field {field}px')
         page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
         page.wait_for_timeout(300)
         tops = page.evaluate("['browse','scan','lightroom','status'].map(i => document.getElementById(i).getBoundingClientRect().top)")

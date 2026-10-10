@@ -4,7 +4,11 @@
 button,input,select{font:inherit}button,select,input[type=text],input[type=number]{background:#232c32;color:var(--text);border:1px solid var(--line);border-radius:7px;padding:9px 10px}
 button{cursor:pointer}button:hover{border-color:var(--teal)}button.primary{background:var(--teal);color:#06302a;font-weight:700}button:disabled{opacity:.4;cursor:default}
 header.topbar{position:sticky;top:0;z-index:20;background:var(--bg);border-bottom:1px solid var(--line);padding:10px 24px 0;box-shadow:0 6px 16px #0006}
-.toprow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.toprow .brand{margin-right:10px}
+.toprow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+/* step numbers 1-2-3 on the main actions: a quiet marker in the muted grey, larger than the label;
+   line-height 0 keeps the bar's height unchanged */
+.stepbtn{white-space:nowrap}.stepbtn .step{font-size:1.5em;font-weight:600;line-height:0;color:var(--muted);margin-right:.4em;vertical-align:-.08em;font-variant-numeric:tabular-nums}
+button.primary .step{color:#06302a;opacity:.55}.toprow .brand{margin-right:10px}
 .folderbox{flex:1 1 260px;min-width:200px;display:flex;gap:8px;align-items:center}.folderbox input[type=text]{flex:1;min-width:120px}
 .folderbox label{white-space:nowrap}.version{margin-left:4px;white-space:nowrap}
 .statusrow{display:flex;flex-direction:column;gap:2px;margin-top:6px;font-size:12px}
@@ -50,8 +54,8 @@ a{color:var(--teal)}kbd{border:1px solid var(--line);border-radius:4px;padding:0
 </style></head><body>
 <header class="topbar"><div class="toprow"><div class="brand">Photo<b>Select</b></div>
 <div class="folderbox"><input id="folder" type="text" placeholder="Choose a folder, or paste its full path, e.g. /Volumes/Card/DCIM/100NIKON" aria-label="Photo folder path"><label class="hint"><input id="recursive" type="checkbox"> Subfolders</label></div>
-<button id="browse">Choose folder</button><button id="scan" class="primary">Analyse photos</button><button id="cancel" hidden>Cancel</button>
-<button id="lightroom" title="Star ratings and keywords for Adobe Lightroom Classic">Send to Lightroom…</button><span class="tag version">v__VERSION__</span></div>
+<button id="browse" class="stepbtn" aria-label="Step 1: Choose folder"><span class="step" aria-hidden="true">1</span>Choose folder</button><button id="scan" class="primary stepbtn" aria-label="Step 2: Analyse photos"><span class="step" aria-hidden="true">2</span>Analyse photos</button><button id="cancel" hidden>Cancel</button>
+<button id="lightroom" class="stepbtn" aria-label="Step 3: Send to Lightroom…" title="Star ratings and keywords for Adobe Lightroom Classic"><span class="step" aria-hidden="true">3</span>Send to Lightroom…</button><span class="tag version">v__VERSION__</span></div>
 <div class="statusrow"><div id="status">Ready when you are. Start with one small shoot to tune your preferences.</div><div id="error" role="alert"></div><div id="notice" class="hint" role="status"></div></div>
 <div class="progress"><i id="progress"></i></div></header>
 <main><aside>

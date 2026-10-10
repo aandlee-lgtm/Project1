@@ -15,7 +15,7 @@ cd "$ROOT"
 PYTHON=${PYTHON:-/Library/Frameworks/Python.framework/Versions/3.12/bin/python3.12}
 "$PYTHON" -c 'import sys,platform; assert sys.version_info[:2]==(3,12), sys.version; assert platform.machine()=="arm64"' \
   || { echo "Need native arm64 CPython 3.12 at $PYTHON (python.org installer)." >&2; exit 1; }
-VERSION=${PHOTOSELECT_VERSION:-1.6.0}
+VERSION=${PHOTOSELECT_VERSION:-1.7.0}
 export PHOTOSELECT_VERSION=$VERSION
 BUILD="$ROOT/build"
 DIST="$ROOT/dist"

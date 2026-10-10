@@ -1,4 +1,4 @@
-# PhotoSelect 1.6 — Apple silicon Mac app
+# PhotoSelect 1.7 — Apple silicon Mac app
 
 PhotoSelect helps you cull bursts of sailing and sports photos. Point it at a folder of Nikon
 (NEF/NRW), Olympus / OM System (ORF), Sony (ARW), other RAW, JPEG, PNG or TIFF files. It decodes each photo
@@ -16,7 +16,7 @@ nothing is deleted, renamed, moved, uploaded, or written to your photo folders.
 
 1. **Choose folder** (native macOS dialog; external drives work), or paste a path. Tick *Subfolders* if needed.
    Choose folder, Analyse photos, Send to Lightroom…, the status and progress stay in the top bar while
-   you scroll.
+   you scroll. The three main actions are numbered 1, 2 and 3 in the order you use them.
 2. **Analyse photos.** RAW files first show the camera's embedded preview, labelled
    *"embedded camera preview · analysis pending"*. Each file is then fully decoded by LibRaw
    and scored. Scores are provisional until the scan finishes. **Cancel** keeps everything
