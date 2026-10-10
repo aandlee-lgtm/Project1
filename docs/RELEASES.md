@@ -1,5 +1,23 @@
 # PhotoSelect releases
 
+## 1.8.0
+- **Fixed: stars now appear in Lightroom by themselves after any import.** In 1.5–1.7 they only came
+  automatically after Open in Lightroom Import with Add. After an ordinary import you had to run
+  Library → Plug-in Extras → Apply PhotoSelect Selections….
+  - Cause: the plug-in's search for newly imported photos failed every time inside Lightroom, without
+    any message.
+  - Now photos imported in any way (Add, Copy, renamed, as DNG) get their stars and keywords within
+    about 30 s.
+  - If the search by capture date finds nothing, the plug-in also searches by file name.
+- **Problems are visible.** The Send to Lightroom… window shows the plug-in's last search in your
+  catalog (e.g. "capture date 2026-05-01 to 2026-05-01: 27 photos"), and any problem it reported in
+  the last hour.
+- **Update the plug-in once:** Send to Lightroom… → Reinstall plug-in, then quit and reopen Lightroom
+  Classic. Until you do, PhotoSelect reports that an older plug-in is running.
+- Tested: the installed DMG passed all 113 acceptance checks on macOS 14.8 and 15.7 (run 38034081519).
+  The plug-in tests now behave like Lightroom when it searches the catalog; the 1.7 plug-in fails four
+  of them.
+
 ## 1.7.0
 - **Numbered steps.** The three main actions in the top bar show their order: **1** Choose folder,
   **2** Analyse photos, **3** Send to Lightroom….

@@ -1,4 +1,30 @@
-# PhotoSelect validation report (1.0.0, updated for 1.7.0)
+# PhotoSelect validation report (1.0.0, updated for 1.8.0)
+
+## 1.8.0 results
+Build and acceptance run: https://github.com/aandlee-lgtm/Project1/actions/runs/38034081519. The installed
+DMG passed on clean macOS 14.8 and 15.7 runners: 113 passed or informational, 0 failed, on each.
+
+**The bug (reported by the owner):** stars were not added automatically after an ordinary import.
+- The plug-in's catalog search ran inside Lua's plain `pcall`.
+- Lightroom pauses (yields) the plug-in's task during catalog calls, and in Lua 5.1 a pause cannot
+  pass through plain `pcall`. So the search failed every time, and the error was swallowed.
+- The tests used a simulated catalog that never paused, so they passed.
+
+**Changed tests:**
+- Each plug-in step now runs as a background task, and the simulated catalog pauses during searches,
+  metadata reads and catalog writes, as Lightroom does. `LrTasks.pcall` is simulated with
+  pause-safe semantics.
+- Checked: with the 1.7 search code, 4 of the 19 plug-in tests fail; with 1.8 all pass.
+- New tests:
+  - the date search works inside a task;
+  - the file-name search is used when the date search fails;
+  - the last search and the error are reported to PhotoSelect and shown in its status (unit test).
+
+**250-RAW-file folder:** 178 s on macOS 14 and 176 s on macOS 15.
+
+**Not tested:** the 1.8 plug-in inside a real Lightroom Classic, and Lightroom's exact date format for
+`captureTime` searches. If that format is wrong, the plug-in now reports the error and falls back to
+searching by file name. Field test T15 covers this.
 
 ## 1.7.0 results
 Build and acceptance run: https://github.com/aandlee-lgtm/Project1/actions/runs/38020186387. The installed
