@@ -200,7 +200,7 @@ class AppTests(unittest.TestCase):
         with patch.dict(os.environ, {'PHOTOSELECT_HOME': str(home), 'PHOTOSELECT_LR_MODULES': str(modules),
                                      'PHOTOSELECT_LR_APP': ''}):
             s = self.get('/api/lightroom/status').get_json()
-            self.assertEqual((s['plugin_installed'], s['plugin_running'], s['bundled_version']), (False, False, '1.6.0'))
+            self.assertEqual((s['plugin_installed'], s['plugin_running'], s['bundled_version']), (False, False, '1.8.0'))
             self.post('/api/lightroom/install', {})
             folder = home / 'support' / 'Lightroom'
             (folder / 'plugin-status.txt').write_text(
@@ -208,7 +208,13 @@ class AppTests(unittest.TestCase):
                 f'applied_at\t{time.time() - 30:.0f}\napplied_count\t27\nwaiting\t3\n')
             s = self.get('/api/lightroom/status').get_json()
             self.assertEqual((s['installed_version'], s['plugin_running'], s['running_version'], s['last_applied_count'],
-                              s['waiting']), ('1.6.0', True, '1.4.0', 27, 3))
+                              s['waiting']), ('1.8.0', True, '1.4.0', 27, 3))
+            (folder / 'plugin-status.txt').write_text(
+                f'version\t1.8.0\nchecked\t{time.time() - 5:.0f}\nlast_search\tfile names (2): 2 photos\n'
+                f'last_error\tsearch by capture date: unsupported\nerror_at\t{time.time() - 60:.0f}\n')
+            s = self.get('/api/lightroom/status').get_json()
+            self.assertEqual((s['last_search'], s['last_error']), ('file names (2): 2 photos', 'search by capture date: unsupported'))
+            self.assertGreater(s['error_at'], 0)
             (folder / 'plugin-status.txt').write_text(f'version\t1.5.0\nchecked\t{time.time() - 600:.0f}\n')
             self.assertFalse(self.get('/api/lightroom/status').get_json()['plugin_running'])   # Lightroom closed
 

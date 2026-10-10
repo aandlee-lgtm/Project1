@@ -156,6 +156,14 @@ class ApplySelectionsTests(unittest.TestCase):
             lua.execute((PLUGIN / script).read_text())
         return lua
 
+    @staticmethod
+    def ops(lua):
+        """LightroomOps, each call run as a Lightroom background task (catalog calls pause it, as in Lightroom)."""
+        class Ops:
+            def __getattr__(self, name):
+                return lambda *args: lua.globals().runTask(lua.eval("require 'LightroomOps'")[name], *args)
+        return Ops()
+
     def setUp(self):
         import tempfile
         self.tmp = tempfile.TemporaryDirectory()
@@ -233,7 +241,7 @@ class ApplySelectionsTests(unittest.TestCase):
                   {'path': '/Pictures/DSC_0009.NEF', 'fileName': 'DSC_0009.NEF', 'time': '2026-05-01 10:00:09', 'rating': 4}]
         lua = self.run_plugin(self.folder / 'none', [], script=None)
         lua.execute(f"package.loaded['Config'] = {{ selectionsFolder = [==[{self.folder}]==] }}")
-        ops = lua.eval("require 'LightroomOps'")
+        ops = self.ops(lua)
         self.assertEqual(ops.autoApply(1, 8), 0)                      # nothing imported yet
         self.assertEqual(lua.globals().WRITES, 0)
         lua.eval('addPhoto')(lua.table_from(photos[0]))               # the import runs
@@ -247,7 +255,7 @@ class ApplySelectionsTests(unittest.TestCase):
         self.assertFalse((self.folder / 'pending.import').exists())  # all done
         self.assertIn('stars applied to 1 imported photos', lua.globals().BEZEL)
         status = dict(l.split('\t') for l in (self.folder / 'plugin-status.txt').read_text().splitlines())
-        self.assertEqual((status['version'], status['applied_count']), ('1.6.0', '1'))
+        self.assertEqual((status['version'], status['applied_count']), ('1.8.0', '1'))
 
     def test_auto_apply_after_any_import_of_sent_selections(self):
         # "Send to Lightroom" with automatic rating, then an ordinary import started in Lightroom (renamed files).
@@ -261,7 +269,7 @@ class ApplySelectionsTests(unittest.TestCase):
                   {'path': '/P/DSC_0003.NEF', 'fileName': 'DSC_0003.NEF', 'time': '2026-05-01 10:00:02'},
                   {'path': '/P/Other.NEF', 'fileName': 'Other.NEF', 'time': '2026-04-01 10:00:00'}]
         lua = self.run_plugin(self.folder, photos, script=None)
-        ops = lua.eval("require 'LightroomOps'")
+        ops = self.ops(lua)
         self.assertEqual(ops.autoApply(1, 8), 0)                      # selections are looked up on slow passes only
         self.assertEqual(ops.autoApply(8, 8), 2)
         self.assertEqual({k: v[0] or 0 for k, v in self.state(lua).items()},
@@ -273,12 +281,43 @@ class ApplySelectionsTests(unittest.TestCase):
         self.assertEqual(ops.autoApply(16, 8), 0)
         self.assertEqual(lua.globals().WRITES, 2)
 
+    def test_file_name_search_when_the_date_search_fails(self):
+        # If Lightroom rejects the capture-date search, photos are found by file name instead, and the
+        # error is reported to PhotoSelect rather than swallowed.
+        (self.folder / 'one.tsv').unlink()
+        self.pending([row('DSC_0001.NEF', 3, keywords=['Keep']), row('DSC_0002.NEF', 1, capture='2026-05-01 10:00:01',
+                      keywords=['Drop'])], name='sent.tsv')
+        photos = [{'path': '/P/DSC_0001.NEF', 'fileName': 'DSC_0001.NEF', 'time': '2026-05-01 10:00:00'},
+                  {'path': '/P/DSC_0002.dng', 'fileName': 'DSC_0002.dng', 'time': '2026-05-01 10:00:01'},
+                  {'path': '/P/DSC_0003.NEF', 'fileName': 'DSC_0003.NEF', 'time': '2026-05-01 10:00:02'}]
+        lua = self.run_plugin(self.folder, photos, script=None)
+        lua.globals().DATE_SEARCH_FAILS = True
+        ops = self.ops(lua)
+        self.assertEqual(ops.autoApply(8, 8), 2)
+        self.assertEqual({k: v[0] or 0 for k, v in self.state(lua).items()},
+                         {'DSC_0001.NEF': 3, 'DSC_0002.dng': 1, 'DSC_0003.NEF': 0})
+        status = dict(l.split('\t', 1) for l in (self.folder / 'plugin-status.txt').read_text().splitlines())
+        self.assertIn('capture date', status['last_error'])
+        self.assertIn('unsupported search criteria', status['last_error'])
+        self.assertEqual(status['last_search'], 'file names (2): 2 photos')
+
+    def test_date_search_works_inside_a_lightroom_task(self):
+        # 1.5-1.7 wrapped the search in plain pcall, which fails as soon as Lightroom pauses the task.
+        (self.folder / 'one.tsv').unlink()
+        self.pending([row('DSC_0001.NEF', 3, keywords=['Keep'])], name='sent.tsv')
+        lua = self.run_plugin(self.folder, [{'path': '/P/Sail-1.NEF', 'fileName': 'Sail-1.NEF', 'time': '2026-05-01 10:00:00'}],
+                              script=None)
+        self.assertEqual(self.ops(lua).autoApply(8, 8), 1)                      # renamed on import: date search only
+        status = dict(l.split('\t', 1) for l in (self.folder / 'plugin-status.txt').read_text().splitlines())
+        self.assertEqual((status['last_error'], status['last_search']), ('', 'capture date 2026-05-01 to 2026-05-01: 1 photos'))
+        self.assertEqual(lua.globals().SEARCHES, 1)
+
     def test_auto_apply_requests_expire(self):
         self.pending([row('DSC_0001.NEF', 3)], age=4 * 3600)                       # Open in Lightroom: 3 hours
         self.pending([row('DSC_0002.NEF', 3, capture='2026-05-01 10:00:01')], age=15 * 86400, name='old.tsv')
         (self.folder / 'one.tsv').unlink()
         lua = self.run_plugin(self.folder, self.photos(), script=None)
-        self.assertEqual(lua.eval("require 'LightroomOps'").autoApply(8, 8), 0)
+        self.assertEqual(self.ops(lua).autoApply(8, 8), 0)
         self.assertFalse((self.folder / 'pending.import').exists())
         self.assertEqual(lua.globals().WRITES, 0)
 
@@ -287,7 +326,7 @@ class ApplySelectionsTests(unittest.TestCase):
         lua = self.run_plugin(self.folder, self.photos(), script='Init.lua')   # mock sleep runs Shutdown.lua
         self.assertEqual(lua.globals().SLEEPS, 1)
         self.assertEqual(self.state(lua)['DSC_0001.NEF'][0], 3)
-        self.assertIn('version\t1.6.0', (self.folder / 'plugin-status.txt').read_text())
+        self.assertIn('version\t1.8.0', (self.folder / 'plugin-status.txt').read_text())
 
     def test_smart_collections_and_from_photoselect_keyword(self):
         lua = self.run_plugin(self.folder, self.photos())
@@ -301,7 +340,7 @@ class ApplySelectionsTests(unittest.TestCase):
 
     def test_star_changes_in_lightroom_are_reported(self):
         lua = self.run_plugin(self.folder, self.photos())
-        ops = lua.eval("require 'LightroomOps'")
+        ops = self.ops(lua)
         tracked = (self.folder / 'tracked.txt').read_text().splitlines()
         self.assertEqual(sorted(l.split('\t')[1] + ' ' + l.split('\t')[3] for l in tracked),
                          ['1 /Volumes/Card/DCIM/DSC_0002.NEF', '4 /Volumes/Card/DCIM/DSC_0003.NEF',
@@ -330,6 +369,30 @@ class ApplySelectionsTests(unittest.TestCase):
 
 SDK_MOCK = r'''
 PHOTOS, SELECTED, WRITES, MESSAGE, DIALOG_TEXT, BEZEL, SLEEPS = {}, nil, 0, nil, nil, nil, 0
+-- Lightroom pauses (yields) the running task during catalog calls. Lua 5.1's plain pcall cannot pass a
+-- pause through, so code must use LrTasks.pcall there; these mocks pause the same way.
+local function pause()
+  if coroutine.running() then coroutine.yield() end
+end
+-- LrTasks.pcall: like pcall, but the protected function may pause
+local function taskPcall(f, ...)
+  local co = coroutine.create(f)
+  local res = { coroutine.resume(co, ...) }
+  while true do
+    if not res[1] then return false, res[2] end
+    if coroutine.status(co) == 'dead' then return true, unpack(res, 2) end
+    coroutine.yield()
+    res = { coroutine.resume(co) }
+  end
+end
+-- run f as a background task until it finishes; returns its results or raises its error
+function runTask(f, ...)
+  local co = coroutine.create(f)
+  local res = { coroutine.resume(co, ...) }
+  while res[1] and coroutine.status(co) ~= 'dead' do res = { coroutine.resume(co) } end
+  if not res[1] then error(res[2], 0) end
+  return unpack(res, 2)
+end
 local writing = false
 local Keyword = {}
 Keyword.__index = Keyword
@@ -384,9 +447,21 @@ function catalog:findPhotoByPath(path)
   return nil
 end
 function catalog:findPhotos(args)
+  pause()
   local d = args.searchDesc
-  assert(d.criteria == 'captureTime' and d.operation == 'in' and d.value and d.value2)
+  SEARCHES = (SEARCHES or 0) + 1
   local out = {}
+  if d.criteria == 'filename' then
+    assert(d.operation == 'any' and d.value ~= '')
+    for _, p in ipairs(PHOTOS) do
+      for word in string.gmatch(d.value, '%S+') do
+        if string.find(string.lower(p.fileName or ''), string.lower(word), 1, true) then table.insert(out, p) break end
+      end
+    end
+    return out
+  end
+  assert(d.criteria == 'captureTime' and d.operation == 'in' and d.value and d.value2)
+  if DATE_SEARCH_FAILS then error('unsupported search criteria') end
   for _, p in ipairs(PHOTOS) do
     local day = string.sub(p.time or '', 1, 10)
     if day >= d.value and day <= d.value2 then table.insert(out, p) end
@@ -410,6 +485,7 @@ function catalog:createSmartCollection(name, desc, parent, returnExisting)
   COLLECTIONS[parent.name .. '/' .. name] = desc[1]
 end
 function catalog:batchGetRawMetadata(photos, keys)
+  pause()
   local out = {}
   for _, p in ipairs(photos) do
     out[p] = { path = p.path, dateTimeOriginal = p.time, rating = p.rating }
@@ -428,6 +504,7 @@ function catalog:createKeyword(name, synonyms, includeOnExport, parent, returnEx
 end
 function catalog:withWriteAccessDo(name, fn, opts)
   assert(type(name) == 'string' and opts.timeout)
+  pause()
   WRITES = WRITES + 1
   writing = true
   fn()
@@ -463,7 +540,7 @@ local modules = {
     callWithContext = function(name, fn)
       local failure
       local context = { addFailureHandler = function(self, h) failure = h end }
-      local ok, err = pcall(fn, context)
+      local ok, err = taskPcall(fn, context)
       if not ok then if failure then failure(false, err) end error(err) end
     end,
   },
@@ -473,8 +550,8 @@ local modules = {
     getStandardFilePath = function(kind) return '/Users/test' end,
   },
   LrTasks = {
-    startAsyncTask = function(fn) fn() end,
-    pcall = pcall,
+    startAsyncTask = function(fn) runTask(fn) end,
+    pcall = taskPcall,
     -- one pass of the background loop, then the plug-in is shut down
     sleep = function(s) SLEEPS = SLEEPS + 1 dofile(PLUGIN_DIR .. '/Shutdown.lua') end,
   },

@@ -406,7 +406,10 @@ function pluginStatusText(s){
   const v=s.installed_version?` ${esc(s.installed_version)}`:'',when=t=>new Date(t*1000).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
   if(s.plugin_running&&s.running_version&&s.bundled_version&&s.running_version!==s.bundled_version)
     return `<b>Lightroom is running an older PhotoSelect plug-in (${esc(s.running_version)}).</b> Click Reinstall plug-in, remove any other PhotoSelect entry in Lightroom → File → Plug-in Manager, then quit and reopen Lightroom.`;
-  if(s.plugin_running)return `✓ Plug-in${v} running in Lightroom: stars are added automatically once the photos are imported.`+(s.last_applied?` Last: ${s.last_applied_count} photos at ${when(s.last_applied)}.`:'')+(s.waiting?` ${s.waiting} photos waiting to be imported.`:'');
+  if(s.plugin_running){const recent=s.last_error&&s.error_at&&Date.now()/1000-s.error_at<3600;
+    return `✓ Plug-in${v} running in Lightroom: stars are added automatically once the photos are imported.`+(s.last_applied?` Last: ${s.last_applied_count} photos at ${when(s.last_applied)}.`:'')+(s.waiting?` ${s.waiting} photos waiting to be imported.`:'')
+      +(s.last_search?`<br><span class="hint">Last search in Lightroom: ${esc(s.last_search)}.</span>`:'')
+      +(recent?`<br><b>The plug-in reported a problem at ${when(s.error_at)}:</b> ${esc(s.last_error)}. Use Library → Plug-in Extras → Apply PhotoSelect Selections… meanwhile, and send this message with a diagnostic report.`:'')}
   if(!s.lightroom)return `✓ Plug-in${v} installed · Lightroom Classic was not found on this Mac.`;
   if(s.lightroom_running)return `<b>Plug-in${v} installed, but not running in Lightroom yet.</b> Quit and reopen Lightroom Classic once (needed after installing). If it still does not start, remove older PhotoSelect entries in File → Plug-in Manager. Until then, use Library → Plug-in Extras → Apply PhotoSelect Selections…`;
   return `✓ Plug-in${v} installed. It starts with Lightroom Classic and adds the stars automatically after you import.`}

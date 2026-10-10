@@ -4,7 +4,7 @@ from pathlib import Path
 
 ROOT = Path(SPECPATH).parent
 BUILD = ROOT / 'build'
-VERSION = os.environ.get('PHOTOSELECT_VERSION', '1.7.0')
+VERSION = os.environ.get('PHOTOSELECT_VERSION', '1.8.0')
 MIN_MACOS = os.environ.get('PHOTOSELECT_MIN_MACOS', '11.0')
 
 a = Analysis(

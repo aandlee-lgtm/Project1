@@ -22,7 +22,7 @@ import raw_io
 import store as store_module
 from engine import Library
 
-APP_VERSION = '1.7.0'
+APP_VERSION = '1.8.0'
 log = logging.getLogger('photoselect.app')
 
 
@@ -88,7 +88,7 @@ def plugin_report():
     except OSError:
         return {}
     out = dict(line.split('\t', 1) for line in lines if '\t' in line)
-    for k in ('started', 'checked', 'applied_at', 'applied_count', 'waiting'):
+    for k in ('started', 'checked', 'applied_at', 'applied_count', 'waiting', 'error_at'):
         try:
             out[k] = float(out[k])
         except (KeyError, ValueError):
@@ -419,7 +419,10 @@ def create_app(library=None, store=None, token=None):
                        plugin_running=bool(report) and time.time() - report['checked'] < 120,
                        running_version=report.get('version', ''), checked_ago=round(time.time() - report['checked'])
                        if report else None, last_applied=report.get('applied_at') or None,
-                       last_applied_count=int(report.get('applied_count') or 0), waiting=int(report.get('waiting') or 0))
+                       last_applied_count=int(report.get('applied_count') or 0), waiting=int(report.get('waiting') or 0),
+                       # since plug-in 1.8: the last catalog search and the last error, so failures are visible
+                       last_search=report.get('last_search', ''), last_error=report.get('last_error', ''),
+                       error_at=report.get('error_at') or None)
 
     @app.post('/api/lightroom/reveal')
     def lightroom_reveal():

@@ -125,7 +125,7 @@ local function unixNow()
 end
 Ops.unixNow = unixNow
 
-Ops.VERSION = '1.6.0'
+Ops.VERSION = '1.8.0'
 Ops.STATUS = 'plugin-status.txt'          -- read by PhotoSelect: is the plug-in running, and what did it do
 Ops.APPLIED = 'applied.txt'               -- photos already rated automatically (never twice)
 Ops.TRACKED = 'tracked.txt'               -- photos PhotoSelect rated: Lightroom id, last stars seen, PhotoSelect path
@@ -147,7 +147,13 @@ local function writeFile(path, text, mode)
 end
 
 local applied, started = nil, nil
-local status = { checked = 0, appliedAt = 0, appliedCount = 0, pending = 0 }
+local status = { checked = 0, appliedAt = 0, appliedCount = 0, pending = 0, lastError = '', errorAt = 0, lastSearch = '' }
+
+-- Remember the last error for PhotoSelect's Lightroom window (a failure must not go unnoticed).
+function Ops.noteError(message)
+  status.lastError = string.gsub(string.gsub(tostring(message), '[\r\n\t]+', ' '), '^%s+', '')
+  status.errorAt = unixNow()
+end
 
 local function appliedSet(folder)
   if not applied then
@@ -174,6 +180,9 @@ function Ops.writeStatus(folder)
     string.format('applied_at\t%.0f', status.appliedAt),
     'applied_count\t' .. status.appliedCount,
     'waiting\t' .. status.pending,
+    'last_search\t' .. status.lastSearch,
+    'last_error\t' .. status.lastError,
+    string.format('error_at\t%.0f', status.errorAt),
   }, '\n') .. '\n')
 end
 
@@ -228,6 +237,17 @@ function Ops.autoApply(round, slow)
       candidates[#candidates + 1] = photo
     end
   end
+  -- one catalog search; returns how many photos it found and records it for PhotoSelect's status line
+  local function search(what, desc)
+    local ok, result = LrTasks.pcall(function() return catalog:findPhotos { searchDesc = desc } end)
+    if not ok then
+      Ops.noteError('search by ' .. what .. ': ' .. tostring(result))
+      return 0
+    end
+    for _, p in ipairs(result or {}) do add(p) end
+    status.lastSearch = string.format('%s: %d photos', what, #(result or {}))
+    return #(result or {})
+  end
   for _, ws in ipairs(waitingSources) do
     if ws.src == fast then
       for _, e in ipairs(ws.open) do add(catalog:findPhotoByPath(e.path)) end
@@ -242,11 +262,26 @@ function Ops.autoApply(round, slow)
           if not last or day > last then last = day end
         end
       end
+      -- Catalog searches pause this task, so they need LrTasks.pcall: plain pcall cannot pass the
+      -- pause through and failed every time in 1.5-1.7 (stars only came with the menu command).
+      local found = 0
       if first then
-        local ok, found = pcall(function()
-          return catalog:findPhotos { searchDesc = { criteria = 'captureTime', operation = 'in', value = first, value2 = last } }
-        end)
-        for _, p in ipairs(ok and found or {}) do add(p) end
+        found = search(string.format('capture date %s to %s', first, last),
+          { criteria = 'captureTime', operation = 'in', value = first, value2 = last })
+      end
+      if found == 0 then
+        -- fallback: the same file names (also finds Copy as DNG); 40 names per search
+        local names = {}
+        for _, e in ipairs(ws.open) do
+          local stem = string.match(e.name, '^(.*)%.[^%.]+$') or e.name
+          if not string.find(stem, '%s') then names[#names + 1] = stem end
+        end
+        for i = 1, #names, 40 do
+          local chunk = {}
+          for j = i, math.min(i + 39, #names) do chunk[#chunk + 1] = names[j] end
+          search(string.format('file names (%d)', #chunk),
+            { criteria = 'filename', operation = 'any', value = table.concat(chunk, ' ') })
+        end
       end
     end
   end

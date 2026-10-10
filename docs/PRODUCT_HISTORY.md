@@ -403,7 +403,9 @@ Built when the owner sent **build_new** after item 20 was discussed (below).
   - screen readers hear "Step 1: Choose folder", and so on.
 - The Lightroom plug-in is unchanged (still 1.6.0), so no reinstall is needed.
 
-### After 1.7.0 (questions and plans for the next version)
+### 1.8.0: stars added automatically after any import (fix)
+Built when the owner sent **build_new** after item 22 was reported (below). Item 21 (XMP sidecars) is
+still waiting for the owner's decision.
 21. **Why a plug-in? Can it be bypassed?** The owner asked why the plug-in is needed and whether the
     step can be skipped.
     - Explained:
@@ -437,6 +439,18 @@ Built when the owner sent **build_new** after item 20 was discussed (below).
       Lightroom window, and tests that simulate Lightroom's pauses.
     - Until then: Open in Lightroom Import with **Add** in Lightroom's Import window rates automatically;
       otherwise use the menu command.
+
+**Shipped in 1.8.0.**
+- (22) Plug-in 1.8.0:
+  - the catalog search runs under `LrTasks.pcall`, so photos imported in any way are found and rated
+    within about 30 s;
+  - if the capture-date search finds nothing or fails, the plug-in searches by file name;
+  - it reports its last search and last error, and PhotoSelect's Lightroom window shows them,
+    e.g. "Last search in Lightroom: capture date 2026-05-01 to 2026-05-01: 27 photos";
+  - the plug-in tests now run each step as a Lightroom background task whose catalog calls pause, as
+    in Lightroom. With the old code, four tests fail.
+- Update once: Send to Lightroom… → Reinstall plug-in, then restart Lightroom (PhotoSelect warns while
+  the older plug-in is running).
 
 ---
 

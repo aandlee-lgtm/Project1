@@ -61,11 +61,11 @@ textarea{min-height:64px;resize:vertical}
 
 <div class="wrap">
   <section class="intro">
-    <div class="eyebrow">PhotoSelect 1.7.0 · on your own Mac</div>
+    <div class="eyebrow">PhotoSelect 1.8.0 · on your own Mac</div>
     <h1>Field tests for your M2</h1>
     <p>Run these on your Mac with your own Nikon and Olympus files. Nothing needs uploading: fill in the boxes as you go, attach the diagnostic report the app creates, then press <b>Copy results</b> and paste the text into our chat. Your answers are kept in this browser as you type, so you can stop and come back.</p>
     <div class="how">
-      <div><b>1 · Get the app</b><span id="dmgLine">Download <a href="https://github.com/aandlee-lgtm/Project1/releases/tag/v1.7.0" target="_blank" rel="noopener">PhotoSelect 1.7.0</a> and download PhotoSelect-AppleSilicon.dmg. Open the DMG and drag PhotoSelect to Applications.</span></div>
+      <div><b>1 · Get the app</b><span id="dmgLine">Download <a href="https://github.com/aandlee-lgtm/Project1/releases/tag/v1.8.0" target="_blank" rel="noopener">PhotoSelect 1.8.0</a> and download PhotoSelect-AppleSilicon.dmg. Open the DMG and drag PhotoSelect to Applications.</span></div>
       <div><b>2 · Run the tests</b>Do them in order; T4 and T5 matter most. Mark each one Pass, Issue or Skipped. Skipping is fine, just say why.</div>
       <div><b>3 · Report back</b>Help → <i>Create Diagnostic Report…</i> after T2 and T8. Copy the results below and paste them in chat, with the report files attached or pasted.</div>
     </div>
@@ -186,12 +186,13 @@ const TESTS=[
     ['profileok','Profile saved, loaded and remembered for a folder?','select',YN]],
   expect:'A clear proposal you can apply or undo; nothing changes until Apply.',
   react:'If the proposal is worse than your current settings for unmarked photos, I will add more evidence (for example burst rank) to what it learns from.'},
- {id:'T15',title:'Lightroom Classic',why:'Stars should appear in Lightroom by themselves after an import (automatic since 1.5).',
+ {id:'T15',title:'Lightroom Classic',why:'Stars should appear in Lightroom by themselves after any import, with no menu command (fixed in 1.8: before, only Open in Lightroom Import + Add worked).',
   steps:['In PhotoSelect: Send to Lightroom… → Reinstall plug-in. In Lightroom → File → Plug-in Manager, remove any other PhotoSelect entry. Quit and reopen Lightroom Classic.','Open Send to Lightroom… again: the top line should say the plug-in is running.','Either click Open in Lightroom Import (only the ticked groups), or click Only save selections and import the folder in Lightroom as you normally do.','Wait a few seconds after the import: the stars and PhotoSelect keywords should appear, with a "PhotoSelect: stars applied…" message in Lightroom.'],
   fields:[['lrversion','Lightroom Classic version','text','14.0'],['running','Did PhotoSelect show the plug-in as running?','select',YN],
     ['importwin','Open in Lightroom Import: did the Import window open with only the chosen photos?','select',['','Yes','With other photos too','No Import window','Not tried']],
     ['auto','Stars appeared automatically after the import?','select',['','Yes','Some','No']],['secs','Seconds until they appeared','number','10'],
-    ['importmode','Import mode used','select',['','Add','Copy','Copy as DNG','Move']]],
+    ['importmode','Import mode used','select',['','Add','Copy','Copy as DNG','Move']],
+    ['lastsearch','Send to Lightroom… window: "Last search in Lightroom" line and any problem shown','text','capture date 2026-05-01 to 2026-05-01: 27 photos']],
   expect:'The plug-in shows as running; after any import of the photos the stars (Keep 3, Consider 2, Drop 1, Liked 5) appear within about 30 seconds, without running a command.',
   react:'If the plug-in does not show as running, the status line tells me whether an old copy is loaded or Lightroom needs a restart. If stars do not appear, send me the status line and the import mode.'},
  {id:'T16',title:'Nikon High Efficiency NEF (Z50 II, Z6III)',why:'HE NEFs should be analysed from the camera JPEG, not reported as damaged (fixed in 1.4).',
@@ -251,7 +252,7 @@ function update(){
   document.getElementById('output').value=report();
 }
 function report(){
-  const lines=['PhotoSelect 1.7.0 field test results',''];
+  const lines=['PhotoSelect 1.8.0 field test results',''];
   TESTS.forEach(t=>{const s=state[t.id]||{};lines.push(`${t.id} ${t.title}: ${s.status||'not done'}`);
     t.fields.forEach(([k,label])=>{if(s[k])lines.push(`  ${label}: ${s[k]}`)});
     if(s.notes)lines.push(`  Notes: ${s.notes.replace(/\n/g,' / ')}`);lines.push('')});

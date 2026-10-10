@@ -1,4 +1,4 @@
-# PhotoSelect 1.7 — Apple silicon Mac app
+# PhotoSelect 1.8 — Apple silicon Mac app
 
 PhotoSelect helps you cull bursts of sailing and sports photos. Point it at a folder of Nikon
 (NEF/NRW), Olympus / OM System (ORF), Sony (ARW), other RAW, JPEG, PNG or TIFF files. It decodes each photo
@@ -53,8 +53,8 @@ nothing is deleted, renamed, moved, uploaded, or written to your photo folders.
    Lightroom yourself (Add, Copy, renamed or DNG) within 14 days of sending. Each photo is rated once,
    and Lightroom shows "PhotoSelect: stars applied to N imported photos".
 
-   The window's top line shows whether the plug-in is running in Lightroom, its version and what it
-   last did. It warns if an older plug-in is loaded or Lightroom needs a restart (once, after
+   The window's top line shows whether the plug-in is running in Lightroom, its version, what it
+   last did and its last search in the catalog, plus any problem it reported. It warns if an older plug-in is loaded or Lightroom needs a restart (once, after
    installing). **Library → Plug-in Extras → Apply PhotoSelect Selections…** remains as a manual
    fallback.
    * Stars: Keep ★★★, Consider ★★, Drop ★, ♥ Liked ★★★★★ (your decision wins over the suggestion).

@@ -10,9 +10,11 @@ LrTasks.startAsyncTask(function()
   local round = 0
   while not Ops.stopped do
     round = round + 1
-    LrTasks.pcall(Ops.autoApply, round, 8)              -- capture-date lookups every 8th pass (~30 s)
+    local ok, err = LrTasks.pcall(Ops.autoApply, round, 8)   -- catalog searches every 8th pass (~30 s)
+    if not ok then Ops.noteError('automatic rating: ' .. tostring(err)) end
     if round % 4 == 0 then
-      LrTasks.pcall(Ops.syncBack)                       -- star changes made in Lightroom, every ~16 s
+      ok, err = LrTasks.pcall(Ops.syncBack)               -- star changes made in Lightroom, every ~16 s
+      if not ok then Ops.noteError('reading star changes: ' .. tostring(err)) end
     end
     if round % 8 == 1 then
       LrTasks.pcall(Ops.writeStatus, Ops.selectionsFolder())
