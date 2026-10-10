@@ -78,6 +78,21 @@ def main():
         check('brighter teal accent colour', accent == '#4fe0c8', accent)
         if shots:
             page.screenshot(path=str(shots / 'grid.png'))
+        # 1.10: the focus area is outlined on each thumbnail, in the right place on the picture
+        wait("[...document.querySelectorAll('.card .pic img')].slice(0, 8).every(i => i.complete && i.naturalWidth > 0)", 60_000)
+        geo = page.evaluate("""() => [...document.querySelectorAll('.card')].slice(0, 8).map(c => {
+            const im = c.querySelector('.pic img'), f = c.querySelector('.focusbox');
+            if (!im || !f) return null; const a = im.getBoundingClientRect(), b = f.getBoundingClientRect();
+            return [f.className, (b.left - a.left) / a.width, (b.top - a.top) / a.height, b.width / a.width, b.height / a.height,
+                    getComputedStyle(f).borderTopStyle] })""")
+        ok_geo = all(g and ('default' in g[0] and all(abs(v - e) < .03 for v, e in zip(g[1:5], (.25, .25, .5, .5)))
+                            and g[5] == 'dashed' or 'mine' in g[0]) for g in geo)
+        check('focus area outlined on every thumbnail (default: dashed, central half of the picture)', geo and ok_geo, geo[:2])
+        page.uncheck('#showFocus')
+        hidden = page.evaluate("[...document.querySelectorAll('.card .focusbox')].every(f => getComputedStyle(f).display === 'none')")
+        page.check('#showFocus')
+        shown = page.evaluate("[...document.querySelectorAll('.card .focusbox')].some(f => getComputedStyle(f).display !== 'none')")
+        check('Show focus area switch hides and shows the outlines', hidden and shown)
         # 1.6: persistent top bar with the main actions; version label only
         label = page.text_content('header .version')
         check('title bar shows only the version', label.startswith('v') and 'LOCAL' not in page.text_content('header')
@@ -207,6 +222,10 @@ def main():
         page.mouse.up()
         wait("current && current.roi_state==='full'", 120_000)
         check('focus region measured at full resolution', True)
+        region = page.evaluate("""() => { const r = document.getElementById('region'); return [r.className, r.hidden] }""")
+        page.wait_for_timeout(600)
+        mine_on_card = page.evaluate("[...document.querySelectorAll('.card')].some(c => c.querySelector('.focusbox.mine') && c.querySelector('.filename').textContent === current.name)")
+        check('your region shown solid in the viewer and on its card', 'mine' in region[0] and not region[1] and mine_on_card, region)
         reasons = page.text_content('#reasons')
         check('recommendation reasons shown', 'weighted score' in reasons or 'Your decision' in reasons, reasons[:160])
         if shots:
@@ -216,6 +235,10 @@ def main():
         natural = page.evaluate("[inspectImage.naturalWidth, inspectImage.naturalHeight]")
         size = page.evaluate('current.size')
         check('full-resolution inspector shows native pixels', list(natural) == list(size), f'{natural} vs {size}')
+        fbox = page.evaluate("""() => { const a = inspectImage.getBoundingClientRect(), f = document.getElementById('inspectFocus'), b = f.getBoundingClientRect();
+            return [f.hidden, b.left >= a.left - 1 && b.right <= a.right + 1 && b.top >= a.top - 1 && b.bottom <= a.bottom + 1 && b.width > 4,
+                    a.height <= document.getElementById('inspectBox').clientHeight + 1] }""")
+        check('focus area outlined in the full-resolution inspector (fit view fits the window)', not fbox[0] and fbox[1] and fbox[2], fbox)
         page.click('[data-zoom="1"]')
         css = page.evaluate("parseFloat(inspectImage.style.width)")
         check('100% view maps 1 image pixel to 1 screen pixel', abs(css * 2 - natural[0]) <= 2, f'css {css}px @2x')

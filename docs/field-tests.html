@@ -61,11 +61,11 @@ textarea{min-height:64px;resize:vertical}
 
 <div class="wrap">
   <section class="intro">
-    <div class="eyebrow">PhotoSelect 1.9.0 · on your own Mac</div>
+    <div class="eyebrow">PhotoSelect 1.10.0 · on your own Mac</div>
     <h1>Field tests for your M2</h1>
     <p>Run these on your Mac with your own Nikon and Olympus files. Nothing needs uploading: fill in the boxes as you go, attach the diagnostic report the app creates, then press <b>Copy results</b> and paste the text into our chat. Your answers are kept in this browser as you type, so you can stop and come back.</p>
     <div class="how">
-      <div><b>1 · Get the app</b><span id="dmgLine">Download <a href="https://github.com/aandlee-lgtm/Project1/releases/tag/v1.9.0" target="_blank" rel="noopener">PhotoSelect 1.9.0</a> and download PhotoSelect-AppleSilicon.dmg. Open the DMG and drag PhotoSelect to Applications.</span></div>
+      <div><b>1 · Get the app</b><span id="dmgLine">Download <a href="https://github.com/aandlee-lgtm/Project1/releases/tag/v1.10.0" target="_blank" rel="noopener">PhotoSelect 1.10.0</a> and download PhotoSelect-AppleSilicon.dmg. Open the DMG and drag PhotoSelect to Applications.</span></div>
       <div><b>2 · Run the tests</b>Do them in order; T4 and T5 matter most. Mark each one Pass, Issue or Skipped. Skipping is fine, just say why.</div>
       <div><b>3 · Report back</b>Help → <i>Create Diagnostic Report…</i> after T2 and T8. Copy the results below and paste them in chat, with the report files attached or pasted.</div>
     </div>
@@ -215,6 +215,13 @@ const TESTS=[
     ['consider19','Too many frames left as Consider?','select',['','No','A few','Too many']],['setting19','Setting you prefer','select',['','Best frame','Best 2','Best 3','All']]],
   expect:'One Keep per series, a few close calls as Consider, the rest Drop with a reason.',
   react:'If too many stay Consider, I will narrow the 3-point margin; if the Keep is the wrong frame, the weights or a focus region need tuning (T5).'},
+ {id:'T20',title:'Focus area outlines',why:'1.10 outlines where subject focus is measured on every photo.',
+  steps:['Analyse a shoot and look at the dashed outlines on the thumbnails (the default area, the central half).','Open a photo whose subject is off-centre, drag a rectangle over it and check the solid teal outline on its thumbnail.','Open full resolution and the burst comparison: the outline should sit on the same area.','Try the Show focus area switch in the toolbar.'],
+  fields:[['visible20','Outlines easy to see on your photos (sky, water, dark scenes)?','select',['','Yes','Too faint','Too strong']],
+    ['missed20','How often is the subject outside the default area?','select',['','Rarely','Sometimes','Often']],
+    ['auto20','Would automatic subject finding help?','select',['','Yes','No','Not sure']]],
+  expect:'A dashed grey outline (default) or solid teal outline (your region) on every analysed photo, lined up with the picture.',
+  react:'If the subject is often outside the default area, automatic subject finding becomes worth building as its own item.'},
  {id:'T18',title:'Review passes in Lightroom, changes back to PhotoSelect',why:'1.6 makes Smart Collections for your three passes and brings your star changes back into PhotoSelect.',
   steps:['Reinstall the plug-in from Send to Lightroom… and restart Lightroom Classic (once, for plug-in 1.6).','Send all four groups to Lightroom and import them; wait for the stars.','In Lightroom, open Collections → PhotoSelect: work through 1 Rescue, 2 Confirm and 3 Decide, changing stars where you disagree (edit first if you like).','Switch back to PhotoSelect: within about 30 s the message line should read "From Lightroom: …" and the decisions should match your new stars.','Scroll down a long grid: Choose folder, Analyse photos and Send to Lightroom… (numbered 1, 2, 3) stay at the top.'],
   fields:[['coll18','PhotoSelect collection set with 1 Rescue, 2 Confirm, 3 Decide, Liked, Borderline?','select',YN],
@@ -259,7 +266,7 @@ function update(){
   document.getElementById('output').value=report();
 }
 function report(){
-  const lines=['PhotoSelect 1.9.0 field test results',''];
+  const lines=['PhotoSelect 1.10.0 field test results',''];
   TESTS.forEach(t=>{const s=state[t.id]||{};lines.push(`${t.id} ${t.title}: ${s.status||'not done'}`);
     t.fields.forEach(([k,label])=>{if(s[k])lines.push(`  ${label}: ${s[k]}`)});
     if(s.notes)lines.push(`  Notes: ${s.notes.replace(/\n/g,' / ')}`);lines.push('')});

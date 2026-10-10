@@ -1,4 +1,4 @@
-# PhotoSelect 1.9 — Apple silicon Mac app
+# PhotoSelect 1.10 — Apple silicon Mac app
 
 PhotoSelect helps you cull bursts of sailing and sports photos. Point it at a folder of Nikon
 (NEF/NRW), Olympus / OM System (ORF), Sony (ARW), other RAW, JPEG, PNG or TIFF files. It decodes each photo
@@ -25,7 +25,10 @@ nothing is deleted, renamed, moved, uploaded, or written to your photo folders.
    **Keep / Consider thresholds**. Rankings update immediately.
 4. Open a frame. **Drag a rectangle over the sailors or boat** so focus is measured there rather
    than on textured water. The region is measured on the full-resolution decode and is
-   remembered for that file.
+   remembered for that file. Every photo shows where focus is measured: a dashed grey outline for
+   the default area (the central half) or a solid teal outline for your own region, on the
+   thumbnail, in the viewer, the inspector and the burst comparison. *Show focus area* in the
+   toolbar hides the outlines.
 5. **Inspect full resolution** shows the decoded original inside the app at fit, 100%
    (one image pixel per screen pixel) or 200%. Click to zoom to a point.
 6. **Compare this burst** ranks the burst side by side. Tick *100% crops of the focus region* to

@@ -26,8 +26,9 @@ h1{font-size:24px;letter-spacing:-.6px;margin:0 0 8px}h2{font-size:14px;margin:2
 .actions button.active[data-value="Drop"],.detailtools button.active[data-vdec="Drop"]{border-color:var(--orange);color:var(--orange)}
 .stat strong{font-size:24px;display:block;margin-bottom:4px}.stat span{color:var(--muted)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
-.photo{height:190px;background:#090c0e;position:relative;cursor:pointer}.photo img{width:100%;height:100%;object-fit:contain}
-.badges{position:absolute;top:8px;left:8px;right:8px;display:flex;flex-wrap:wrap;gap:4px}.badge{background:#18201ee8;border:1px solid #2b6b60;border-radius:5px;padding:4px 6px;color:var(--teal);font-size:10px;letter-spacing:.03em}
+.photo{height:190px;background:#090c0e;position:relative;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.photo .pic img{display:block;width:auto;height:auto;max-width:100%;max-height:190px}.photo img{width:100%;height:100%;object-fit:contain}
+.badges{position:absolute;top:8px;left:8px;right:8px;display:flex;flex-wrap:wrap;gap:4px;z-index:2}.badge{background:#18201ee8;border:1px solid #2b6b60;border-radius:5px;padding:4px 6px;color:var(--teal);font-size:10px;letter-spacing:.03em}
 .badge.warn{border-color:#6b5a33;color:var(--amber)}.badge.dim{border-color:var(--line);color:var(--muted)}
 .cardbody{padding:13px}.filename{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}.score{font-size:26px;font-weight:650}
 .topline{display:flex;justify-content:space-between;align-items:center;margin:8px 0}.pill{padding:5px 8px;border-radius:5px;font-size:11px;background:#163a34;color:var(--teal)}
@@ -40,10 +41,18 @@ h1{font-size:24px;letter-spacing:-.6px;margin:0 0 8px}h2{font-size:14px;margin:2
 #error{color:#ffb0aa;white-space:pre-wrap}
 dialog{width:min(1180px,96vw);max-height:94vh;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:20px}dialog::backdrop{background:#000b}
 .dialoghead{display:flex;align-items:center;justify-content:space-between;gap:12px}.stage{position:relative;display:table;margin:14px auto;max-width:100%;line-height:0;touch-action:none;cursor:crosshair}
-.stage img{display:block;max-width:100%;max-height:58vh;user-select:none}.region{position:absolute;border:2px solid var(--teal);background:#4fe0c826;pointer-events:none}
+.stage img{display:block;max-width:100%;max-height:58vh;user-select:none}
+/* 1.10: the area where subject focus is measured. Default area: dashed light grey; your region: solid
+   teal. A dark edge keeps both visible on bright sky and dark water. */
+.focusbox{position:absolute;pointer-events:none;box-sizing:border-box;z-index:1}
+.focusbox.default{border:1.5px dashed #eef2f4;box-shadow:0 0 0 1px #000b,inset 0 0 0 1px #000b}
+.focusbox.mine{border:2px solid var(--teal);box-shadow:0 0 0 1px #000c,inset 0 0 0 1px #000c}
+body.nofocus .focusbox{display:none}
+.pic{position:relative;display:inline-block;max-width:100%;max-height:100%;line-height:0}
+#inspectFrame{position:relative;width:fit-content;margin:auto;line-height:0}.region{position:absolute;border:2px solid var(--teal);background:#4fe0c826;pointer-events:none}.region.default{background:none}
 .detailtools{display:flex;gap:7px;flex-wrap:wrap}.hint{font-size:12px;color:var(--muted);line-height:1.6}.reasons{margin:10px 0 0;padding-left:18px}.reasons li{margin:2px 0}
 details{margin-top:16px}#compare{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
-.comparephoto{border:1px solid var(--line);padding:12px;border-radius:8px;min-width:0}.comparephoto.top{border-color:#2b6b60}.comparephoto img.fit{width:100%;height:220px;object-fit:contain;background:#090c0e}
+.comparephoto{border:1px solid var(--line);padding:12px;border-radius:8px;min-width:0}.comparephoto.top{border-color:#2b6b60}.comparephoto img.fit{width:100%;height:220px;object-fit:contain;background:#090c0e}.comparephoto .fitbox{height:220px;background:#090c0e;display:flex;align-items:center;justify-content:center}.comparephoto .fitbox img{display:block;width:auto;height:auto;max-width:100%;max-height:220px}
 .cropbox{height:320px;overflow:auto;background:#090c0e;border-radius:6px}.cropbox img{display:block}
 #inspectBox{overflow:auto;height:76vh;background:#090c0e;border-radius:8px;cursor:zoom-in}#inspectBox.zoomed{cursor:zoom-out}#inspectBox img{display:block;margin:auto}
 .lrgroups{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin:6px 0 12px}.lrgroups label{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px;display:flex;gap:8px;align-items:center}.lrgroups b{color:var(--teal)}
@@ -98,7 +107,7 @@ a{color:var(--teal)}kbd{border:1px solid var(--line);border-radius:4px;padding:0
 <select id="filter" aria-label="Filter photos"><option value="all">All photos</option><option>Keep</option><option>Consider</option><option>Drop</option><option value="liked">Liked photos</option><option value="manual">Decided manually</option><option value="close">Close burst contenders</option><option value="pending">Not yet analysed</option></select>
 <select id="formatFilter" aria-label="Filter camera formats"><option value="all">All file formats</option><option value="nikon">Nikon NEF / NRW</option><option value="olympus">Olympus / OM System ORF</option><option value="sony">Sony ARW</option><option value="raw">All RAW files</option><option value="other">JPEG / PNG / TIFF</option></select>
 <select id="sort" aria-label="Sort photos"><option value="score">Best score first</option><option value="name">Filename</option><option value="group">Burst order</option><option value="time">Capture time</option></select>
-<label class="hint"><input id="winners" type="checkbox"> Burst winners only</label><span class="spacer"></span>
+<label class="hint"><input id="winners" type="checkbox"> Burst winners only</label><label class="hint" title="Outline where subject focus is measured: dashed grey = default area (central half), solid teal = your region"><input id="showFocus" type="checkbox" checked> Show focus area</label><span class="spacer"></span>
 <button id="compareLikes">Compare liked photos</button><button id="export">Export decisions</button></div>
 <div id="pagerTop" class="pager"></div><div id="grid" class="grid"></div><div id="pagerBottom" class="pager"></div>
 <div id="empty" class="empty"><div class="icon">▧</div><h2>Your next shortlist starts here.</h2><p class="muted">Choose a photo folder on this Mac or an external drive (Choose folder, at the top).<br>Your files stay where they are. You make the final call.</p><p class="hint">Nikon NEF / NRW · Olympus &amp; OM System ORF · Sony ARW · other RAW · JPEG / PNG / TIFF</p></div>
@@ -115,7 +124,7 @@ a{color:var(--teal)}kbd{border:1px solid var(--line);border-radius:4px;padding:0
 <dialog id="inspector"><div class="dialoghead"><div><strong id="inspectTitle"></strong><div id="inspectInfo" class="hint"></div></div>
 <div class="detailtools"><button data-zoom="fit">Fit</button><button data-zoom="1">100% (1:1 pixels)</button><button data-zoom="2">200%</button><button data-close="inspector">Close</button></div></div>
 <p class="hint">Full-resolution decode of the original file (camera white balance, standard LibRaw rendering — not your Lightroom edits). Click the image to switch between fit and 1:1 at that point. <kbd>←</kbd><kbd>→</kbd> previous / next photo at the same zoom.</p>
-<div id="inspectBox"><img id="inspectImage" alt="Full-resolution image"></div></dialog>
+<div id="inspectBox"><div id="inspectFrame"><img id="inspectImage" alt="Full-resolution image"><div id="inspectFocus" class="focusbox default" hidden></div></div></div></dialog>
 
 <dialog id="comparison"><div class="dialoghead"><strong id="compareTitle">Comparison</strong><div class="detailtools"><label class="hint"><input id="cropMode" type="checkbox"> 100% crops of the focus region</label><button data-close="comparison">Close</button></div></div>
 <p class="hint">Ranked by your current weights. Close scores are a prompt to look, not a verdict: check the subject and moment before deciding.</p><div id="compare"></div></dialog>
@@ -138,7 +147,14 @@ const $=id=>document.getElementById(id);
 const KEYS=['sharpness','focus','composition','exposure'];
 const LABEL={sharpness:'Sharpness',focus:'Subject focus',composition:'Composition',exposure:'Exposure'};
 const DESCRIPTION={sharpness:'Edge detail across the frame',focus:'Edge detail in the subject region',composition:'Placement and border-clutter cues',exposure:'Clipped shadows and highlights'};
-const CLOSE=3, DEFAULT_CROP=[0.375,0.375,0.25,0.25];
+const CLOSE=3, DEFAULT_CROP=[0.375,0.375,0.25,0.25], DEFAULT_REGION=[0.25,0.25,0.5,0.5];
+// the area subject focus is measured in: your region, or the default central half
+function focusArea(r){return r.roi||DEFAULT_REGION}
+function placeFocus(el,r){const [x,y,w,h]=focusArea(r);el.className='focusbox '+(r.roi?'mine':'default');
+  Object.assign(el.style,{left:x*100+'%',top:y*100+'%',width:w*100+'%',height:h*100+'%'});
+  el.title=r.roi?'Your focus region':'Default focus area (central half)'}
+function focusBox(r){if(r.status!=='analysed')return '';const [x,y,w,h]=focusArea(r);
+  return `<div class="focusbox ${r.roi?'mine':'default'}" style="left:${x*100}%;top:${y*100}%;width:${w*100}%;height:${h*100}%" title="${r.roi?'Your focus region':'Default focus area (central half)'}"></div>`}
 let rows=[],errors=[],byId=new Map(),prefs={weights:{sharpness:30,focus:50,composition:15,exposure:5},keep:75,consider:45,gap:2,likeness:70,near_identical:90,near_window:10,recursive:false,folder:'',page_size:120,profiles:{},folder_settings:{},undo_settings:null};
 let scan={running:false,version:-1},rowsVersion=-1,lastRowsFetch=0,current=null,visible=[],page=0,derived=null,saveTimer=null;
 
@@ -201,7 +217,7 @@ function savePrefs(){rememberFolderSettings();clearTimeout(saveTimer);saveTimer=
 function buildWeights(){const sum=weightSum();
   $('weights').innerHTML=KEYS.map(k=>`<label class="weight"><span class="row">${LABEL[k]}<output id="value-${k}">${sum?Math.round(prefs.weights[k]/sum*100)+'%':'Off'}</output></span><input id="weight-${k}" type="range" min="0" max="100" value="${prefs.weights[k]}"><small>${DESCRIPTION[k]}</small></label>`).join('');
   KEYS.forEach(k=>$('weight-'+k).oninput=e=>{prefs.weights[k]=+e.target.value;const s=weightSum();KEYS.forEach(t=>$('value-'+t).textContent=s?Math.round(prefs.weights[t]/s*100)+'%':'Off');savePrefs();scheduleRender()})}
-function applyPrefs(){buildWeights();for(const id of ['keep','consider']){$(id).value=prefs[id];$(id+'Value').textContent=prefs[id]}for(const id of ['likeness','near_identical']){$(id).value=prefs[id];$(id+'Value').textContent=prefs[id]+' %'}$('gap').value=prefs.gap;$('near_window').value=prefs.near_window;$('best_of').value=String(+prefs.best_of);showFolder();renderLearn();$('recursive').checked=!!prefs.recursive;if(!$('folder').value)$('folder').value=prefs.folder||''}
+function applyPrefs(){buildWeights();for(const id of ['keep','consider']){$(id).value=prefs[id];$(id+'Value').textContent=prefs[id]}for(const id of ['likeness','near_identical']){$(id).value=prefs[id];$(id+'Value').textContent=prefs[id]+' %'}$('gap').value=prefs.gap;$('near_window').value=prefs.near_window;$('best_of').value=String(+prefs.best_of);$('showFocus').checked=prefs.show_focus!==false;document.body.classList.toggle('nofocus',prefs.show_focus===false);showFolder();renderLearn();$('recursive').checked=!!prefs.recursive;if(!$('folder').value)$('folder').value=prefs.folder||''}
 async function mark(r,fields){Object.assign(r,fields);render();renderLearn();if(current&&current.id===r.id)updateViewer();try{await api('mark',{id:r.id,...fields})}catch(e){showError(e)}}
 
 // ---------- learn from my decisions, profiles ----------
@@ -286,7 +302,7 @@ function render(){derive();const analysed=rows.filter(r=>r.status==='analysed');
   $('pagerTop').innerHTML=$('pagerBottom').innerHTML=pager(pages);$('empty').hidden=rows.length>0;
   $('grid').innerHTML=visible.slice(page*size,(page+1)*size).map(r=>{const s=score(r),d=decision(r),i=derived.info.get(r.id),why=reasons(r);
     const badges=[i&&i.size>1&&i.rank===1?`<span class="badge">BURST ${r.group} · TOP OF ${i.size}</span>`:'',isClose(r)?`<span class="badge warn">CLOSE TO BURST TOP · COMPARE</span>`:'',r.status==='preview'?'<span class="badge dim">EMBEDDED PREVIEW · NOT YET SCORED</span>':'',r.basis==='camera_preview'?'<span class="badge warn">CAMERA PREVIEW</span>':'',r.near_identical?'<span class="badge">NEAR-IDENTICAL</span>':'',r.noise_flag?'<span class="badge warn">HIGH NOISE</span>':''].join('');
-    return `<article class="card"><div class="photo" data-open="${r.id}" tabindex="0" role="button" aria-label="Inspect ${esc(r.name)}">${r.status==='pending'?'':`<img loading="lazy" src="${img('thumb',r)}" alt="${esc(r.name)}">`}<div class="badges">${badges}</div></div>
+    return `<article class="card"><div class="photo" data-open="${r.id}" tabindex="0" role="button" aria-label="Inspect ${esc(r.name)}">${r.status==='pending'?'':`<span class="pic"><img loading="lazy" src="${img('thumb',r)}" alt="${esc(r.name)}">${focusBox(r)}</span>`}<div class="badges">${badges}</div></div>
 <div class="cardbody"><div class="filename" title="${esc(r.path)}">${esc(r.name)}</div><div class="hint" style="font-size:10px;margin-top:4px">${esc(r.format)} · ${sourceLabel(r)}</div>
 <div class="topline"><span class="score">${s===null?'—':s.toFixed(0)}<small style="font-size:12px;color:var(--muted)"> / 100</small></span><span class="pill ${d}">${d}${r.decision?' · manual':''}</span></div>
 <div class="bars">${KEYS.map(k=>`<div>${k==='focus'&&r.roi?'Region focus':LABEL[k]} ${r.scores[k]??'—'}<div class="bar"><i style="width:${r.scores[k]||0}%"></i></div></div>`).join('')}</div>
@@ -329,6 +345,7 @@ for(const id of ['keep','consider'])$(id).oninput=()=>{prefs[id]=+$(id).value;$(
 function showFolder(){const f=$('folder');f.title=f.value;if(document.activeElement!==f)f.scrollLeft=f.scrollWidth}
 $('folder').oninput=()=>{renderLearn();$('folder').title=$('folder').value};$('folder').onblur=showFolder;
 for(const id of ['filter','formatFilter','sort','winners'])$(id).onchange=()=>{page=0;render()};
+$('showFocus').onchange=()=>{prefs.show_focus=$('showFocus').checked;document.body.classList.toggle('nofocus',!prefs.show_focus);savePrefs()};
 document.querySelectorAll('[data-bucket]').forEach(b=>b.onclick=()=>{const f=$('filter');f.value=b.dataset.bucket!=='all'&&f.value===b.dataset.bucket?'all':b.dataset.bucket;page=0;render();$('grid').scrollIntoView({behavior:'smooth',block:'start'})});
 for(const id of ['likeness','near_identical'])$(id).oninput=()=>$(id+'Value').textContent=$(id).value+' %';
 $('regroup').onclick=async()=>{try{const b={gap:+$('gap').value,likeness:+$('likeness').value,near_identical:+$('near_identical').value,near_window:+$('near_window').value};
@@ -340,7 +357,8 @@ function updateViewer(){const r=current;if(!r)return;const s=score(r);$('viewTit
   $('vLike').textContent=r.liked?'♥ Liked':'♡ Like';$('vLike').classList.toggle('active',!!r.liked);
   document.querySelectorAll('[data-vdec]').forEach(b=>b.classList.toggle('active',r.decision===b.dataset.vdec));
   $('reasons').innerHTML=reasons(r).map(x=>`<li>${esc(x)}</li>`).join('');
-  if(r.roi){const [x,y,w,h]=r.roi;Object.assign($('region').style,{left:x*100+'%',top:y*100+'%',width:w*100+'%',height:h*100+'%'});$('region').hidden=false}else $('region').hidden=true;
+  placeFocus($('region'),r);$('region').classList.add('region');$('region').hidden=r.status!=='analysed';
+  placeFocus($('inspectFocus'),r);$('inspectFocus').hidden=r.status!=='analysed';
   $('full').disabled=$('burstCompare').disabled=r.status==='pending';
   $('full').textContent=r.basis==='camera_preview'?'Inspect full-size camera preview':'Inspect full resolution'}
 let inspectorUsed=false;
@@ -351,7 +369,7 @@ function openViewer(id){current=byId.get(id);if(!current)return;$('viewMessage')
 let start=null;const stage=$('stage');
 function point(e){const b=$('viewImage').getBoundingClientRect();return [Math.max(0,Math.min(1,(e.clientX-b.left)/b.width)),Math.max(0,Math.min(1,(e.clientY-b.top)/b.height))]}
 stage.onpointerdown=e=>{if(!current||current.status==='pending')return;start=point(e);stage.setPointerCapture(e.pointerId)};
-stage.onpointermove=e=>{if(!start)return;const p=point(e);Object.assign($('region').style,{left:Math.min(start[0],p[0])*100+'%',top:Math.min(start[1],p[1])*100+'%',width:Math.abs(start[0]-p[0])*100+'%',height:Math.abs(start[1]-p[1])*100+'%'});$('region').hidden=false};
+stage.onpointermove=e=>{if(!start)return;const p=point(e);$('region').className='region focusbox mine';Object.assign($('region').style,{left:Math.min(start[0],p[0])*100+'%',top:Math.min(start[1],p[1])*100+'%',width:Math.abs(start[0]-p[0])*100+'%',height:Math.abs(start[1]-p[1])*100+'%'});$('region').hidden=false};
 stage.onpointerup=async e=>{if(!start)return;const p=point(e),roi=[Math.min(start[0],p[0]),Math.min(start[1],p[1]),Math.abs(start[0]-p[0]),Math.abs(start[1]-p[1])];start=null;
   try{await api('roi',{id:current.id,roi});$('viewMessage').textContent='Measuring focus in your region on the full-resolution image…';current.roi=roi;current.roi_state='measuring';updateViewer()}catch(err){$('viewMessage').textContent=err.message;updateViewer()}};
 stage.onpointercancel=()=>start=null;
@@ -366,7 +384,7 @@ $('viewer').addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;
 // ---------- full-resolution inspector ----------
 let zoom='fit';
 function applyZoom(cx=.5,cy=.5){const im=$('inspectImage'),box=$('inspectBox');if(!im.naturalWidth)return;const dpr=window.devicePixelRatio||1;
-  if(zoom==='fit'){im.style.width='';im.style.height='';im.style.maxWidth='100%';im.style.maxHeight='100%';box.classList.remove('zoomed')}
+  if(zoom==='fit'){im.style.width='';im.style.height='';im.style.maxWidth=box.clientWidth+'px';im.style.maxHeight=box.clientHeight+'px';box.classList.remove('zoomed')}
   else{const w=im.naturalWidth/dpr*(+zoom);im.style.maxWidth='none';im.style.maxHeight='none';im.style.width=w+'px';im.style.height='auto';box.classList.add('zoomed');
     box.scrollLeft=cx*w-box.clientWidth/2;box.scrollTop=cy*(im.naturalHeight/dpr*(+zoom))-box.clientHeight/2}
   document.querySelectorAll('[data-zoom]').forEach(b=>b.classList.toggle('active',b.dataset.zoom===zoom))}
@@ -386,7 +404,7 @@ function cropRegion(r,ref){return r.roi||(ref&&ref.roi)||DEFAULT_CROP}
 function renderCompare(){const crops=$('cropMode').checked,ref=current,dpr=window.devicePixelRatio||1;compareList.sort((a,b)=>(score(b)??-1)-(score(a)??-1));
   const top=score(compareList[0]);$('compareTitle').textContent=compareTitle;
   $('compare').innerHTML=compareList.map((r,i)=>{const s=score(r),gap=top-s;return `<div class="comparephoto ${i===0?'top':''}"><strong>#${i+1} · ${s===null?'—':s.toFixed(1)}/100</strong> <span class="hint">${i===0?'top of this set':gap<=CLOSE?gap.toFixed(1)+' behind · close':gap.toFixed(1)+' behind'}${i>0&&r.likeness&&r.likeness[compareList[0].id]!==undefined?' · '+pct(r.likeness[compareList[0].id])+' alike #1':''}${r.near_identical?' · near-identical':''}</span>
-${crops?`<div class="cropbox"><img data-crop="${r.id}" src="${img('crop',r,'&roi='+cropRegion(r,ref).join(','))}" alt="100% crop of ${esc(r.name)}"></div>`:`<img class="fit" src="${img('preview',r)}" alt="${esc(r.name)}">`}
+${crops?`<div class="cropbox"><img data-crop="${r.id}" src="${img('crop',r,'&roi='+cropRegion(r,ref).join(','))}" alt="100% crop of ${esc(r.name)}"></div>`:`<div class="fitbox"><span class="pic"><img src="${img('preview',r)}" alt="${esc(r.name)}">${focusBox(r)}</span></div>`}
 <div class="filename" title="${esc(r.path)}">${esc(r.name)}</div><p class="hint">${r.basis==='camera_preview'?'<b>Camera preview</b> · ':''}${KEYS.map(k=>LABEL[k]+' '+(r.scores[k]??'—')).join(' · ')}<br>${esc(decision(r))}${r.decision?' (manual)':''}</p>
 <div class="actions"><button data-like="${r.id}" class="${r.liked?'active':''}">${r.liked?'♥':'♡'}</button>${['Keep','Consider','Drop'].map(v=>`<button data-decision="${r.id}" data-value="${v}" class="${r.decision===v?'active':''}">${v}</button>`).join('')}<button data-inspect="${r.id}">Inspect</button></div></div>`}).join('');
   document.querySelectorAll('[data-crop]').forEach(el=>el.onload=()=>{el.style.width=el.naturalWidth/dpr+'px'});

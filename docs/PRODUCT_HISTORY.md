@@ -504,7 +504,8 @@ Built when the owner sent **build_new** after item 23 was discussed (below).
   - Lightroom stars, keywords and Smart Collections follow the new suggestions.
 - Plug-in unchanged (1.8.0): no reinstall needed.
 
-### After 1.9.0 (planned for the next version: waiting for build_new)
+### 1.10.0: focus area outlined on every photo
+Built when the owner sent **build_new** after item 24 was discussed (below).
 24. **Show the focus area.** The owner asked to see, on each photo, where subject focus was measured,
     as a light grey or contrasting rectangle outline.
     - Explained: unless you draw your own region, subject focus is measured in a fixed default area,
@@ -516,6 +517,15 @@ Built when the owner sent **build_new** after item 23 was discussed (below).
       default.
     - Noted: the outline will show when the subject sits outside the default area. Finding the subject
       automatically is a possible later item, not part of this one.
+
+**Shipped in 1.10.0.**
+- (24) Where subject focus is measured is outlined on every photo:
+  - on thumbnails, in the viewer, the full-resolution inspector and the burst comparison;
+  - dashed light grey with a dark edge for the default area (central half), solid teal for your own
+    region;
+  - the *Show focus area* switch in the toolbar (on by default, remembered) hides the outlines;
+  - thumbnails now sit in a frame that fits the picture, so the outline lines up with the photo.
+- Plug-in unchanged (1.8.0): no reinstall needed.
 
 ---
 
@@ -532,13 +542,14 @@ Built when the owner sent **build_new** after item 23 was discussed (below).
 | **Score** | 0–100, relative to the current folder (the folder's 10th–90th percentile maps to 15–95). It is not an absolute quality rating: even a folder of soft photos has a top frame. |
 | **Sharpness** | Edge detail across the whole frame, divided by contrast. Water, foliage and noise also count as detail. |
 | **Subject focus** | Edge detail inside the focus region, measured on the full-resolution image, with expected sensor noise subtracted. |
-| **Focus region** | The area where subject focus is measured: the central half by default, or a rectangle you drag over the subject. It is remembered per photo. From the next version it is outlined on every photo (dashed grey: default; solid teal: yours). |
+| **Focus region** | The area where subject focus is measured: the central half by default, or a rectangle you drag over the subject. It is remembered per photo. Since 1.10 it is outlined on every photo (dashed grey: default; solid teal: yours). |
 | **Composition** | A heuristic: where the detail sits relative to rule-of-thirds points, minus clutter at the edges. Not an aesthetic judgement. |
 | **Exposure** | The share of pixels not clipped to near-black or near-white. |
 | **Weights (importance sliders)** | How much each of the four scores counts towards the combined score. Defaults: sharpness 30, focus 50, composition 15, exposure 5. |
 | **Thresholds** | The combined scores that separate Keep, Consider and Drop. |
 | **Burst** | Frames taken close together in time (default within 2 s) that also look alike. They are compared and ranked together. From the next version, likeness is shown as a %. |
 | **Close to burst top** | A frame within 3 points of its burst's best frame. Worth comparing by eye. |
+| **Show focus area** | Toolbar switch (since 1.10) that shows or hides the focus-area outlines on the photos. |
 | **Best of each series** | How many frames of each burst or near-identical series are suggested Keep (default 1). The others are suggested Drop, or Consider when within 3 points of the best. |
 | **Likeness %** | How alike two frames look, from 0 % (unrelated) to 100 % (identical). It compares a 16 × 12 grey-level version of each frame and its average colour. |
 | **Similarity ≥ %** | The minimum likeness for a frame to continue a burst (default 70 %). Replaces 1.2's "similarity tolerance"; the old default 14 equals 70 %. |

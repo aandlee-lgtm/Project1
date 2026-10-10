@@ -118,6 +118,7 @@ class AppTests(unittest.TestCase):
 
     def test_best_of_each_series_setting(self):
         self.assertEqual(self.get('/api/prefs').get_json()['best_of'], 1)        # 1.9 default: keep the best frame
+        self.assertIs(self.get('/api/prefs').get_json()['show_focus'], True)     # 1.10: focus area outlines on
         self.post('/api/prefs', {'best_of': 0})
         self.assertEqual(self.get('/api/prefs').get_json()['best_of'], 0)
 
