@@ -427,6 +427,27 @@ still waiting for the owner's decision.
     - This was the trade-off considered for 1.3, when the owner chose the plug-in.
     - Offered: an optional "Write XMP sidecars (no plug-in)" choice in the Send to Lightroom window,
       next to the plug-in. Waiting for the owner's decision.
+    - The owner asked for more detail (after 1.9.0). Explained:
+      - **How it would work.** Send to Lightroom… gets a third choice, *Write XMP sidecars*. For each
+        RAW photo being sent, PhotoSelect writes `NAME.xmp` next to it with the stars (`xmp:Rating`) and
+        the PhotoSelect keywords (`lr:hierarchicalSubject`, e.g. PhotoSelect|Keep). Lightroom reads it
+        when importing the RAW file, with Add or Copy, and copies it along with a Copy import.
+      - **What it cannot do:**
+        - photos already in Lightroom are not updated (Read Metadata from Files would also overwrite
+          your Lightroom edits, so PhotoSelect would never suggest it);
+        - JPEG, HEIC, TIFF and DNG keep their metadata inside the file, which PhotoSelect never changes;
+        - no automatic Smart Collections (they can be imported once from a settings file PhotoSelect
+          provides);
+        - no star changes flowing back, unless Lightroom is set to write changes into XMP and the
+          photos were added in place;
+        - a read-only card cannot take sidecars.
+      - **Safety:** an existing sidecar (from Lightroom, Bridge or Capture One) is merged, changing only
+        the rating and PhotoSelect keywords. PhotoSelect records the sidecars it created and can remove
+        them again. It is opt-in, because it adds files to the photo folders.
+      - **Recommendation:** first confirm that plug-in 1.8 now rates photos automatically after any
+        import (field test T15). If it does, sidecars add little. Build them if a plug-in is unwanted,
+        if photos are imported on a Mac without it, or if the plug-in still fails.
+      - Waiting for the owner's decision.
 22. **Stars still need the manual command after import.** The owner reports that even with 1.7.0 they
     import, then run the plug-in command before the stars appear.
     - Found: automatic rating after an ordinary import depends on a catalog search by capture date,
