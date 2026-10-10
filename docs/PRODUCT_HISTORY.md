@@ -465,6 +465,8 @@ still waiting for the owner's decision.
     - Asked: were the similar frames grouped into one series (a "BURST n · TOP OF k" badge, sorted by
       Burst order), and how far apart were they shot? If they were not grouped, the grouping also needs
       widening for similar shots taken further apart.
+    - The owner confirmed the frames were grouped into one series: the change needed is to pick the
+      best of that series. Grouping stays unchanged; backlog 23 covers the selection only.
 
 ---
 
