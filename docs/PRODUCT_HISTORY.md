@@ -599,7 +599,8 @@ Built when the owner sent **build_new** after item 24 was discussed (below).
 
 ---
 
-## Other products in this repository
+## Other products
 
-- **Sydney Flight Intelligence** (started 2026-10-19): a separate product with its own history and
-  backlog in [../flight-intel/docs/](../flight-intel/docs/PRODUCT_HISTORY.md). It is not part of PhotoSelect releases.
+- **Sydney Flight Intelligence** (started 2026-10-19) was briefly drafted here and moved the same day,
+  at the owner's request, to its own repository, `aandlee-lgtm/Flight`, with its own history and
+  backlog. It is not part of PhotoSelect.
