@@ -224,6 +224,27 @@ class AppTests(unittest.TestCase):
             (folder / 'plugin-status.txt').write_text(f'version\t1.5.0\nchecked\t{time.time() - 600:.0f}\n')
             self.assertFalse(self.get('/api/lightroom/status').get_json()['plugin_running'])   # Lightroom closed
 
+    def test_lightroom_by_xmp_sidecars(self):
+        home = Path(self.tmp.name) / 'home'
+        raw = self.photos / 'DSC_0005.NEF'
+        raw.write_bytes(b'raw')
+        rows = [{'path': str(raw), 'name': raw.name, 'rating': 1, 'keywords': ['Drop'], 'capture': '2026-05-01 10:00:00'},
+                {'path': str(self.photos / 'a.jpg'), 'name': 'a.jpg', 'rating': 3, 'keywords': ['Keep']}]
+        with patch.dict(os.environ, {'PHOTOSELECT_HOME': str(home), 'PHOTOSELECT_LR_APP': ''}):
+            r = self.post('/api/lightroom', {'folder': str(self.photos), 'rows': rows, 'route': 'sidecar'}).get_json()
+            self.assertEqual((r['sidecars']['created'], r['sidecars']['skipped']), (1, ['a.jpg']))
+            side = self.photos / 'DSC_0005.xmp'
+            self.assertIn('xmp:Rating="1"', side.read_text())
+            # Lightroom (writing changes into XMP) gives it 3 stars: the decision follows
+            side.write_text(side.read_text().replace('xmp:Rating="1"', 'xmp:Rating="3"'))
+            os.utime(side, (time.time() + 5, time.time() + 5))
+            self.assertEqual(self.post('/api/lightroom/sync', {}).get_json()['summary'], 'From Lightroom: 1 Drop → Keep')
+            self.assertEqual(self.store.marks([str(raw)])[str(raw)]['decision'], 'Keep')
+            files = self.post('/api/lightroom/collections', {}).get_json()['files']
+            self.assertEqual(len(files), 5)
+            self.assertEqual(self.post('/api/lightroom/sidecars/remove', {}).get_json()['deleted'], 1)
+            self.assertFalse(side.exists())
+
     def test_star_changes_in_lightroom_flow_back(self):
         home = Path(self.tmp.name) / 'home'
         with patch.dict(os.environ, {'PHOTOSELECT_HOME': str(home)}):

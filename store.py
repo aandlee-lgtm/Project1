@@ -64,6 +64,8 @@ DEFAULT_PREFS = {
     'best_of': 1,
     # 1.10: outline the area where subject focus is measured on every photo
     'show_focus': True,
+    # 1.11: find the subject automatically; 'sidecar' (XMP files, no plug-in) or 'plugin' for Lightroom
+    'auto_subject': True, 'lr_route': 'sidecar',
     # 1.3: named settings profiles, settings remembered per folder, and the settings before the last
     # "learn from my decisions" change (for Undo).
     'profiles': {}, 'folder_settings': {}, 'undo_settings': None,

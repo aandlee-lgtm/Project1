@@ -404,6 +404,14 @@ def library_checks(app, shoot, real, out):
     top = max(burst, key=lambda r: r['scores']['focus'])
     check('sharpest burst frame has the highest focus score', Path(top['path']).name in ('BURST_01.JPG', 'BURST_02.JPG'),
           {Path(r['path']).name: r['scores']['focus'] for r in burst})
+    # 1.11: the subject is found automatically with macOS Vision inside the installed app
+    about = app.call('about')
+    check('automatic subject finding available in the installed app (macOS Vision)',
+          about.get('subject_finder') == 'macOS Vision', about.get('subject_finder'))
+    real_names = {Path(s['path']).name for s in real}
+    camera = {Path(r['path']).name: r.get('subject') for r in rows['rows'] if Path(r['path']).name in real_names}
+    check('subject found automatically on genuine camera photos', any(camera.values()),
+          f"{sum(1 for v in camera.values() if v)} of {len(camera)}: {dict(list(camera.items())[:6])}")
     inspect_decodes(app, rows, real, out)
     return rows
 

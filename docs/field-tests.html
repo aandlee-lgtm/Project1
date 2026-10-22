@@ -66,7 +66,7 @@ textarea{min-height:64px;resize:vertical}
 
 <div class="wrap">
   <section class="intro">
-    <div class="eyebrow">PhotoSelect 1.10.0 · on your own Mac</div>
+    <div class="eyebrow">PhotoSelect 1.11.0 · on your own Mac</div>
     <h1>Field tests for your M2</h1>
     <p>Run these on your Mac with your own Nikon and Olympus files. Nothing needs uploading: fill in the boxes as you go, attach the diagnostic report the app creates, then press <b>Copy results</b> and paste the text into our chat. Your answers are kept in this browser as you type, so you can stop and come back.</p>
     <section class="todo" aria-labelledby="todoTitle">
@@ -74,33 +74,32 @@ textarea{min-height:64px;resize:vertical}
       <p class="muted">Everything waiting on you, in order. The numbered tests are further down this page.</p>
       <ol>
         <li><b>Install the latest app.</b> Download <a href="https://github.com/aandlee-lgtm/Project1/releases/latest" target="_blank" rel="noopener">the newest release</a> (PhotoSelect-AppleSilicon.dmg) and drag it to Applications, replacing the old one. If macOS blocks it: System Settings → Privacy &amp; Security → Open Anyway.</li>
-        <li><b>Update the Lightroom plug-in once.</b>
+        <li><b>Set up Lightroom once, without the plug-in.</b>
           <ol>
-            <li>In PhotoSelect: <b>3 Send to Lightroom…</b> → <b>Reinstall plug-in</b>.</li>
-            <li>In Lightroom Classic: File → Plug-in Manager → remove any other PhotoSelect entry.</li>
-            <li>Quit and reopen Lightroom Classic.</li>
-            <li>Back in PhotoSelect, open Send to Lightroom… again: the top line should say the plug-in <b>1.8.0</b> is running.</li>
+            <li>In PhotoSelect: <b>3 Send to Lightroom…</b>: <b>XMP sidecars · no plug-in</b> is selected (the default).</li>
+            <li>Click <b>Smart Collection files…</b>. In Lightroom, create a collection set called <b>PhotoSelect</b>, right-click it → <b>Import Smart Collection Settings…</b> and choose each of the five files.</li>
+            <li>Optional, for star changes to come back: Lightroom → Catalog Settings → Metadata → tick <b>Automatically write changes into XMP</b>.</li>
+            <li>You can remove the plug-in from Lightroom's Plug-in Manager if you no longer want it.</li>
           </ol></li>
         <li><b>Test the most important things first</b> (fill in each test as you go):
           <ol>
-            <li><a class="t" href="#T15">T15</a> Stars appear in Lightroom by themselves after an ordinary import (the fix in 1.8). Note the “Last search in Lightroom” line.</li>
+            <li><a class="t" href="#T21">T21</a> Stars arrive with an ordinary import through the XMP sidecars, no plug-in.</li>
+            <li><a class="t" href="#T22">T22</a> The subject is found automatically: is the solid grey outline on your boats and sailors?</li>
             <li><a class="t" href="#T19">T19</a> Best of each series: one Keep per series, and is it the frame you would pick?</li>
             <li><a class="t" href="#T18">T18</a> The PhotoSelect Smart Collections in Lightroom, and star changes coming back to PhotoSelect.</li>
-            <li><a class="t" href="#T20">T20</a> Focus area outlines: how often is the subject outside the dashed area?</li>
-            <li><a class="t" href="#T17">T17</a> Speed on your M2 with a large shoot.</li>
+            <li><a class="t" href="#T17">T17</a> Speed on your M2 with a large shoot (re-analysed once in 1.11).</li>
           </ol></li>
         <li><b>Report back.</b> Help → <i>Create Diagnostic Report…</i>, then <b>Copy results</b> at the bottom of this page and paste both into our chat.</li>
         <li><b>Decide</b> (after the tests):
           <ol>
-            <li>XMP sidecars (item 21): wanted only if T15 still fails, or you would rather not use a plug-in.</li>
-            <li>Automatic subject finding: worth building if T20 shows the subject is often outside the dashed area.</li>
+            <li>Whether the plug-in can go entirely, or stays for JPEG photos and photos already in Lightroom.</li>
             <li>Margins: too many Consider frames in a series (3-point margin), or Borderline too wide or narrow (5 points)?</li>
           </ol></li>
         <li><b>Ask for changes</b> any time in plain words; they go on the backlog. Send <b>build_new</b> when you want the next version built.</li>
       </ol>
     </section>
     <div class="how">
-      <div><b>1 · Get the app</b><span id="dmgLine">Download <a href="https://github.com/aandlee-lgtm/Project1/releases/tag/v1.10.0" target="_blank" rel="noopener">PhotoSelect 1.10.0</a> and download PhotoSelect-AppleSilicon.dmg. Open the DMG and drag PhotoSelect to Applications.</span></div>
+      <div><b>1 · Get the app</b><span id="dmgLine">Download <a href="https://github.com/aandlee-lgtm/Project1/releases/tag/v1.11.0" target="_blank" rel="noopener">PhotoSelect 1.11.0</a> and download PhotoSelect-AppleSilicon.dmg. Open the DMG and drag PhotoSelect to Applications.</span></div>
       <div><b>2 · Run the tests</b>Do them in order; T4 and T5 matter most. Mark each one Pass, Issue or Skipped. Skipping is fine, just say why.</div>
       <div><b>3 · Report back</b>Help → <i>Create Diagnostic Report…</i> after T2 and T8. Copy the results below and paste them in chat, with the report files attached or pasted.</div>
     </div>
@@ -257,6 +256,21 @@ const TESTS=[
     ['auto20','Would automatic subject finding help?','select',['','Yes','No','Not sure']]],
   expect:'A dashed grey outline (default) or solid teal outline (your region) on every analysed photo, lined up with the picture.',
   react:'If the subject is often outside the default area, automatic subject finding becomes worth building as its own item.'},
+ {id:'T21',title:'Lightroom without the plug-in (XMP sidecars)',why:'1.11 writes the stars next to each RAW photo; Lightroom reads them as it imports.',
+  steps:['Send to Lightroom…: keep XMP sidecars · no plug-in, click Only write sidecars (or Write sidecars and open in Lightroom Import).','Check the message: how many sidecars were written, and which photos have none (JPEG, DNG).','Import the folder in Lightroom with Add or Copy, as you normally do.','The stars and PhotoSelect keywords should be there as soon as the photos appear.','Optional: Remove PhotoSelect sidecars afterwards, and check the .xmp files are gone from the folder.'],
+  fields:[['written21','Sidecars written / RAW photos sent','text','212 / 212'],['stars21','Stars there right after the import?','select',['','Yes','Some','No']],
+    ['mode21','Import mode used','select',['','Add','Copy','Copy as DNG','Move']],['coll21','Smart Collection files imported and working?','select',['','Yes','No','Not tried']],
+    ['back21','With "Automatically write changes into XMP" on, did star changes come back to PhotoSelect?','select',['','Yes','No','Not tried']]],
+  expect:'Stars and keywords arrive with the import, with no plug-in and nothing to run.',
+  react:'If no stars arrive, tell me the import mode and whether a .xmp file sits next to the RAW file; Copy as DNG is the case most likely to need work.'},
+ {id:'T22',title:'Subject found automatically',why:'1.11 finds the subject (macOS Vision, on your Mac) and measures focus there instead of the centre.',
+  steps:['Analyse a sailing shoot (it is re-analysed once).','Look at the outlines: solid grey = subject found, dashed = central half (nothing found).','For a few photos with the boat off-centre, check the outline is on the boat or sailors.','Do the Keep suggestions look better than before? Try switching Find the subject automatically off and on to compare.'],
+  fields:[['found22','Photos with a solid grey outline (roughly)','select',['','Almost all','About half','Few']],
+    ['right22','Is the outline on the subject you care about?','select',['','Usually','Sometimes','Rarely']],
+    ['wrong22','When wrong, what did it pick?','text','a wave crest, a buoy, the sky'],
+    ['better22','Keep suggestions compared with 1.10','select',['','Better','About the same','Worse']]],
+  expect:'Most photos get a solid outline around the boat or sailors; focus scores follow the subject.',
+  react:'If it often picks water or sky, I will tune how the found areas are combined (or prefer people), using the examples you name.'},
  {id:'T18',title:'Review passes in Lightroom, changes back to PhotoSelect',why:'1.6 makes Smart Collections for your three passes and brings your star changes back into PhotoSelect.',
   steps:['Reinstall the plug-in from Send to Lightroom… and restart Lightroom Classic (once, for plug-in 1.6).','Send all four groups to Lightroom and import them; wait for the stars.','In Lightroom, open Collections → PhotoSelect: work through 1 Rescue, 2 Confirm and 3 Decide, changing stars where you disagree (edit first if you like).','Switch back to PhotoSelect: within about 30 s the message line should read "From Lightroom: …" and the decisions should match your new stars.','Scroll down a long grid: Choose folder, Analyse photos and Send to Lightroom… (numbered 1, 2, 3) stay at the top.'],
   fields:[['coll18','PhotoSelect collection set with 1 Rescue, 2 Confirm, 3 Decide, Liked, Borderline?','select',YN],
@@ -301,7 +315,7 @@ function update(){
   document.getElementById('output').value=report();
 }
 function report(){
-  const lines=['PhotoSelect 1.10.0 field test results',''];
+  const lines=['PhotoSelect 1.11.0 field test results',''];
   TESTS.forEach(t=>{const s=state[t.id]||{};lines.push(`${t.id} ${t.title}: ${s.status||'not done'}`);
     t.fields.forEach(([k,label])=>{if(s[k])lines.push(`  ${label}: ${s[k]}`)});
     if(s.notes)lines.push(`  Notes: ${s.notes.replace(/\n/g,' / ')}`);lines.push('')});

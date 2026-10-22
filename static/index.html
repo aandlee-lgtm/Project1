@@ -47,9 +47,10 @@ dialog{width:min(1180px,96vw);max-height:94vh;background:var(--bg);color:var(--t
 .focusbox{position:absolute;pointer-events:none;box-sizing:border-box;z-index:1}
 .focusbox.default{border:1.5px dashed #eef2f4;box-shadow:0 0 0 1px #000b,inset 0 0 0 1px #000b}
 .focusbox.mine{border:2px solid var(--teal);box-shadow:0 0 0 1px #000c,inset 0 0 0 1px #000c}
+.focusbox.subject{border:1.5px solid #eef2f4;box-shadow:0 0 0 1px #000b,inset 0 0 0 1px #000b}
 body.nofocus .focusbox{display:none}
 .pic{position:relative;display:inline-block;max-width:100%;max-height:100%;line-height:0}
-#inspectFrame{position:relative;width:fit-content;margin:auto;line-height:0}.region{position:absolute;border:2px solid var(--teal);background:#4fe0c826;pointer-events:none}.region.default{background:none}
+#inspectFrame{position:relative;width:fit-content;margin:auto;line-height:0}.region{position:absolute;border:2px solid var(--teal);background:#4fe0c826;pointer-events:none}.region.default,.region.subject{background:none}
 .detailtools{display:flex;gap:7px;flex-wrap:wrap}.hint{font-size:12px;color:var(--muted);line-height:1.6}.reasons{margin:10px 0 0;padding-left:18px}.reasons li{margin:2px 0}
 details{margin-top:16px}#compare{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
 .comparephoto{border:1px solid var(--line);padding:12px;border-radius:8px;min-width:0}.comparephoto.top{border-color:#2b6b60}.comparephoto img.fit{width:100%;height:220px;object-fit:contain;background:#090c0e}.comparephoto .fitbox{height:220px;background:#090c0e;display:flex;align-items:center;justify-content:center}.comparephoto .fitbox img{display:block;width:auto;height:auto;max-width:100%;max-height:220px}
@@ -70,6 +71,8 @@ a{color:var(--teal)}kbd{border:1px solid var(--line);border-radius:4px;padding:0
 <main><aside>
 <div class="tag">YOUR SELECTION CRITERIA</div><h2>What matters in this shoot?</h2><p class="muted">Adjust the balance. Rankings update immediately.</p>
 <div id="weights"></div>
+<label class="hint"><input id="autoSubject" type="checkbox" checked> Find the subject automatically</label>
+<p class="hint">Subject focus is measured where macOS finds the subject (solid grey outline), else in the central half (dashed). A region you drag in the viewer always wins (teal).</p>
 <div class="section"><h2>Recommendation thresholds</h2>
 <label class="weight"><span class="row">Keep from <output id="keepValue">75</output></span><input id="keep" type="range" min="50" max="95" value="75"></label>
 <label class="weight"><span class="row">Consider from <output id="considerValue">45</output></span><input id="consider" type="range" min="10" max="49" value="45"></label>
@@ -130,11 +133,16 @@ a{color:var(--teal)}kbd{border:1px solid var(--line);border-radius:4px;padding:0
 <p class="hint">Ranked by your current weights. Close scores are a prompt to look, not a verdict: check the subject and moment before deciding.</p><div id="compare"></div></dialog>
 
 <dialog id="lrDialog" aria-labelledby="lrTitle"><div class="dialoghead"><strong id="lrTitle">Send to Lightroom Classic</strong><button data-close="lrDialog">Close</button></div>
-<p id="lrPlugin" class="hint"></p>
-<div class="detailtools"><button id="lrInstall">Install plug-in</button><button id="lrReveal">Show plug-in in Finder</button></div>
+<h2>How should the stars reach Lightroom?</h2>
+<div class="lrgroups lrroute" role="radiogroup" aria-label="How the stars reach Lightroom">
+<label><input type="radio" name="lrRoute" value="sidecar"><span><b>XMP sidecars</b> · no plug-in<br><span class="hint">A small .xmp file next to each RAW photo; Lightroom reads it as it imports. RAW files only, for photos not yet in Lightroom.</span></span></label>
+<label><input type="radio" name="lrRoute" value="plugin"><span><b>Lightroom plug-in</b><br><span class="hint">Also JPEG and photos already in Lightroom; makes the Smart Collections itself.</span></span></label></div>
+<div id="lrPluginBox"><p id="lrPlugin" class="hint"></p>
+<div class="detailtools"><button id="lrInstall">Install plug-in</button><button id="lrReveal">Show plug-in in Finder</button></div></div>
+<div id="lrSidecarBox" hidden><div class="detailtools"><button id="lrCollections">Smart Collection files…</button><button id="lrRemoveSidecars">Remove PhotoSelect sidecars</button></div></div>
 <h2>Which photos should Lightroom import?</h2>
 <div id="lrGroups" class="lrgroups"></div>
-<label class="hint"><input id="lrAuto" type="checkbox" checked> Add the stars and keywords automatically once these photos are in Lightroom, however you import them</label>
+<label class="hint" id="lrAutoLabel"><input id="lrAuto" type="checkbox" checked> Add the stars and keywords automatically once these photos are in Lightroom, however you import them</label>
 <div class="detailtools" style="margin-top:14px"><button id="lrOpen" class="primary">Open in Lightroom Import</button><button id="lrSave">Only save selections</button></div>
 <div id="lrError" role="alert" style="color:#ffb0aa;margin-top:10px;white-space:pre-wrap"></div><div id="lrResult" class="hint" role="status" style="margin-top:10px"></div>
 <ol id="lrSteps" class="hint"></ol>
@@ -149,12 +157,14 @@ const LABEL={sharpness:'Sharpness',focus:'Subject focus',composition:'Compositio
 const DESCRIPTION={sharpness:'Edge detail across the frame',focus:'Edge detail in the subject region',composition:'Placement and border-clutter cues',exposure:'Clipped shadows and highlights'};
 const CLOSE=3, DEFAULT_CROP=[0.375,0.375,0.25,0.25], DEFAULT_REGION=[0.25,0.25,0.5,0.5];
 // the area subject focus is measured in: your region, or the default central half
-function focusArea(r){return r.roi||DEFAULT_REGION}
-function placeFocus(el,r){const [x,y,w,h]=focusArea(r);el.className='focusbox '+(r.roi?'mine':'default');
-  Object.assign(el.style,{left:x*100+'%',top:y*100+'%',width:w*100+'%',height:h*100+'%'});
-  el.title=r.roi?'Your focus region':'Default focus area (central half)'}
-function focusBox(r){if(r.status!=='analysed')return '';const [x,y,w,h]=focusArea(r);
-  return `<div class="focusbox ${r.roi?'mine':'default'}" style="left:${x*100}%;top:${y*100}%;width:${w*100}%;height:${h*100}%" title="${r.roi?'Your focus region':'Default focus area (central half)'}"></div>`}
+// 1.11: your region, else the subject found automatically (when that setting is on), else the central half
+function focusKind(r){return r.roi?'mine':(prefs.auto_subject!==false&&r.subject)?'subject':'default'}
+function focusArea(r){const k=focusKind(r);return k==='mine'?r.roi:k==='subject'?r.subject:DEFAULT_REGION}
+const FOCUS_TITLE={mine:'Your focus region',subject:'Subject found automatically',default:'Default focus area (central half)'};
+function placeFocus(el,r){const [x,y,w,h]=focusArea(r),k=focusKind(r);el.className='focusbox '+k;
+  Object.assign(el.style,{left:x*100+'%',top:y*100+'%',width:w*100+'%',height:h*100+'%'});el.title=FOCUS_TITLE[k]}
+function focusBox(r){if(r.status!=='analysed')return '';const [x,y,w,h]=focusArea(r),k=focusKind(r);
+  return `<div class="focusbox ${k}" style="left:${x*100}%;top:${y*100}%;width:${w*100}%;height:${h*100}%" title="${FOCUS_TITLE[k]}"></div>`}
 let rows=[],errors=[],byId=new Map(),prefs={weights:{sharpness:30,focus:50,composition:15,exposure:5},keep:75,consider:45,gap:2,likeness:70,near_identical:90,near_window:10,recursive:false,folder:'',page_size:120,profiles:{},folder_settings:{},undo_settings:null};
 let scan={running:false,version:-1},rowsVersion=-1,lastRowsFetch=0,current=null,visible=[],page=0,derived=null,saveTimer=null;
 
@@ -200,6 +210,7 @@ function reasons(r){
   else out.push(`${d}: weighted score ${s.toFixed(1)} ${d==='Keep'?'≥ Keep threshold '+prefs.keep:d==='Consider'?'≥ Consider threshold '+prefs.consider+' and < '+prefs.keep:'< Consider threshold '+prefs.consider}.`+(d==='Keep'&&i&&i.size>1&&+prefs.best_of?` Best frame${+prefs.best_of>1?'s':''} of its series.`:''));
   if(sum){const parts=KEYS.filter(k=>prefs.weights[k]>0).map(k=>({k,c:prefs.weights[k]*(r.scores[k]||0)/sum})).sort((a,b)=>b.c-a.c);
     out.push('Contributions: '+parts.map(p=>`${LABEL[p.k]} ${r.scores[p.k]} × ${Math.round(prefs.weights[p.k]/sum*100)}%`).join(' · ')+'.')}
+  if(!r.roi)out.push(focusKind(r)==='subject'?'Subject focus measured on the subject found automatically (solid grey outline).':'Subject focus measured in the central half (no subject found, or automatic finding is off). Drag a rectangle over the subject to measure there.');
   if(r.roi)out.push(r.roi_state==='full'?'Subject focus measured in your region on the full-resolution decode.':r.roi_state==='error'?'Your region could not be measured; the central region is used.':'Measuring your region at full resolution…');
   else out.push('Subject focus measured in the central half of the frame. Draw a region over the subject to target it.');
   if(r.noise_flag)out.push('High noise estimate for this folder: sharpness and focus may be inflated by noise or fine texture (water, foliage).');
@@ -217,7 +228,7 @@ function savePrefs(){rememberFolderSettings();clearTimeout(saveTimer);saveTimer=
 function buildWeights(){const sum=weightSum();
   $('weights').innerHTML=KEYS.map(k=>`<label class="weight"><span class="row">${LABEL[k]}<output id="value-${k}">${sum?Math.round(prefs.weights[k]/sum*100)+'%':'Off'}</output></span><input id="weight-${k}" type="range" min="0" max="100" value="${prefs.weights[k]}"><small>${DESCRIPTION[k]}</small></label>`).join('');
   KEYS.forEach(k=>$('weight-'+k).oninput=e=>{prefs.weights[k]=+e.target.value;const s=weightSum();KEYS.forEach(t=>$('value-'+t).textContent=s?Math.round(prefs.weights[t]/s*100)+'%':'Off');savePrefs();scheduleRender()})}
-function applyPrefs(){buildWeights();for(const id of ['keep','consider']){$(id).value=prefs[id];$(id+'Value').textContent=prefs[id]}for(const id of ['likeness','near_identical']){$(id).value=prefs[id];$(id+'Value').textContent=prefs[id]+' %'}$('gap').value=prefs.gap;$('near_window').value=prefs.near_window;$('best_of').value=String(+prefs.best_of);$('showFocus').checked=prefs.show_focus!==false;document.body.classList.toggle('nofocus',prefs.show_focus===false);showFolder();renderLearn();$('recursive').checked=!!prefs.recursive;if(!$('folder').value)$('folder').value=prefs.folder||''}
+function applyPrefs(){buildWeights();for(const id of ['keep','consider']){$(id).value=prefs[id];$(id+'Value').textContent=prefs[id]}for(const id of ['likeness','near_identical']){$(id).value=prefs[id];$(id+'Value').textContent=prefs[id]+' %'}$('gap').value=prefs.gap;$('near_window').value=prefs.near_window;$('best_of').value=String(+prefs.best_of);$('showFocus').checked=prefs.show_focus!==false;$('autoSubject').checked=prefs.auto_subject!==false;document.body.classList.toggle('nofocus',prefs.show_focus===false);showFolder();renderLearn();$('recursive').checked=!!prefs.recursive;if(!$('folder').value)$('folder').value=prefs.folder||''}
 async function mark(r,fields){Object.assign(r,fields);render();renderLearn();if(current&&current.id===r.id)updateViewer();try{await api('mark',{id:r.id,...fields})}catch(e){showError(e)}}
 
 // ---------- learn from my decisions, profiles ----------
@@ -345,6 +356,7 @@ for(const id of ['keep','consider'])$(id).oninput=()=>{prefs[id]=+$(id).value;$(
 function showFolder(){const f=$('folder');f.title=f.value;if(document.activeElement!==f)f.scrollLeft=f.scrollWidth}
 $('folder').oninput=()=>{renderLearn();$('folder').title=$('folder').value};$('folder').onblur=showFolder;
 for(const id of ['filter','formatFilter','sort','winners'])$(id).onchange=()=>{page=0;render()};
+$('autoSubject').onchange=()=>{prefs.auto_subject=$('autoSubject').checked;savePrefs();render();if(current&&$('viewer').open)updateViewer()};   // the server updates focus scores; rows reload
 $('showFocus').onchange=()=>{prefs.show_focus=$('showFocus').checked;document.body.classList.toggle('nofocus',!prefs.show_focus);savePrefs()};
 document.querySelectorAll('[data-bucket]').forEach(b=>b.onclick=()=>{const f=$('filter');f.value=b.dataset.bucket!=='all'&&f.value===b.dataset.bucket?'all':b.dataset.bucket;page=0;render();$('grid').scrollIntoView({behavior:'smooth',block:'start'})});
 for(const id of ['likeness','near_identical'])$(id).oninput=()=>$(id+'Value').textContent=$(id).value+' %';
@@ -400,7 +412,9 @@ $('inspectImage').onclick=e=>{const b=e.target.getBoundingClientRect(),cx=(e.cli
 
 // ---------- comparison ----------
 let compareList=[],compareTitle='';
-function cropRegion(r,ref){return r.roi||(ref&&ref.roi)||DEFAULT_CROP}
+function cropRegion(r,ref){const area=r.roi||(ref&&ref.roi);if(area)return area;
+  const sub=focusKind(r)==='subject'?r.subject:null;if(!sub)return DEFAULT_CROP;   // 100% crop centred on the subject found
+  const c=v=>Math.min(1-.25,Math.max(0,v));return [c(sub[0]+sub[2]/2-.125),c(sub[1]+sub[3]/2-.125),.25,.25]}
 function renderCompare(){const crops=$('cropMode').checked,ref=current,dpr=window.devicePixelRatio||1;compareList.sort((a,b)=>(score(b)??-1)-(score(a)??-1));
   const top=score(compareList[0]);$('compareTitle').textContent=compareTitle;
   $('compare').innerHTML=compareList.map((r,i)=>{const s=score(r),gap=top-s;return `<div class="comparephoto ${i===0?'top':''}"><strong>#${i+1} · ${s===null?'—':s.toFixed(1)}/100</strong> <span class="hint">${i===0?'top of this set':gap<=CLOSE?gap.toFixed(1)+' behind · close':gap.toFixed(1)+' behind'}${i>0&&r.likeness&&r.likeness[compareList[0].id]!==undefined?' · '+pct(r.likeness[compareList[0].id])+' alike #1':''}${r.near_identical?' · near-identical':''}</span>
@@ -455,10 +469,18 @@ function pluginStatusText(s){
 async function refreshLightroomStatus(){try{lrStatus=await api('lightroom/status')}catch(e){lrStatus={}}
   $('lrPlugin').innerHTML=pluginStatusText(lrStatus);
   $('lrInstall').textContent=lrStatus.plugin_installed?'Reinstall plug-in':'Install plug-in'}
-function renderLightroomDialog(){const all=lightroomRows(),count=r=>all.filter(x=>x.rating===r).length;
+function lrRoute(){return prefs.lr_route==='plugin'?'plugin':'sidecar'}
+function renderLightroomDialog(){const all=lightroomRows(),count=r=>all.filter(x=>x.rating===r).length,side=lrRoute()==='sidecar';
+  document.querySelectorAll('[name=lrRoute]').forEach(x=>x.checked=x.value===lrRoute());
+  $('lrPluginBox').hidden=$('lrAutoLabel').hidden=side;$('lrSidecarBox').hidden=!side;
+  $('lrSave').textContent=side?'Only write sidecars':'Only save selections';
   $('lrGroups').innerHTML=LR_GROUPS.map(([r,label,stars])=>`<label><input type="checkbox" data-lrgroup="${r}" ${lrChoice[r]?'checked':''} ${count(r)?'':'disabled'}><span><b>${stars}</b> ${label}<br><span class="hint">${count(r)} photo${count(r)===1?'':'s'}</span></span></label>`).join('');
   document.querySelectorAll('[data-lrgroup]').forEach(c=>c.onchange=()=>{lrChoice[c.dataset.lrgroup]=c.checked;renderLightroomDialog()});
-  const n=all.filter(x=>lrChoice[x.rating]).length;$('lrOpen').textContent=`Open ${n} photos in Lightroom Import`;$('lrOpen').disabled=!n;
+  const n=all.filter(x=>lrChoice[x.rating]).length;$('lrOpen').textContent=side?`Write sidecars and open ${n} photos in Lightroom Import`:`Open ${n} photos in Lightroom Import`;$('lrOpen').disabled=!n;
+  if(side){$('lrSteps').innerHTML=[`<b>Write sidecars and open in Lightroom Import</b> writes the stars and keywords next to each RAW photo, then opens Lightroom's Import window with only these ${n} photos. Or click <b>Only write sidecars</b> and import the folder in Lightroom yourself.`,
+    'In Lightroom, choose <b>Add</b> or <b>Copy</b> and click <b>Import</b>: the stars and keywords arrive with the photos. Nothing else to run. JPEG, HEIC, TIFF and DNG photos have no sidecar (use the plug-in for those).',
+    'Once only: click <b>Smart Collection files…</b>. In Lightroom, create a collection set called <b>PhotoSelect</b>, right-click it → <b>Import Smart Collection Settings…</b> and choose each file: 1 Rescue, 2 Confirm, 3 Decide, Liked, Borderline.',
+    'Star changes come back to PhotoSelect when Lightroom writes them into the sidecars: Catalog Settings → Metadata → <b>Automatically write changes into XMP</b> (photos imported with Add).'].map(x=>`<li>${x}</li>`).join('');return}
   $('lrSteps').innerHTML=[`<b>Open in Lightroom Import</b> starts Lightroom Classic (or brings it to the front) and opens its Import window with only these ${n} photos.`,
     'In Lightroom, choose <b>Add</b> (files stay where they are) or <b>Copy</b> at the top of the Import window, then click <b>Import</b>.',
     $('lrAuto').checked?'The stars and keywords are added automatically a few seconds after the import, also if you import these photos later or from Lightroom itself (within 14 days). The plug-in must be running: see its status above. If stars do not appear, use Library → Plug-in Extras → Apply PhotoSelect Selections…'
@@ -470,8 +492,14 @@ $('lrAuto').onchange=renderLightroomDialog;
 async function sendToLightroom(open){$('lrError').textContent='';$('lrResult').textContent=open?'Opening Lightroom Classic…':'Saving…';
   await syncLightroom();   // so this send carries the stars last set in Lightroom rather than undoing them
   const all=lightroomRows(),body={folder:prefs.folder||$('folder').value,rows:all};
-  body.auto_apply=$('lrAuto').checked;if(open)body.open=all.filter(x=>lrChoice[x.rating]).map(x=>x.path);
+  body.auto_apply=$('lrAuto').checked;body.route=lrRoute();if(open)body.open=all.filter(x=>lrChoice[x.rating]).map(x=>x.path);
   try{const r=await api('lightroom',body);
+    if(r.sidecars){const x=r.sidecars,parts=[`Sidecars written for ${x.written} RAW photo${x.written===1?'':'s'} (${x.created} new, ${x.updated} updated)`+(x.kept?`; ${x.kept} already had stars from elsewhere, which were kept`:'')+'.'];
+      if(x.skipped.length)parts.push(`${x.skipped.length} photo${x.skipped.length===1?' has':'s have'} no sidecar (JPEG, HEIC, TIFF or DNG): ${x.skipped.slice(0,5).join(', ')}${x.skipped.length>5?', …':''}.`);
+      if(x.failed.length)$('lrError').textContent=`${x.failed.length} sidecar${x.failed.length===1?'':'s'} could not be written: `+x.failed.slice(0,5).map(f=>`${f[0]} (${f[1]})`).join('; ');
+      const msg=parts.join(' ')+(open&&!r.lightroom_missing&&r.opened?` Lightroom Classic is opening its Import window with ${r.opened} photos.`:open?'':' Import the folder in Lightroom as usual (Add or Copy).');
+      if(r.lightroom_missing){$('lrResult').textContent=parts.join(' ');$('lrError').textContent=r.error;$('notice').textContent=r.error;return}
+      $('lrResult').textContent=msg;$('notice').textContent=msg;return}
     if(r.lightroom_missing){$('lrResult').textContent='';$('lrError').textContent=r.error;$('notice').textContent=r.error;return}
     $('lrResult').textContent=open?`Lightroom Classic is opening its Import window with ${r.opened} photos. Selections for all ${r.count} photos are saved for Apply PhotoSelect Selections.`
       :`Selections for ${r.count} photos are saved. `+(body.auto_apply?'Import this folder in Lightroom as usual: the stars are added automatically a few seconds after the import (or use Library → Plug-in Extras → Apply PhotoSelect Selections…).':'Import this folder in Lightroom, then choose Library → Plug-in Extras → Apply PhotoSelect Selections…');
@@ -480,6 +508,9 @@ async function sendToLightroom(open){$('lrError').textContent='';$('lrResult').t
 $('lrOpen').onclick=()=>sendToLightroom(true);$('lrSave').onclick=()=>sendToLightroom(false);
 $('lrInstall').onclick=async()=>{await installLightroomPlugin();await refreshLightroomStatus()};
 $('lrReveal').onclick=()=>revealLightroomPlugin();
+document.querySelectorAll('[name=lrRoute]').forEach(x=>x.onchange=()=>{prefs.lr_route=x.value;savePrefs();renderLightroomDialog()});
+$('lrCollections').onclick=async()=>{try{const r=await api('lightroom/collections',{});$('lrResult').textContent=`${r.files.length} Smart Collection files are in ${r.folder} (shown in Finder). In Lightroom: create a collection set PhotoSelect, right-click it → Import Smart Collection Settings… and choose each file.`}catch(e){$('lrError').textContent=e.message}};
+$('lrRemoveSidecars').onclick=async()=>{try{const r=await api('lightroom/sidecars/remove',{});$('lrResult').textContent=`Removed ${r.deleted} sidecar${r.deleted===1?'':'s'} PhotoSelect created`+(r.cleaned?`; took PhotoSelect's keywords out of ${r.cleaned} that other apps also use`:'')+(r.failed?`; ${r.failed} could not be changed`:'')+'.';$('notice').textContent=$('lrResult').textContent}catch(e){$('lrError').textContent=e.message}};
 async function revealLightroomPlugin(){try{const r=await api('lightroom/reveal',{});$('notice').textContent='Plug-in shown in Finder: '+r.path}catch(e){($('lrDialog').open?$('lrError'):$('error')).textContent=e.message}}
 async function installLightroomPlugin(){try{showError();const r=await api('lightroom/install',{});
   const msg=`Lightroom plug-in installed in ${r.installed}. Quit and reopen Lightroom Classic if it is running; the command appears under Library → Plug-in Extras → Apply PhotoSelect Selections. If you added an older copy yourself in Plug-in Manager, remove that one.`;

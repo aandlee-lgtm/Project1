@@ -1,10 +1,11 @@
-# PhotoSelect 1.10 — Apple silicon Mac app
+# PhotoSelect 1.11 — Apple silicon Mac app
 
 PhotoSelect helps you cull bursts of sailing and sports photos. Point it at a folder of Nikon
 (NEF/NRW), Olympus / OM System (ORF), Sony (ARW), other RAW, JPEG, PNG or TIFF files. It decodes each photo
 on your Mac, groups bursts, ranks frames with transparent scores you can weight, and lets you
 mark Keep / Consider / Drop and likes, then export a CSV. Originals are only ever read:
-nothing is deleted, renamed, moved, uploaded, or written to your photo folders.
+nothing is deleted, renamed, moved or uploaded. The only files PhotoSelect ever adds to your photo
+folders are XMP sidecars for Lightroom, when you send to Lightroom that way (and it can remove them).
 
 * **Install:** see [INSTALL.md](INSTALL.md) (drag from the DMG to Applications).
 * **What was tested, and what wasn't:** [VALIDATION_REPORT.md](VALIDATION_REPORT.md).
@@ -25,10 +26,13 @@ nothing is deleted, renamed, moved, uploaded, or written to your photo folders.
    **Keep / Consider thresholds**. Rankings update immediately.
 4. Open a frame. **Drag a rectangle over the sailors or boat** so focus is measured there rather
    than on textured water. The region is measured on the full-resolution decode and is
-   remembered for that file. Every photo shows where focus is measured: a dashed grey outline for
-   the default area (the central half) or a solid teal outline for your own region, on the
-   thumbnail, in the viewer, the inspector and the burst comparison. *Show focus area* in the
-   toolbar hides the outlines.
+   remembered for that file. Without a region, PhotoSelect **finds the subject automatically**
+   (macOS's built-in, on-device Vision analysis) and measures focus there, or in the central half
+   when no subject stands out. Every photo shows where focus is measured: a solid grey outline for
+   a subject found automatically, a dashed grey outline for the central half, a solid teal outline
+   for your own region, on the thumbnail, in the viewer, the inspector and the burst comparison.
+   *Show focus area* in the toolbar hides the outlines; *Find the subject automatically* (under the
+   sliders) switches subject finding off.
 5. **Inspect full resolution** shows the decoded original inside the app at fit, 100%
    (one image pixel per screen pixel) or 200%. Click to zoom to a point.
 6. **Compare this burst** ranks the burst side by side. Tick *100% crops of the focus region* to
@@ -41,7 +45,20 @@ nothing is deleted, renamed, moved, uploaded, or written to your photo folders.
    Nothing changes until you click **Apply**, and **Undo learned settings** restores the previous ones.
    Save settings as named **profiles** (e.g. Sailing), or tick *Use these settings whenever this folder
    is analysed*.
-9. **Send to Lightroom…** (Adobe Lightroom Classic) opens a window that shows:
+9. **Send to Lightroom…** (Adobe Lightroom Classic). Choose how the stars reach Lightroom:
+   * **XMP sidecars (no plug-in, the default since 1.11).** PhotoSelect writes a small `.xmp` file
+     next to each RAW photo (e.g. `DSC_1234.xmp` beside `DSC_1234.NEF`) with its stars and
+     PhotoSelect keywords. Lightroom reads it when you import the photos (Add or Copy), so the stars
+     arrive with the photos and nothing else needs to run. RAW files only (JPEG, HEIC, TIFF and DNG
+     keep their metadata inside the file, which PhotoSelect never changes), and only for photos not
+     yet in Lightroom. An existing sidecar is merged: other apps' data and stars you set elsewhere are
+     kept. **Remove PhotoSelect sidecars** deletes the ones PhotoSelect created. **Smart Collection
+     files…** gives the five review collections to import once in Lightroom (create a collection set
+     PhotoSelect, right-click it → Import Smart Collection Settings…). Star changes come back when
+     Lightroom's Catalog Settings → Metadata → *Automatically write changes into XMP* is on.
+   * **Lightroom plug-in**, described below: also JPEG and photos already in Lightroom.
+
+   For the plug-in route the window shows:
    * whether the PhotoSelect plug-in is installed, with **Install plug-in** and **Show plug-in in Finder**
      buttons. The plug-in is also attached to each GitHub Release as `PhotoSelect-Lightroom-plugin.zip`,
      for Lightroom → File → Plug-in Manager… → Add;
@@ -79,8 +96,8 @@ nothing is deleted, renamed, moved, uploaded, or written to your photo folders.
      photos that did not match. Star ratings already set in Lightroom are kept unless you tick
      *Replace*.
 
-   The selections are saved in `~/Library/Application Support/PhotoSelect/Lightroom/`, never in your
-   photo folders, and no XMP sidecar files are written.
+   The selections are saved in `~/Library/Application Support/PhotoSelect/Lightroom/`. Only the
+   sidecar route writes into your photo folders, and only `.xmp` files next to RAW photos.
 
 ## Speed and resource use
 
@@ -119,7 +136,7 @@ probabilities or absolute quality. Even a folder of soft photos has a top frame.
 | Score | How it is measured | Known weaknesses |
 |---|---|---|
 | Sharpness | Laplacian edge detail of the whole frame at 1,600 px, divided by contrast | Waves, foliage, rigging, a sharp background and noise all count as "detail" |
-| Subject focus | Same idea in the subject region (default: central half; or the region you draw), cropped from the **full-resolution decode**, resampled to a common 4,000 px-long-edge scale, lightly low-pass filtered, with the variance expected from **estimated sensor noise subtracted** | Real texture (water, foliage) inside the region still counts. Frames smaller than 4,000 px are measured at native size. Not autofocus-point or eye detection |
+| Subject focus | Same idea in the subject region (the region you draw; else the subject found by macOS Vision, padded; else the central half), cropped from the **full-resolution decode**, resampled to a common 4,000 px-long-edge scale, lightly low-pass filtered, with the variance expected from **estimated sensor noise subtracted** | Real texture (water, foliage) inside the region still counts. Frames smaller than 4,000 px are measured at native size. Not autofocus-point or eye detection |
 | Composition | Edge-energy centre near rule-of-thirds points minus border clutter | A heuristic, not a trained aesthetic model. Can under-rate centred subjects. Cannot see cropped masts, expressions or the decisive moment |
 | Exposure | Share of pixels not clipped to near-black/near-white in the rendered image | Does not measure RAW highlight headroom |
 
@@ -135,8 +152,8 @@ compare them; the rest of the series is suggested **Drop**, e.g. "Drop: #4 of 9 
 also proposes this setting. Frames within 3 points of the burst's top frame are flagged
 *close to burst top · compare*.
 
-**Not implemented:** eye or face detection, subject recognition, motion-blur detection, artistic
-judgement, XMP sidecar files. The learning feature only fits the four slider weights and two
+**Not implemented:** eye or face detection, recognising what the subject is (subject finding only
+locates what stands out), motion-blur detection, artistic judgement. The learning feature only fits the four slider weights and two
 thresholds to your decisions; it is not a trained image model.
 
 **Burst grouping** uses EXIF capture time (with sub-seconds when the camera records them) and

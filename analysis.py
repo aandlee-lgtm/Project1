@@ -3,8 +3,8 @@
 None of these measures is a trained model. They are relative cues:
 
 * sharpness   – Laplacian detail of the whole frame at 1,600 px, normalised by contrast.
-* focus       – the same kind of detail measured in the subject region (default: central
-                half) on a crop taken from the full-resolution decode, resampled to a common
+* focus       – the same kind of detail measured in the subject region (your region, else the
+                subject found automatically (1.11), else the central half) on a crop taken from the full-resolution decode, resampled to a common
                 4,000 px-long-edge scale so mixed cameras are comparable (smaller frames
                 at native size). A light low-pass
                 filter is applied first and the detail expected from the estimated sensor
@@ -18,7 +18,8 @@ None of these measures is a trained model. They are relative cues:
 import numpy as np
 from PIL import Image
 
-ANALYSIS_VERSION = 4   # 4: analysis decodes RAW at the size the scores need (1.5.0)
+ANALYSIS_VERSION = 5   # 5: subject found automatically, focus measured there too (1.11.0)
+                       # 4: analysis decodes RAW at the size the scores need (1.5.0)
 PREVIEW_EDGE = 1600
 FOCUS_SCALE = 4000
 DEFAULT_REGION = (0.25, 0.25, 0.5, 0.5)
@@ -154,12 +155,22 @@ def frame_metrics(preview):
     }
 
 
-def analyse(full, region=None):
-    """Return (preview image, metrics) for a fully decoded image."""
+def analyse(full, region=None, finder=None, auto_subject=True):
+    """Return (preview image, metrics) for a fully decoded image.
+
+    finder(preview) -> (x, y, w, h) or None finds the subject (subject.find_subject). Focus is
+    measured both in the central half ('focus_centre') and on the subject ('focus_subject', the same
+    as the centre when none is found), so the automatic subject setting can change without
+    re-analysis. 'focus_default' is the one used when you have not drawn a region; 'focus' is
+    measured in your region when you have."""
     preview = preview_of(full)
     m = frame_metrics(preview)
-    m['focus'] = focus_detail(full, region)
-    m['focus_default'] = m['focus'] if region is None else focus_detail(full)
+    found = finder(preview) if finder else None
+    m['subject'] = list(found) if found and valid_region(found) else None
+    m['focus_centre'] = focus_detail(full)
+    m['focus_subject'] = focus_detail(full, m['subject']) if m['subject'] else m['focus_centre']
+    m['focus_default'] = m['focus_subject'] if auto_subject else m['focus_centre']
+    m['focus'] = focus_detail(full, region) if region else m['focus_default']
     return preview, m
 
 

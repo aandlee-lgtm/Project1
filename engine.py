@@ -27,12 +27,14 @@ from PIL import Image
 
 import analysis
 import raw_io
+import subject
 from store import file_key, path_id, clear_cache_files, directory_size
 
 log = logging.getLogger('photoselect.engine')
 
 THUMB_EDGE = 512
-METRIC_KEYS = ('sharpness', 'focus', 'focus_default', 'composition', 'exposure', 'clip_low', 'clip_high', 'noise')
+METRIC_KEYS = ('sharpness', 'focus', 'focus_default', 'focus_centre', 'focus_subject', 'composition', 'exposure',
+               'clip_low', 'clip_high', 'noise')
 
 
 def burst_settings(prefs, prefs_keys=False):
@@ -150,6 +152,9 @@ class Library:
         self.full_jpegs = LRU(3)
         self.full_lock = threading.Semaphore(2)
         self.closed = False
+        # 1.11: find the subject automatically and measure focus there (unless you drew a region)
+        self.find_subject = subject.find_subject
+        self.auto_subject = store.prefs().get('auto_subject', True) is not False
 
     # ------------------------------------------------------------------ helpers
     def _bump(self):
@@ -302,6 +307,8 @@ class Library:
         row['raw']['hash'] = data['hash']
         row['raw']['colour'] = data['colour']
         row['raw']['look'] = data.get('look')
+        row['subject'] = data.get('subject')
+        self._set_default_focus(row)
         row['size'] = data.get('size')
         row['timestamp'] = data.get('timestamp')
         row['camera'] = data.get('camera')
@@ -311,6 +318,26 @@ class Library:
         # What the scores were measured on: 'decoded_raw', 'image' or 'camera_preview' (embedded JPEG).
         row['basis'] = data.get('basis') or ('decoded_raw' if row['is_raw'] else 'image')
         row['notice'] = data.get('notice', '')
+
+    def _set_default_focus(self, row):
+        """Focus used when you have not drawn a region: on the subject found, or the central half."""
+        raw = row['raw']
+        if 'focus_centre' in raw:
+            raw['focus_default'] = raw['focus_subject'] if self.auto_subject else raw['focus_centre']
+
+    def set_auto_subject(self, on):
+        """Switch automatic subject finding on or off; scores update without re-analysis."""
+        with self.lock:
+            on = bool(on)
+            if on == self.auto_subject:
+                return
+            self.auto_subject = on
+            for row in self.rows:
+                if row['status'] == 'analysed' and row['raw']:
+                    self._set_default_focus(row)
+                    if row.get('roi_state') != 'full':
+                        row['raw']['focus'] = row['raw']['focus_default']
+            self._bump()
 
     def _embedded(self, row, cancel):
         if cancel.is_set() or row['status'] != 'pending':
@@ -339,7 +366,7 @@ class Library:
             full, basis, notice = raw_io.decode_photo(path, min_edge=analysis.FOCUS_SCALE)
             t1 = time.perf_counter()
             region = row['roi']
-            preview, m = analysis.analyse(full, region)
+            preview, m = analysis.analyse(full, region, finder=self.find_subject, auto_subject=self.auto_subject)
             data = {k: v for k, v in m.items() if k != 'focus'}
             data['focus'] = m['focus_default']
             if row.get('camera') is None and row.get('timestamp') is None:
@@ -419,7 +446,7 @@ class Library:
                 rows.append({
                     'id': r['id'], 'name': r['name'], 'path': r['path'], 'format': r['format'], 'is_raw': r['is_raw'],
                     'status': r['status'], 'source': r['source'], 'timestamp': r['timestamp'], 'camera': r['camera'],
-                    'size': r['size'], 'scores': r['scores'], 'group': r['group'], 'roi': r['roi'],
+                    'size': r['size'], 'scores': r['scores'], 'group': r['group'], 'roi': r['roi'], 'subject': r.get('subject'),
                     'roi_state': r['roi_state'], 'noise_flag': r['noise_flag'],
                     'near_identical': bool(r.get('near_identical')), 'likeness': r.get('likeness') or {},
                     'basis': r.get('basis'), 'notice': r.get('notice', ''),

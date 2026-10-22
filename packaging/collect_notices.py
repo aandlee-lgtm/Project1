@@ -7,7 +7,8 @@ from pathlib import Path
 BUNDLED = ['flask', 'werkzeug', 'jinja2', 'markupsafe', 'itsdangerous', 'click', 'blinker', 'waitress', 'numpy',
            'pillow', 'rawpy', 'exifread', 'pywebview', 'proxy_tools', 'bottle', 'typing_extensions', 'pyobjc-core',
            'pyobjc-framework-Cocoa', 'pyobjc-framework-Quartz', 'pyobjc-framework-WebKit',
-           'pyobjc-framework-Security', 'pyobjc-framework-UniformTypeIdentifiers', 'pyinstaller']
+           'pyobjc-framework-Security', 'pyobjc-framework-UniformTypeIdentifiers', 'pyobjc-framework-Vision',
+           'pyobjc-framework-CoreML', 'pyinstaller']
 
 HEADER = """PhotoSelect — third-party notices
 ==================================

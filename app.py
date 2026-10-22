@@ -19,10 +19,12 @@ from flask import Flask, request, jsonify, send_file, abort, Response
 
 import analysis
 import raw_io
+import subject
+import xmp_sidecar
 import store as store_module
 from engine import Library
 
-APP_VERSION = '1.10.0'
+APP_VERSION = '1.11.0'
 log = logging.getLogger('photoselect.app')
 
 
@@ -253,7 +255,10 @@ def create_app(library=None, store=None, token=None):
     @app.post('/api/prefs')
     def set_prefs():
         data = request.get_json(force=True) or {}
-        return jsonify(store.set_prefs(data))
+        saved = store.set_prefs(data)
+        if 'auto_subject' in data:   # 1.11: focus on the subject found automatically, or the central half
+            library.set_auto_subject(data['auto_subject'] is not False)
+        return jsonify(saved)
 
     @app.post('/api/pick')
     def pick():
@@ -432,10 +437,25 @@ def create_app(library=None, store=None, token=None):
         subprocess.run(['/usr/bin/open', '-R', str(target)], check=False)
         return jsonify(ok=True, path=str(target))
 
+    @app.post('/api/lightroom/sidecars/remove')
+    def lightroom_remove_sidecars():
+        result = xmp_sidecar.remove_all(lightroom_dir())
+        log.info('PhotoSelect sidecars removed: %s', result)
+        return jsonify(result)
+
+    @app.post('/api/lightroom/collections')
+    def lightroom_collections():
+        """Smart Collection settings to import once in Lightroom (the sidecar route makes none itself)."""
+        folder = xmp_sidecar.smart_collection_files(lightroom_dir())
+        if sys.platform == 'darwin':
+            subprocess.run(['/usr/bin/open', str(folder)], check=False)
+        return jsonify(folder=str(folder), files=sorted(p.name for p in folder.glob('*.lrsmcol')))
+
     @app.post('/api/lightroom/sync')
     def lightroom_sync():
-        """Star changes made in Lightroom flow back into PhotoSelect's decisions (polled by the page)."""
-        changes = take_lightroom_changes()
+        """Star changes made in Lightroom flow back into PhotoSelect's decisions (polled by the page):
+        reported by the plug-in, or (1.11) written by Lightroom into PhotoSelect's XMP sidecars."""
+        changes = take_lightroom_changes() + xmp_sidecar.star_changes(lightroom_dir())
         moves = apply_lightroom_changes(store, changes) if changes else {}
         if changes:
             library.version += 1
@@ -466,6 +486,11 @@ def create_app(library=None, store=None, token=None):
         os.replace(tmp, target)
         log.info('Lightroom selections for %d photos saved to %s', len(table), target)
         result = {'saved': str(target), 'count': len(table), 'plugin_installed': (plugin_path() / 'Info.lua').exists()}
+        sidecars = data.get('route') == 'sidecar'
+        if sidecars:
+            # 1.11: stars and keywords in XMP sidecars next to the RAW files, read by Lightroom on import
+            result['sidecars'] = xmp_sidecar.write_all(lightroom_dir(), table)
+            log.info('XMP sidecars: %s', {k: v if isinstance(v, int) else len(v) for k, v in result['sidecars'].items()})
         wanted = data.get('open')
         if wanted is None:
             return jsonify(result)
@@ -485,7 +510,7 @@ def create_app(library=None, store=None, token=None):
                            'selections are saved; import the folder in Lightroom, then use Apply PhotoSelect '
                            'Selections.', **result)
         pending = target.parent / 'pending.import'
-        if data.get('auto_apply'):
+        if data.get('auto_apply') and not sidecars:
             tmp = pending.with_suffix('.tmp')
             tmp.write_text(lightroom_selections(folder, [known[p] for p in paths], True), encoding='utf-8')
             os.replace(tmp, pending)
@@ -529,7 +554,7 @@ def create_app(library=None, store=None, token=None):
             rawpy_version = 'unavailable'
         return jsonify(version=APP_VERSION, libraw=raw_io.libraw_version(), rawpy=rawpy_version,
                        numpy=numpy.__version__, pillow=PIL.__version__, flask=flask.__version__,
-                       python=sys.version.split()[0], workers=library.workers,
+                       python=sys.version.split()[0], workers=library.workers, subject_finder=subject.finder_name(),
                        support=str(store_module.support_dir()), cache=str(library.cache),
                        logs=str(store_module.log_dir()), cache_bytes=library.cache_size(),
                        analysis_version=analysis.ANALYSIS_VERSION)

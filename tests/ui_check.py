@@ -81,18 +81,28 @@ def main():
         # 1.10: the focus area is outlined on each thumbnail, in the right place on the picture
         wait("[...document.querySelectorAll('.card .pic img')].slice(0, 8).every(i => i.complete && i.naturalWidth > 0)", 60_000)
         geo = page.evaluate("""() => [...document.querySelectorAll('.card')].slice(0, 8).map(c => {
-            const im = c.querySelector('.pic img'), f = c.querySelector('.focusbox');
-            if (!im || !f) return null; const a = im.getBoundingClientRect(), b = f.getBoundingClientRect();
-            return [f.className, (b.left - a.left) / a.width, (b.top - a.top) / a.height, b.width / a.width, b.height / a.height,
-                    getComputedStyle(f).borderTopStyle] })""")
-        ok_geo = all(g and ('default' in g[0] and all(abs(v - e) < .03 for v, e in zip(g[1:5], (.25, .25, .5, .5)))
-                            and g[5] == 'dashed' or 'mine' in g[0]) for g in geo)
-        check('focus area outlined on every thumbnail (default: dashed, central half of the picture)', geo and ok_geo, geo[:2])
+            const im = c.querySelector('.pic img'), f = c.querySelector('.focusbox'), r = byId.get(c.querySelector('[data-open]').dataset.open);
+            if (!im || !f || !r) return null; const a = im.getBoundingClientRect(), b = f.getBoundingClientRect();
+            return [f.className, [(b.left - a.left) / a.width, (b.top - a.top) / a.height, b.width / a.width, b.height / a.height],
+                    focusArea(r), getComputedStyle(f).borderTopStyle] })""")
+        ok_geo = all(g and all(abs(v - e) < .03 for v, e in zip(g[1], g[2]))
+                     and (g[3] == 'dashed') == ('default' in g[0]) for g in geo)
+        kinds = sorted({g[0].split()[-1] for g in geo if g})
+        check('focus area outlined on every thumbnail where it was measured (dashed: central half; solid: subject or your region)',
+              geo and ok_geo, f'{kinds}; {geo[:1]}')
         page.uncheck('#showFocus')
         hidden = page.evaluate("[...document.querySelectorAll('.card .focusbox')].every(f => getComputedStyle(f).display === 'none')")
         page.check('#showFocus')
         shown = page.evaluate("[...document.querySelectorAll('.card .focusbox')].some(f => getComputedStyle(f).display !== 'none')")
         check('Show focus area switch hides and shows the outlines', hidden and shown)
+        # 1.11: automatic subject finding can be switched off (the central half is then used and outlined)
+        page.uncheck('#autoSubject')
+        wait("prefs.auto_subject === false", 10_000)
+        off_kinds = page.evaluate("[...document.querySelectorAll('.card .focusbox')].map(f => f.className.split(' ').pop())")
+        page.check('#autoSubject')
+        wait("prefs.auto_subject === true", 10_000)
+        page.wait_for_timeout(1500)
+        check('Find the subject automatically can be switched off', 'subject' not in off_kinds and page.evaluate('prefs.auto_subject') is True)
         # 1.6: persistent top bar with the main actions; version label only
         label = page.text_content('header .version')
         check('title bar shows only the version', label.startswith('v') and 'LOCAL' not in page.text_content('header')
@@ -338,6 +348,9 @@ def main():
         wait("document.getElementById('notice').textContent.includes('plug-in installed')", 30_000)
         page.click('#lightroom')
         page.wait_for_selector('#lrDialog[open]')
+        if not a.expect_persisted:
+            check('XMP sidecars (no plug-in) is the default route to Lightroom', page.evaluate('lrRoute()') == 'sidecar')
+        page.check('[name=lrRoute][value=plugin]')      # the plug-in route first, then sidecars below
         wait("/installed|running/i.test(document.getElementById('lrPlugin').textContent)", 30_000)
         groups = page.eval_on_selector_all('[data-lrgroup]', 'els => els.map(e => [e.dataset.lrgroup, e.checked, e.closest("label").textContent.trim()])')
         check('Send to Lightroom window shows plug-in status and star groups',
@@ -370,6 +383,29 @@ def main():
         else:
             check('missing Lightroom Classic explained, selections still saved',
                   'not found on this Mac' in page.text_content('#lrError'), page.text_content('#lrError')[:120])
+        page.click('[data-close="lrDialog"]')
+        # 1.11: XMP sidecars next to the RAW files, read by Lightroom on import; then removed again
+        page.click('#lightroom')
+        page.wait_for_selector('#lrDialog[open]')
+        page.check('[name=lrRoute][value=sidecar]')
+        raws = page.evaluate(r"""lightroomRows().filter(x => /\.(nef|nrw|orf|arw|cr2|cr3|raf|rw2|pef|srw)$/i.test(x.path)).map(x => [x.path, x.rating])""")
+        total = page.evaluate('lightroomRows().length')
+        page.click('#lrSave')
+        wait("document.getElementById('lrResult').textContent.includes('Sidecars written') || document.getElementById('lrError').textContent.length > 0", 60_000)
+        result = page.text_content('#lrResult')
+        sides = [(Path(p).with_suffix('.xmp'), r) for p, r in raws]
+        ok_files = all(f.exists() and f'xmp:Rating="{r}"' in f.read_text() for f, r in sides)
+        check('XMP sidecars written next to the RAW photos with their stars; other files skipped',
+              f'written for {len(raws)} RAW' in result and ok_files and (len(raws) == total or 'no sidecar' in result)
+              and not page.text_content('#lrError'), f'{len(raws)} RAW of {total}: {result[:160]}')
+        page.click('#lrRemoveSidecars')
+        wait("document.getElementById('lrResult').textContent.startsWith('Removed')", 30_000)
+        check('PhotoSelect sidecars removed again', not any(f.exists() for f, _ in sides), page.text_content('#lrResult')[:100])
+        page.click('#lrCollections')
+        wait("document.getElementById('lrResult').textContent.includes('Smart Collection files')", 30_000)
+        check('Smart Collection settings files provided for the sidecar route', '5 Smart Collection files' in page.text_content('#lrResult'))
+        if shots:
+            page.screenshot(path=str(shots / 'lightroom-sidecars.png'))
         page.click('[data-close="lrDialog"]')
         # 1.6: star changes made in Lightroom come back (as the plug-in reports them)
         support = (Path(os.environ['PHOTOSELECT_HOME']) / 'support' if os.environ.get('PHOTOSELECT_HOME')

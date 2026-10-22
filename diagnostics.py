@@ -102,6 +102,8 @@ def build(library, prefs, app_version):
     for k, v in system_info().items():
         w(f'- {k}: {v}')
     w(f'- analysis workers: {library.workers}')
+    import subject
+    w(f'- automatic subject finding: {subject.finder_name()}')
     w(f'- peak app memory so far: {peak_memory_mb()} MB')
     w(f'- cache size: {library.cache_size() / 2 ** 20:.0f} MB\n')
 
@@ -165,7 +167,11 @@ def build(library, prefs, app_version):
     w('## Settings')
     w(f"- weights: {json.dumps(weights)}; keep ≥ {prefs['keep']}; consider ≥ {prefs['consider']}; "
       f"burst gap {prefs['gap']} s; similarity ≥ {prefs['likeness']} %; near-identical ≥ {prefs['near_identical']} % "
-      f"within {prefs['near_window']} s; best of each series: {prefs.get('best_of', 1) or 'all'}")
+      f"within {prefs['near_window']} s; best of each series: {prefs.get('best_of', 1) or 'all'}; "
+      f"find the subject automatically: {'on' if prefs.get('auto_subject', True) is not False else 'off'}; "
+      f"Lightroom route: {'XMP sidecars' if prefs.get('lr_route', 'sidecar') != 'plugin' else 'plug-in'}")
+    found = [r for r in rows if r.get('subject')]
+    w(f"- subject found automatically on {len(found)} of {len([r for r in rows if r.get('raw')])} analysed photos")
     marks = library.store.marks([r['path'] for r in rows])
     decided = [m for m in marks.values() if m.get('decision')]
     w(f"- manual decisions: {len(decided)} ({dict(Counter(m['decision'] for m in decided))}); "

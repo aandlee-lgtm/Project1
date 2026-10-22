@@ -540,6 +540,36 @@ Built when the owner sent **build_new** after item 24 was discussed (below).
          margins;
       6. how to ask for changes and build_new.
 
+### 1.11.0: no plug-in needed (XMP sidecars), subject found automatically
+Built when the owner sent **build_new** after asking for items 21 and 26.
+21. **XMP sidecars, decided.** The owner asked to build item 21 "simply because I would rather avoid the
+    plug-in" (see item 21 above for the trade-offs).
+26. **Automatic subject finding.** The owner asked to include it, after the 1.10 outlines showed where
+    focus is measured.
+    - Decided: use macOS's own Vision framework (on-device "objectness" saliency, part of macOS; no
+      download, nothing leaves the Mac) rather than a home-made heuristic.
+
+**Shipped in 1.11.0.**
+- (21) Send to Lightroom… offers two routes, with **XMP sidecars (no plug-in)** as the default:
+  - PhotoSelect writes `NAME.xmp` next to each RAW photo, with the stars and the PhotoSelect keywords
+    (including From PhotoSelect). Lightroom reads it on import (Add or Copy);
+  - existing sidecars are merged, keeping other apps' data and stars set elsewhere;
+  - JPEG, HEIC, TIFF and DNG get no sidecar and are listed;
+  - *Remove PhotoSelect sidecars* deletes the sidecars PhotoSelect created that nothing else has
+    changed since, and takes PhotoSelect's keywords out of the others;
+  - *Smart Collection files…* provides 1 Rescue, 2 Confirm, 3 Decide, Liked and Borderline as
+    .lrsmcol files to import once;
+  - star changes come back from the sidecars when Lightroom writes changes into XMP;
+  - the plug-in route is unchanged (plug-in 1.8.0).
+- (26) The subject is found on every photo during analysis, using macOS Vision:
+  - focus is measured on the subject (the found box padded by 10 %, at least 12 % of the frame), or
+    in the central half when nothing stands out;
+  - your own region still wins;
+  - *Find the subject automatically* switches it off without re-analysis;
+  - the outline is solid grey for a found subject;
+  - 100% crops in the burst comparison centre on the subject;
+  - existing folders are re-analysed once (analysis version 5).
+
 ---
 
 ## 2. Definitions (draft glossary for the user instructions)
@@ -555,13 +585,15 @@ Built when the owner sent **build_new** after item 24 was discussed (below).
 | **Score** | 0–100, relative to the current folder (the folder's 10th–90th percentile maps to 15–95). It is not an absolute quality rating: even a folder of soft photos has a top frame. |
 | **Sharpness** | Edge detail across the whole frame, divided by contrast. Water, foliage and noise also count as detail. |
 | **Subject focus** | Edge detail inside the focus region, measured on the full-resolution image, with expected sensor noise subtracted. |
-| **Focus region** | The area where subject focus is measured: the central half by default, or a rectangle you drag over the subject. It is remembered per photo. Since 1.10 it is outlined on every photo (dashed grey: default; solid teal: yours). |
+| **Focus region** | The area where subject focus is measured: the central half by default, or a rectangle you drag over the subject. It is remembered per photo. Since 1.10 it is outlined on every photo (dashed grey: central half; solid grey (1.11): subject found automatically; solid teal: yours). |
 | **Composition** | A heuristic: where the detail sits relative to rule-of-thirds points, minus clutter at the edges. Not an aesthetic judgement. |
 | **Exposure** | The share of pixels not clipped to near-black or near-white. |
 | **Weights (importance sliders)** | How much each of the four scores counts towards the combined score. Defaults: sharpness 30, focus 50, composition 15, exposure 5. |
 | **Thresholds** | The combined scores that separate Keep, Consider and Drop. |
 | **Burst** | Frames taken close together in time (default within 2 s) that also look alike. They are compared and ranked together. From the next version, likeness is shown as a %. |
 | **Close to burst top** | A frame within 3 points of its burst's best frame. Worth comparing by eye. |
+| **Subject found automatically** | Since 1.11: where macOS's on-device image analysis finds the subject of a photo (what stands out). Subject focus is measured there, unless you drew a region. Solid grey outline. |
+| **XMP sidecar** | A small `.xmp` file next to a RAW photo (e.g. `DSC_1234.xmp`) holding its stars and keywords. Lightroom reads it on import. Since 1.11 PhotoSelect can write them instead of using the plug-in. |
 | **Show focus area** | Toolbar switch (since 1.10) that shows or hides the focus-area outlines on the photos. |
 | **Best of each series** | How many frames of each burst or near-identical series are suggested Keep (default 1). The others are suggested Drop, or Consider when within 3 points of the best. |
 | **Likeness %** | How alike two frames look, from 0 % (unrelated) to 100 % (identical). It compares a 16 × 12 grey-level version of each frame and its average colour. |

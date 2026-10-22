@@ -10,6 +10,13 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+# Unit tests measure focus where it was measured before 1.11 (the central half), on every platform:
+# on macOS, Vision would otherwise find "subjects" in the synthetic test scenes. The real subject
+# finder is checked in the macOS acceptance tests; test_subject.py uses stand-in finders.
+import subject  # noqa: E402
+subject.vision_find_subject = subject.find_subject
+subject.find_subject = lambda preview: None
+
 
 def scene(seed=0, size=(640, 427), blur=0):
     """A textured synthetic scene; `blur` simulates missed focus."""

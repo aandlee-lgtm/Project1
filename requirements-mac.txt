@@ -23,3 +23,6 @@ pyobjc-framework-Quartz==12.2.2
 pyobjc-framework-WebKit==12.2.2
 pyobjc-framework-Security==12.2.2
 pyobjc-framework-UniformTypeIdentifiers==12.2.2
+# 1.11: automatic subject finding with the on-device Vision framework
+pyobjc-framework-Vision==12.2.2
+pyobjc-framework-CoreML==12.2.2
