@@ -103,7 +103,7 @@ def build(library, prefs, app_version):
         w(f'- {k}: {v}')
     w(f'- analysis workers: {library.workers}')
     import subject
-    w(f'- automatic subject finding: {subject.finder_name()}')
+    w(f'- automatic subject finding: {subject.finder_name()} {subject.stats_snapshot()}')
     w(f'- peak app memory so far: {peak_memory_mb()} MB')
     w(f'- cache size: {library.cache_size() / 2 ** 20:.0f} MB\n')
 

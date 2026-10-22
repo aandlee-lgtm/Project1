@@ -555,6 +555,7 @@ def create_app(library=None, store=None, token=None):
         return jsonify(version=APP_VERSION, libraw=raw_io.libraw_version(), rawpy=rawpy_version,
                        numpy=numpy.__version__, pillow=PIL.__version__, flask=flask.__version__,
                        python=sys.version.split()[0], workers=library.workers, subject_finder=subject.finder_name(),
+                       subject_stats=subject.stats_snapshot(),
                        support=str(store_module.support_dir()), cache=str(library.cache),
                        logs=str(store_module.log_dir()), cache_bytes=library.cache_size(),
                        analysis_version=analysis.ANALYSIS_VERSION)

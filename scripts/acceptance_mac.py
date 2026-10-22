@@ -410,8 +410,9 @@ def library_checks(app, shoot, real, out):
           about.get('subject_finder') == 'macOS Vision', about.get('subject_finder'))
     real_names = {Path(s['path']).name for s in real}
     camera = {Path(r['path']).name: r.get('subject') for r in rows['rows'] if Path(r['path']).name in real_names}
+    stats = app.call('about').get('subject_stats')
     check('subject found automatically on genuine camera photos', any(camera.values()),
-          f"{sum(1 for v in camera.values() if v)} of {len(camera)}: {dict(list(camera.items())[:6])}")
+          f"{sum(1 for v in camera.values() if v)} of {len(camera)}: {dict(list(camera.items())[:6])}; finder: {stats}")
     inspect_decodes(app, rows, real, out)
     return rows
 
@@ -468,13 +469,15 @@ def fake_lightroom(out):
 
 
 def ui_check(app, folder, out, expect_persisted, label, lightroom_received=None):
-    cmd = [sys.executable, str(Path(__file__).resolve().parent.parent / 'tests' / 'ui_check.py'), '--port', str(app.port),
-           '--token', app.token, '--folder', str(folder), '--engine', 'webkit', '--recursive',
-           '--shots', str(Path(out) / f'screens-{label}')]
+    # --name=value: the session token is random URL-safe text and can start with '-', which argparse
+    # would otherwise read as an option (the cause of the launch-1 failures in runs 38036716714 and 39739728672)
+    cmd = [sys.executable, str(Path(__file__).resolve().parent.parent / 'tests' / 'ui_check.py'), f'--port={app.port}',
+           f'--token={app.token}', f'--folder={folder}', '--engine=webkit', '--recursive',
+           f'--shots={Path(out) / f"screens-{label}"}']
     if expect_persisted:
         cmd.append('--expect-persisted')
     if lightroom_received:
-        cmd += ['--lightroom-received', str(lightroom_received)]
+        cmd += [f'--lightroom-received={lightroom_received}']
     t0 = time.time()
     r = run(*cmd, check_=False, timeout=3600)
     results = 0

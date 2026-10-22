@@ -18,7 +18,9 @@ from store import Store
 class ChooseTests(unittest.TestCase):
     def test_nothing_found(self):
         self.assertIsNone(subject.choose([]))
-        self.assertIsNone(subject.choose([(.1, .1, .2, .2, .05)]))          # too unsure
+        self.assertIsNone(subject.choose([(.1, .1, 0, .2, .9)]))            # empty box
+        self.assertIsNotNone(subject.choose([(.1, .1, .2, .2, .05)]))       # Vision's confidences are often low: still used
+        self.assertIsNotNone(subject.choose([(.1, .1, .2, .2, 0.0)]))
 
     def test_one_box_is_padded(self):
         x, y, w, h = subject.choose([(.6, .3, .2, .2, .9)])

@@ -9,12 +9,29 @@ Boxes are (x, y, w, h) fractions of the frame, origin top-left, like a region yo
 """
 import io
 import logging
+import threading
 
 log = logging.getLogger('photoselect.subject')
 
 PAD = 0.10           # grow the found box by 10 % of its size on every side
 MIN_SIDE = 0.12      # never measure in an area narrower or lower than 12 % of the frame
-MIN_CONFIDENCE = 0.2
+MIN_CONFIDENCE = 0.0  # Vision only returns objects it finds salient; their confidence is often low
+
+# What happened so far (shown in About and the diagnostic report, and checked by the macOS tests).
+_stats_lock = threading.Lock()
+stats = {'photos': 0, 'found': 0, 'by_objectness': 0, 'by_attention': 0, 'nothing': 0, 'errors': 0, 'last_error': ''}
+
+
+def _count(key, error=None):
+    with _stats_lock:
+        stats[key] += 1
+        if error:
+            stats['last_error'] = str(error)[:300]
+
+
+def stats_snapshot():
+    with _stats_lock:
+        return dict(stats)
 
 _vision = None       # (Vision, Foundation, objc) once imported; False when unavailable
 
@@ -50,7 +67,7 @@ def choose(boxes):
     if not boxes:
         return None
     best = max(b[4] for b in boxes)
-    keep = [b for b in boxes if b[4] >= best / 2]
+    keep = [b for b in boxes if b[4] >= best / 2] if best > 0 else boxes
     x0 = min(b[0] for b in keep)
     y0 = min(b[1] for b in keep)
     x1 = max(b[0] + b[2] for b in keep)
@@ -78,31 +95,55 @@ def region_around(x0, y0, x1, y1):
     return tuple(round(v, 4) for v in (x0, y0, x1 - x0, y1 - y0))
 
 
+def _salient_boxes(Vision, handler, request):
+    ok, error = handler.performRequests_error_([request], None)
+    if not ok:
+        raise RuntimeError(f'{request.__class__.__name__}: {error}')
+    boxes = []
+    for observation in request.results() or []:
+        for item in observation.salientObjects() or []:
+            bb = item.boundingBox()   # normalised, origin bottom-left
+            boxes.append((bb.origin.x, 1 - bb.origin.y - bb.size.height, bb.size.width,
+                          bb.size.height, float(item.confidence())))
+    return boxes
+
+
 def find_subject(preview):
-    """(x, y, w, h) around the subject of a PIL image, or None when none is found."""
+    """(x, y, w, h) around the subject of a PIL image, or None when none is found.
+
+    Tries Vision's objectness-based saliency (objects that stand out), then its attention-based
+    saliency (where the eye is drawn) when the first finds nothing."""
     mods = _modules()
     if mods is None:
         return None
     Vision, Foundation, objc = mods
+    _count('photos')
     try:
         with objc.autorelease_pool():
             buf = io.BytesIO()
             preview.convert('RGB').save(buf, 'JPEG', quality=85)
             raw = buf.getvalue()
             data = Foundation.NSData.dataWithBytes_length_(raw, len(raw))
-            handler = Vision.VNImageRequestHandler.alloc().initWithData_options_(data, {})
-            request = Vision.VNGenerateObjectnessBasedSaliencyImageRequest.alloc().init()
-            ok, error = handler.performRequests_error_([request], None)
-            if not ok:
-                log.info('Vision saliency failed: %s', error)
-                return None
-            boxes = []
-            for observation in request.results() or []:
-                for item in observation.salientObjects() or []:
-                    bb = item.boundingBox()   # normalised, origin bottom-left
-                    boxes.append((bb.origin.x, 1 - bb.origin.y - bb.size.height, bb.size.width,
-                                  bb.size.height, float(item.confidence())))
-            return choose(boxes)
-    except Exception:
+            errors = []
+            for key, cls in (('by_objectness', Vision.VNGenerateObjectnessBasedSaliencyImageRequest),
+                             ('by_attention', Vision.VNGenerateAttentionBasedSaliencyImageRequest)):
+                handler = Vision.VNImageRequestHandler.alloc().initWithData_options_(data, {})
+                try:
+                    found = choose(_salient_boxes(Vision, handler, cls.alloc().init()))
+                except Exception as error:
+                    errors.append(error)
+                    continue
+                if found:
+                    _count('found')
+                    _count(key)
+                    return found
+            if errors:
+                _count('errors', errors[-1])
+                log.info('Vision saliency failed: %s', errors[-1])
+            else:
+                _count('nothing')
+            return None
+    except Exception as error:
+        _count('errors', error)
         log.exception('automatic subject finding failed')
         return None
