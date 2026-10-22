@@ -16,10 +16,12 @@ log = logging.getLogger('photoselect.subject')
 PAD = 0.10           # grow the found box by 10 % of its size on every side
 MIN_SIDE = 0.12      # never measure in an area narrower or lower than 12 % of the frame
 MIN_CONFIDENCE = 0.0  # Vision only returns objects it finds salient; their confidence is often low
+MAX_AREA = 0.5        # an "object" covering more than half the frame is not a subject: use the central half
 
 # What happened so far (shown in About and the diagnostic report, and checked by the macOS tests).
 _stats_lock = threading.Lock()
-stats = {'photos': 0, 'found': 0, 'by_objectness': 0, 'by_attention': 0, 'nothing': 0, 'errors': 0, 'last_error': ''}
+stats = {'photos': 0, 'found': 0, 'by_objectness': 0, 'by_attention': 0, 'too_large': 0, 'nothing': 0, 'errors': 0,
+         'cpu_only': 0, 'last_error': ''}
 
 
 def _count(key, error=None):
@@ -72,6 +74,8 @@ def choose(boxes):
     y0 = min(b[1] for b in keep)
     x1 = max(b[0] + b[2] for b in keep)
     y1 = max(b[1] + b[3] for b in keep)
+    if (x1 - x0) * (y1 - y0) > MAX_AREA:
+        return None
     return region_around(x0, y0, x1, y1)
 
 
@@ -95,8 +99,19 @@ def region_around(x0, y0, x1, y1):
     return tuple(round(v, 4) for v in (x0, y0, x1 - x0, y1 - y0))
 
 
+_cpu_only = False   # set once Vision could not use the GPU / Neural Engine (e.g. a virtual Mac)
+
+
 def _salient_boxes(Vision, handler, request):
+    global _cpu_only
+    if _cpu_only and hasattr(request, 'setUsesCPUOnly_'):
+        request.setUsesCPUOnly_(True)
     ok, error = handler.performRequests_error_([request], None)
+    if not ok and not _cpu_only and 'inference context' in str(error) and hasattr(request, 'setUsesCPUOnly_'):
+        _cpu_only = True
+        _count('cpu_only')
+        request.setUsesCPUOnly_(True)
+        ok, error = handler.performRequests_error_([request], None)
     if not ok:
         raise RuntimeError(f'{request.__class__.__name__}: {error}')
     boxes = []
@@ -129,10 +144,13 @@ def find_subject(preview):
                              ('by_attention', Vision.VNGenerateAttentionBasedSaliencyImageRequest)):
                 handler = Vision.VNImageRequestHandler.alloc().initWithData_options_(data, {})
                 try:
-                    found = choose(_salient_boxes(Vision, handler, cls.alloc().init()))
+                    boxes = _salient_boxes(Vision, handler, cls.alloc().init())
                 except Exception as error:
                     errors.append(error)
                     continue
+                found = choose(boxes)
+                if boxes and not found:
+                    _count('too_large')
                 if found:
                     _count('found')
                     _count(key)

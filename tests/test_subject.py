@@ -34,6 +34,11 @@ class ChooseTests(unittest.TestCase):
         self.assertGreater(x + w, .6)
         self.assertLess(y + h, .6)                                       # the weak corner box is left out
 
+    def test_area_covering_most_of_the_frame_is_not_a_subject(self):
+        self.assertIsNone(subject.choose([(.04, 0, .96, .92, .5)]))          # what attention saliency often returns
+        self.assertIsNone(subject.choose([(.05, .1, .3, .3, .9), (.5, .4, .45, .55, .8)]))   # combined: too large
+        self.assertIsNotNone(subject.choose([(.42, .33, .19, .29, .9)]))
+
     def test_tiny_subject_gets_minimum_size_inside_the_frame(self):
         x, y, w, h = subject.choose([(.98, .0, .01, .01, .9)])
         self.assertAlmostEqual(w, subject.MIN_SIDE, 3)
