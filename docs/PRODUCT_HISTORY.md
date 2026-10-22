@@ -527,6 +527,19 @@ Built when the owner sent **build_new** after item 24 was discussed (below).
   - thumbnails now sit in a frame that fits the picture, so the outline lines up with the photo.
 - Plug-in unchanged (1.8.0): no reinstall needed.
 
+### After 1.10.0
+25. **One list of what to do.** The owner asked for the steps and instructions they need to follow,
+    in one place instead of scattered through the conversation.
+    - Done: a "Start here: your to-do list" at the top of the field test page (docs/field-tests.html
+      and the shared field-test page):
+      1. install the latest app;
+      2. reinstall the plug-in once;
+      3. run T15, T19, T18, T20 and T17, in that order;
+      4. report back with the diagnostic report and copied results;
+      5. the pending decisions: XMP sidecars, automatic subject finding, the Consider and Borderline
+         margins;
+      6. how to ask for changes and build_new.
+
 ---
 
 ## 2. Definitions (draft glossary for the user instructions)

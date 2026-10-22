@@ -30,6 +30,11 @@ a{color:var(--accent)}
 .how{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
 .how div{background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:14px;min-width:0}
 .how b{display:block;font-family:var(--display);font-size:1.1rem;font-weight:600;margin-bottom:4px}
+.todo{background:var(--paper);border:1px solid var(--line);border-left:5px solid var(--accent);border-radius:8px;padding:18px;display:grid;gap:12px;min-width:0}
+.todo ol{margin:0;padding-left:22px;display:grid;gap:10px}
+.todo ol ol{margin-top:6px;gap:4px}
+.todo h3{font-size:1.1rem;font-weight:600;margin-top:4px}
+.todo a.t{font:500 .85rem var(--mono)}
 .bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:10px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;border-bottom:1px solid var(--line)}
 .tally{display:flex;gap:14px;font:500 .85rem var(--mono);font-variant-numeric:tabular-nums;flex:1;flex-wrap:wrap}
 .tally span::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;vertical-align:1px;background:var(--c)}
@@ -64,6 +69,36 @@ textarea{min-height:64px;resize:vertical}
     <div class="eyebrow">PhotoSelect 1.10.0 · on your own Mac</div>
     <h1>Field tests for your M2</h1>
     <p>Run these on your Mac with your own Nikon and Olympus files. Nothing needs uploading: fill in the boxes as you go, attach the diagnostic report the app creates, then press <b>Copy results</b> and paste the text into our chat. Your answers are kept in this browser as you type, so you can stop and come back.</p>
+    <section class="todo" aria-labelledby="todoTitle">
+      <h2 id="todoTitle">Start here: your to-do list</h2>
+      <p class="muted">Everything waiting on you, in order. The numbered tests are further down this page.</p>
+      <ol>
+        <li><b>Install the latest app.</b> Download <a href="https://github.com/aandlee-lgtm/Project1/releases/latest" target="_blank" rel="noopener">the newest release</a> (PhotoSelect-AppleSilicon.dmg) and drag it to Applications, replacing the old one. If macOS blocks it: System Settings → Privacy &amp; Security → Open Anyway.</li>
+        <li><b>Update the Lightroom plug-in once.</b>
+          <ol>
+            <li>In PhotoSelect: <b>3 Send to Lightroom…</b> → <b>Reinstall plug-in</b>.</li>
+            <li>In Lightroom Classic: File → Plug-in Manager → remove any other PhotoSelect entry.</li>
+            <li>Quit and reopen Lightroom Classic.</li>
+            <li>Back in PhotoSelect, open Send to Lightroom… again: the top line should say the plug-in <b>1.8.0</b> is running.</li>
+          </ol></li>
+        <li><b>Test the most important things first</b> (fill in each test as you go):
+          <ol>
+            <li><a class="t" href="#T15">T15</a> Stars appear in Lightroom by themselves after an ordinary import (the fix in 1.8). Note the “Last search in Lightroom” line.</li>
+            <li><a class="t" href="#T19">T19</a> Best of each series: one Keep per series, and is it the frame you would pick?</li>
+            <li><a class="t" href="#T18">T18</a> The PhotoSelect Smart Collections in Lightroom, and star changes coming back to PhotoSelect.</li>
+            <li><a class="t" href="#T20">T20</a> Focus area outlines: how often is the subject outside the dashed area?</li>
+            <li><a class="t" href="#T17">T17</a> Speed on your M2 with a large shoot.</li>
+          </ol></li>
+        <li><b>Report back.</b> Help → <i>Create Diagnostic Report…</i>, then <b>Copy results</b> at the bottom of this page and paste both into our chat.</li>
+        <li><b>Decide</b> (after the tests):
+          <ol>
+            <li>XMP sidecars (item 21): wanted only if T15 still fails, or you would rather not use a plug-in.</li>
+            <li>Automatic subject finding: worth building if T20 shows the subject is often outside the dashed area.</li>
+            <li>Margins: too many Consider frames in a series (3-point margin), or Borderline too wide or narrow (5 points)?</li>
+          </ol></li>
+        <li><b>Ask for changes</b> any time in plain words; they go on the backlog. Send <b>build_new</b> when you want the next version built.</li>
+      </ol>
+    </section>
     <div class="how">
       <div><b>1 · Get the app</b><span id="dmgLine">Download <a href="https://github.com/aandlee-lgtm/Project1/releases/tag/v1.10.0" target="_blank" rel="noopener">PhotoSelect 1.10.0</a> and download PhotoSelect-AppleSilicon.dmg. Open the DMG and drag PhotoSelect to Applications.</span></div>
       <div><b>2 · Run the tests</b>Do them in order; T4 and T5 matter most. Mark each one Pass, Issue or Skipped. Skipping is fine, just say why.</div>
