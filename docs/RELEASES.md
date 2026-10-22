@@ -1,5 +1,35 @@
 # PhotoSelect releases
 
+## 1.11.0
+- **No plug-in needed for Lightroom (XMP sidecars).** *Send to Lightroom…* now writes the stars and
+  PhotoSelect keywords into a small `.xmp` file next to each RAW photo, e.g. `DSC_1234.xmp`.
+  - Lightroom reads it when you import the photos (Add or Copy), so the stars arrive with them, with
+    nothing to install or run.
+  - This is now the default route. The plug-in remains as the other choice for JPEG photos and photos
+    already in Lightroom.
+  - Existing sidecars from Lightroom or other apps are merged: your edits, keywords and stars set
+    elsewhere are kept.
+  - JPEG, HEIC, TIFF and DNG photos get no sidecar (their metadata is inside the file, which
+    PhotoSelect never changes), and the window lists them.
+  - **Remove PhotoSelect sidecars** deletes the ones PhotoSelect created.
+  - **Smart Collection files…** gives you 1 Rescue, 2 Confirm, 3 Decide, Liked and Borderline to
+    import once in Lightroom.
+  - Star changes come back to PhotoSelect if Lightroom's Catalog Settings → Metadata → *Automatically
+    write changes into XMP* is on.
+- **The subject is found automatically.** PhotoSelect uses macOS's own on-device image analysis
+  (Vision) to find what stands out in each photo, and measures subject focus there instead of in
+  the central half.
+  - A solid grey outline shows the subject found. The dashed outline means nothing clear was found
+    and the central half was used.
+  - A region you drag yourself still wins.
+  - Switch it off with *Find the subject automatically* under the sliders.
+  - The 100% crops in the burst comparison centre on the subject.
+  - Folders are re-analysed once with this version.
+- Tested: the installed DMG passed all 134 acceptance checks on macOS 14.8 and 15.7 (run 39742908792),
+  including sidecars written next to genuine Nikon, Sony and Olympus RAW files and removed again.
+  Analysis took longer on the test machines (see the validation report); please report your M2's time
+  (field tests T17 and T22).
+
 ## 1.10.0
 - **See where focus is measured.** Every photo now shows the area PhotoSelect uses for *Subject
   focus*:

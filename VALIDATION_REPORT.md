@@ -1,4 +1,53 @@
-# PhotoSelect validation report (1.0.0, updated for 1.10.0)
+# PhotoSelect validation report (1.0.0, updated for 1.11.0)
+
+## 1.11.0 results
+Build and acceptance run: https://github.com/aandlee-lgtm/Project1/actions/runs/39742908792. The installed
+DMG passed on clean macOS 14.8 and 15.7 runners: 134 passed or informational, 0 failed, on each.
+
+**XMP sidecars (WebKit UI check, before and after relaunch):**
+- Sidecars were written next to the 6 genuine RAW samples (Nikon NEF, Sony ARW, Olympus ORF), each
+  with that photo's stars. The 9 JPEG, PNG and TIFF files were listed as having no sidecar.
+- *Remove PhotoSelect sidecars* deleted all 6, and the originals check found the folder unchanged
+  afterwards.
+- Unit tests:
+  - merging into an existing Adobe sidecar keeps its develop settings, keywords and 4★;
+  - a later send replaces only PhotoSelect's keywords;
+  - removal deletes only unchanged PhotoSelect sidecars;
+  - star changes Lightroom writes into a sidecar come back, once;
+  - the Smart Collection files are valid Lua.
+
+**Subject finding (macOS Vision, inside the installed app):**
+- A subject was found on 2 of 6 genuine camera photos on both systems, with identical boxes. Of 15
+  photos in total, 10 had a subject and 5 had only near-whole-frame areas, which are rejected.
+- The macOS 14 runner (a virtual Mac without GPU / Neural Engine for Vision) first failed with
+  "Could not create inference context" (run 39741458356). The app now retries on the CPU, and that
+  worked.
+- Unit tests:
+  - choosing, padding and minimum size of the area;
+  - focus measured on the subject;
+  - your region wins;
+  - switching off without re-analysis.
+
+**Harness fix:** the launch-1 UI check failed whenever the random session token began with "-": the
+test harness's argument parser took it for an option. This was also the unexplained failure of run
+38036716714 (1.9.0). Arguments are now passed as `--name=value`.
+
+**Speed, 250-RAW-file folder:**
+
+| | 1.10.0 | 1.11.0 |
+|---|---|---|
+| macOS 14 | 169 s | 308 s |
+| macOS 15 | 237 s | 395 s |
+| CPU time per file | 1.2–1.6 s | 2.0–2.7 s |
+
+Part of this is runner variance, but finding the subject adds work. On these virtual Macs Vision runs
+without the Neural Engine: on macOS 14 only on the CPU. The second request (attention saliency)
+also runs whenever the first finds nothing. On a real Apple silicon Mac Vision uses the Neural Engine,
+so the cost should be much smaller, but this is not measured yet: field tests T17 and T22 cover it.
+*Find the subject automatically* switched off does not skip the work during analysis in this version.
+
+**Not tested:** how well the subject found matches the boats and sailors in real sailing photos
+(field test T22), and Lightroom reading the sidecars and importing the Smart Collection files (T21).
 
 ## 1.10.0 results
 Build and acceptance run: https://github.com/aandlee-lgtm/Project1/actions/runs/38052012113. The installed
