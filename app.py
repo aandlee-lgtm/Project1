@@ -24,7 +24,7 @@ import xmp_sidecar
 import store as store_module
 from engine import Library
 
-APP_VERSION = '1.11.0'
+APP_VERSION = '1.12.0'
 log = logging.getLogger('photoselect.app')
 
 
@@ -34,7 +34,7 @@ def resource_dir():
 
 
 LIGHTROOM_PLUGIN = 'PhotoSelect.lrplugin'
-LIGHTROOM_FIELDS = ('path', 'name', 'capture', 'rating', 'keywords', 'decision', 'suggestion')
+LIGHTROOM_FIELDS = ('path', 'name', 'capture', 'rating', 'keywords', 'decision', 'suggestion', 'crop')
 
 
 def lightroom_dir():
@@ -116,6 +116,10 @@ def _tsv_field(value):
     return ' '.join(str(value).replace('\t', ' ').splitlines())
 
 
+def _valid_crop(box):
+    return isinstance(box, (list, tuple)) and analysis.valid_region(box)
+
+
 def lightroom_selections(folder, rows, auto=False):
     """Tab-separated selections file read by the plug-in's SelectionsCore.lua (format version 1).
     auto: the plug-in applies these selections by itself once the photos are in the catalog."""
@@ -124,8 +128,11 @@ def lightroom_selections(folder, rows, auto=False):
     for r in rows:
         rating = int(r['rating'])
         keywords = '|'.join(_tsv_field(k).replace('|', '/') for k in r.get('keywords') or [])
+        # 1.12: suggested crop as Lightroom crop edges "left,top,right,bottom" of the photo as stored
+        edges = xmp_sidecar.stored_crop(r['crop'], int(r.get('orientation') or 1)) if _valid_crop(r.get('crop')) else None
         lines.append('\t'.join(_tsv_field(v) for v in (r['path'], r['name'], r.get('capture') or '', rating, keywords,
-                                                         r.get('decision') or '', r.get('suggestion') or '')))
+                                                         r.get('decision') or '', r.get('suggestion') or '',
+                                                         ','.join(f'{v:.4f}' for v in edges) if edges else '')))
     return '\n'.join(lines) + '\n'
 
 
@@ -258,6 +265,9 @@ def create_app(library=None, store=None, token=None):
         saved = store.set_prefs(data)
         if 'auto_subject' in data:   # 1.11: focus on the subject found automatically, or the central half
             library.set_auto_subject(data['auto_subject'] is not False)
+        if 'consider_crop' in data or 'crop_min_edge' in data:   # 1.12: suggested crops
+            library.set_crop_settings(consider=saved.get('consider_crop', True) is not False,
+                                      min_edge=saved.get('crop_min_edge', 3000))
         return jsonify(saved)
 
     @app.post('/api/pick')
@@ -364,6 +374,8 @@ def create_app(library=None, store=None, token=None):
             fields['decision'] = decision
         if 'liked' in data:
             fields['liked'] = bool(data['liked'])
+        if 'no_crop' in data:          # 1.12: "No crop" for this photo's suggested crop
+            library.set_no_crop(row, data['no_crop'])
         store.set_mark(row['path'], **fields)
         library.version += 1
         return jsonify(ok=True)
@@ -489,7 +501,8 @@ def create_app(library=None, store=None, token=None):
         sidecars = data.get('route') == 'sidecar'
         if sidecars:
             # 1.11: stars and keywords in XMP sidecars next to the RAW files, read by Lightroom on import
-            result['sidecars'] = xmp_sidecar.write_all(lightroom_dir(), table)
+            result['sidecars'] = xmp_sidecar.write_all(
+                lightroom_dir(), [dict(r, crop=r.get('crop') if _valid_crop(r.get('crop')) else None) for r in table])
             log.info('XMP sidecars: %s', {k: v if isinstance(v, int) else len(v) for k, v in result['sidecars'].items()})
         wanted = data.get('open')
         if wanted is None:

@@ -70,11 +70,20 @@ function Core.parse(text)
           path = v[index.path] or '', name = basename(v[index.name]), capture = v[index.capture] or '',
           rating = rating, keywords = keywords,
           decision = index.decision and v[index.decision] or '',
+          crop = index.crop and Core.parseCrop(v[index.crop]) or nil,   -- 1.12: suggested crop, or nil
         }
       end
     end
   end
   return result
+end
+
+-- "left,top,right,bottom" (fractions of the photo as stored) -> { left =, top =, right =, bottom = } or nil
+function Core.parseCrop(text)
+  local l, t, r, b = string.match(text or '', '^([%d%.]+),([%d%.]+),([%d%.]+),([%d%.]+)$')
+  l, t, r, b = tonumber(l), tonumber(t), tonumber(r), tonumber(b)
+  if not (l and t and r and b) or l < 0 or t < 0 or r > 1 or b > 1 or r - l < 0.05 or b - t < 0.05 then return nil end
+  return { left = l, top = t, right = r, bottom = b }
 end
 
 -- Build lookup tables from parsed files; entries from later exports replace earlier ones.

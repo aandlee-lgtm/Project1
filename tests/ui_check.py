@@ -102,6 +102,17 @@ def main():
         page.check('#autoSubject')
         wait("prefs.auto_subject === true", 10_000)
         page.wait_for_timeout(1500)
+        # 1.12: suggested crops keep the photo's shape and the minimum long edge, and are drawn on the picture
+        crops = page.evaluate("rows.filter(r => r.crop).map(r => [r.id, r.crop.px, r.crop.box, r.size])")
+        least = page.evaluate('prefs.crop_min_edge || 3000')
+        marks = page.evaluate("""() => [...document.querySelectorAll('.card')].filter(c => c.querySelector('.cropmarks')).slice(0, 4).map(c => {
+            const im = c.querySelector('.pic img').getBoundingClientRect(), m = c.querySelector('.cropmarks').getBoundingClientRect(),
+                  r = byId.get(c.querySelector('[data-open]').dataset.open);
+            return [[(m.left - im.left) / im.width, (m.top - im.top) / im.height, m.width / im.width, m.height / im.height], r.crop.box] })""")
+        check('suggested crops keep at least the minimum long edge and the photo\'s shape, drawn where they are',
+              all(max(px) >= least and abs(px[0] / px[1] - max(size) / min(size)) < .02 for _, px, _, size in crops)
+              and all(all(abs(a - b) < .03 for a, b in zip(m, box)) for m, box in marks),
+              f'{len(crops)} photos with a crop (minimum {least} px): {[c[1] for c in crops[:4]]}')
         check('Find the subject automatically can be switched off', 'subject' not in off_kinds and page.evaluate('prefs.auto_subject') is True)
         # 1.6: persistent top bar with the main actions; version label only
         label = page.text_content('header .version')
@@ -235,6 +246,14 @@ def main():
         region = page.evaluate("""() => { const r = document.getElementById('region'); return [r.className, r.hidden] }""")
         page.wait_for_timeout(600)
         mine_on_card = page.evaluate("[...document.querySelectorAll('.card')].some(c => c.querySelector('.focusbox.mine') && c.querySelector('.filename').textContent === current.name)")
+        if page.evaluate('Boolean(current.crop)'):
+            page.click('#vNoCrop')
+            wait('current.no_crop === true', 10_000)
+            off = page.text_content('#reasons')
+            page.click('#vNoCrop')
+            wait('current.no_crop === false', 10_000)
+            check('No crop for one photo, and back', 'not used' in off and 'with the suggested crop' in page.text_content('#reasons'),
+                  off[:120])
         check('your region shown solid in the viewer and on its card', 'mine' in region[0] and not region[1] and mine_on_card, region)
         reasons = page.text_content('#reasons')
         check('recommendation reasons shown', 'weighted score' in reasons or 'Your decision' in reasons, reasons[:160])
@@ -394,6 +413,9 @@ def main():
         wait("document.getElementById('lrResult').textContent.includes('Sidecars written') || document.getElementById('lrError').textContent.length > 0", 60_000)
         result = page.text_content('#lrResult')
         sides = [(Path(p).with_suffix('.xmp'), r) for p, r in raws]
+        cropped = page.evaluate(r"""lightroomRows().filter(x => x.crop && /\.(nef|nrw|orf|arw|cr2|cr3|raf|rw2|pef|srw)$/i.test(x.path)).map(x => x.path)""")
+        check('suggested crops written into the sidecars as Lightroom crops',
+              all('crs:HasCrop="True"' in Path(p).with_suffix('.xmp').read_text() for p in cropped), f'{len(cropped)} RAW photos with a crop')
         ok_files = all(f.exists() and f'xmp:Rating="{r}"' in f.read_text() for f, r in sides)
         check('XMP sidecars written next to the RAW photos with their stars; other files skipped',
               f'written for {len(raws)} RAW' in result and ok_files and (len(raws) == total or 'no sidecar' in result)

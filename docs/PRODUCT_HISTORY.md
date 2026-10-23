@@ -570,7 +570,8 @@ Built when the owner sent **build_new** after asking for items 21 and 26.
   - 100% crops in the burst comparison centre on the subject;
   - existing folders are re-analysed once (analysis version 5).
 
-### After 1.11.0 (planned for the next version: waiting for build_new)
+### 1.12.0: better subject finding, suggested crops (at least 3,000 px)
+Built when the owner sent **build_new** after item 27 was discussed (below).
 27. **Derive the subject; consider cropping.** The owner asked whether the subject can be derived in
     each photo and, if so, to let PhotoSelect consider cropping as long as the long edge stays above
     3,000 px after the crop.
@@ -587,6 +588,28 @@ Built when the owner sent **build_new** after asking for items 21 and 26.
       - composition scored on the crop when that is better (setting *Consider cropping*);
       - the crop shown as amber corner marks, with a per-photo *No crop*;
       - the crop sent to Lightroom as a normal, adjustable crop (sidecar or plug-in), switchable off.
+
+**Shipped in 1.12.0.**
+- (27) Subject finding tries, in turn:
+  1. macOS subject isolation (foreground instance mask, macOS 14+);
+  2. people detection (whole bodies);
+  3. objectness saliency;
+  4. attention saliency.
+
+  Each method is counted (About, diagnostic report).
+- Suggested crops:
+  - computed during analysis for 2,000, 2,500, 3,000, 3,500 and 4,000 px minimum long edges, so
+    changing *Minimum long edge after crop* (default 3,000 px) needs no re-analysis;
+  - the subject takes up at most 60 % of the crop's width and height;
+  - a crop is only suggested when it improves composition by at least 3 points, and keeps no more
+    than 90 % of the frame;
+  - crops around a region you draw are worked out when the region is measured;
+  - *Consider cropping* (on) counts the better composition; *No crop* per photo in the viewer;
+    *Show suggested crop* in the toolbar;
+  - in Lightroom, the crop arrives as an ordinary crop (crs:HasCrop / CropLeft… in the sidecar, or
+    applyDevelopSettings through plug-in 1.12.0), turned back to the photo as stored for portrait
+    frames. Crops set elsewhere are never replaced; *Send suggested crops* switches this off;
+  - folders are re-analysed once (analysis version 6).
 
 ---
 
@@ -612,7 +635,7 @@ Built when the owner sent **build_new** after asking for items 21 and 26.
 | **Close to burst top** | A frame within 3 points of its burst's best frame. Worth comparing by eye. |
 | **Subject found automatically** | Since 1.11: where macOS's on-device image analysis finds the subject of a photo (what stands out). Subject focus is measured there, unless you drew a region. Solid grey outline. |
 | **XMP sidecar** | A small `.xmp` file next to a RAW photo (e.g. `DSC_1234.xmp`) holding its stars and keywords. Lightroom reads it on import. Since 1.11 PhotoSelect can write them instead of using the plug-in. |
-| **Suggested crop** *(planned)* | A crop PhotoSelect proposes around the subject: same aspect ratio, subject on a thirds line, at least 3,000 px on the long edge. Used for the composition score and sent to Lightroom as an adjustable crop. |
+| **Suggested crop** | A crop PhotoSelect proposes around the subject: same aspect ratio, subject on a thirds line, at least 3,000 px on the long edge. Used for the composition score and sent to Lightroom as an adjustable crop. |
 | **Show focus area** | Toolbar switch (since 1.10) that shows or hides the focus-area outlines on the photos. |
 | **Best of each series** | How many frames of each burst or near-identical series are suggested Keep (default 1). The others are suggested Drop, or Consider when within 3 points of the best. |
 | **Likeness %** | How alike two frames look, from 0 % (unrelated) to 100 % (identical). It compares a 16 × 12 grey-level version of each frame and its average colour. |

@@ -255,7 +255,7 @@ class ApplySelectionsTests(unittest.TestCase):
         self.assertFalse((self.folder / 'pending.import').exists())  # all done
         self.assertIn('stars applied to 1 imported photos', lua.globals().BEZEL)
         status = dict(l.split('\t') for l in (self.folder / 'plugin-status.txt').read_text().splitlines())
-        self.assertEqual((status['version'], status['applied_count']), ('1.8.0', '1'))
+        self.assertEqual((status['version'], status['applied_count']), ('1.12.0', '1'))
 
     def test_auto_apply_after_any_import_of_sent_selections(self):
         # "Send to Lightroom" with automatic rating, then an ordinary import started in Lightroom (renamed files).
@@ -326,7 +326,7 @@ class ApplySelectionsTests(unittest.TestCase):
         lua = self.run_plugin(self.folder, self.photos(), script='Init.lua')   # mock sleep runs Shutdown.lua
         self.assertEqual(lua.globals().SLEEPS, 1)
         self.assertEqual(self.state(lua)['DSC_0001.NEF'][0], 3)
-        self.assertIn('version\t1.8.0', (self.folder / 'plugin-status.txt').read_text())
+        self.assertIn('version\t1.12.0', (self.folder / 'plugin-status.txt').read_text())
 
     def test_smart_collections_and_from_photoselect_keyword(self):
         lua = self.run_plugin(self.folder, self.photos())
@@ -360,6 +360,21 @@ class ApplySelectionsTests(unittest.TestCase):
         changes = [l.split('\t')[1:] for l in (self.folder / 'lightroom-changes.tsv').read_text().splitlines()]
         self.assertEqual(sorted(changes), [['1', '3', '/Volumes/Card/DCIM/DSC_0002.NEF'],
                                            ['5', '2', '/Volumes/Card/DCIM/DSC_0001.NEF']])
+
+    def test_suggested_crop_applied_only_to_uncropped_photos(self):
+        rows = [dict(row('DSC_0001.NEF', 3), crop=[.1, .2, .5, .5], orientation=1),
+                dict(row('DSC_0002.NEF', 1, capture='2026-05-01 10:00:01'), crop=[.1, .2, .5, .5], orientation=6),
+                row('DSC_0003.NEF', 2, capture='2026-05-01 10:00:05')]
+        (self.folder / 'one.tsv').write_text(selections(rows))
+        photos = self.photos()
+        lua = self.run_plugin(self.folder, photos[:2], script=None)
+        list(lua.globals().PHOTOS.values())[1].develop = lua.table_from({'CropLeft': 0.05, 'CropRight': 0.9})   # cropped already
+        lua.execute(f"package.loaded['Config'] = {{ selectionsFolder = [==[{self.folder}]==] }}")
+        lua.execute((PLUGIN / 'ApplySelections.lua').read_text())
+        p1, p2 = list(lua.globals().PHOTOS.values())
+        self.assertEqual([round(p1.develop[k], 4) for k in ('CropLeft', 'CropTop', 'CropRight', 'CropBottom')], [.1, .2, .6, .7])
+        self.assertEqual(p1.develop.CropAngle, 0)
+        self.assertEqual((p2.develop.CropLeft, p2.develop.CropTop), (0.05, None))     # your crop kept
 
     def test_no_selections_explains_what_to_do(self):
         lua = self.run_plugin(self.folder / 'missing', self.photos())
@@ -414,6 +429,14 @@ function Photo:setRawMetadata(key, value)
   assert(writing, 'setRawMetadata outside withWriteAccessDo')
   assert(key == 'rating', key)
   self.rating = value
+end
+function Photo:getDevelopSettings()
+  return self.develop or {}
+end
+function Photo:applyDevelopSettings(settings)
+  assert(writing, 'applyDevelopSettings outside withWriteAccessDo')
+  self.develop = self.develop or {}
+  for k, v in pairs(settings) do self.develop[k] = v end
 end
 function Photo:addKeyword(k)
   assert(writing and getmetatable(k) == Keyword)

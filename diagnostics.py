@@ -170,6 +170,10 @@ def build(library, prefs, app_version):
       f"within {prefs['near_window']} s; best of each series: {prefs.get('best_of', 1) or 'all'}; "
       f"find the subject automatically: {'on' if prefs.get('auto_subject', True) is not False else 'off'}; "
       f"Lightroom route: {'XMP sidecars' if prefs.get('lr_route', 'sidecar') != 'plugin' else 'plug-in'}")
+    cropped = [r for r in rows if r.get('crop')]
+    w(f"- suggested crop on {len(cropped)} photos (minimum long edge {prefs.get('crop_min_edge', 3000)} px, "
+      f"consider cropping: {'on' if prefs.get('consider_crop', True) is not False else 'off'}, "
+      f"sent to Lightroom: {'yes' if prefs.get('send_crops', True) is not False else 'no'})")
     found = [r for r in rows if r.get('subject')]
     w(f"- subject found automatically on {len(found)} of {len([r for r in rows if r.get('raw')])} analysed photos")
     marks = library.store.marks([r['path'] for r in rows])

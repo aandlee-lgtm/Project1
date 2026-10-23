@@ -146,8 +146,8 @@ class AppTests(unittest.TestCase):
             self.assertEqual(saved.parent, home / 'support' / 'Lightroom')
             lines = saved.read_text(encoding='utf-8').splitlines()
             self.assertTrue(lines[0].startswith('# PhotoSelect selections\t1\t'))
-            self.assertEqual(lines[1], 'path\tname\tcapture\trating\tkeywords\tdecision\tsuggestion')
-            self.assertEqual(lines[2].split('\t')[1:], ['a.jpg', '2026-05-01 10:00:00', '5', 'Keep|Liked|Burst 001', 'Keep', 'Consider'])
+            self.assertEqual(lines[1], 'path\tname\tcapture\trating\tkeywords\tdecision\tsuggestion\tcrop')
+            self.assertEqual(lines[2].split('\t')[1:], ['a.jpg', '2026-05-01 10:00:00', '5', 'Keep|Liked|Burst 001', 'Keep', 'Consider', ''])
             self.assertEqual(fingerprint(self.photos), before, 'nothing is written into the photo folder')
 
             r = self.post('/api/lightroom/install', {}).get_json()
@@ -206,7 +206,7 @@ class AppTests(unittest.TestCase):
         with patch.dict(os.environ, {'PHOTOSELECT_HOME': str(home), 'PHOTOSELECT_LR_MODULES': str(modules),
                                      'PHOTOSELECT_LR_APP': ''}):
             s = self.get('/api/lightroom/status').get_json()
-            self.assertEqual((s['plugin_installed'], s['plugin_running'], s['bundled_version']), (False, False, '1.8.0'))
+            self.assertEqual((s['plugin_installed'], s['plugin_running'], s['bundled_version']), (False, False, '1.12.0'))
             self.post('/api/lightroom/install', {})
             folder = home / 'support' / 'Lightroom'
             (folder / 'plugin-status.txt').write_text(
@@ -214,7 +214,7 @@ class AppTests(unittest.TestCase):
                 f'applied_at\t{time.time() - 30:.0f}\napplied_count\t27\nwaiting\t3\n')
             s = self.get('/api/lightroom/status').get_json()
             self.assertEqual((s['installed_version'], s['plugin_running'], s['running_version'], s['last_applied_count'],
-                              s['waiting']), ('1.8.0', True, '1.4.0', 27, 3))
+                              s['waiting']), ('1.12.0', True, '1.4.0', 27, 3))
             (folder / 'plugin-status.txt').write_text(
                 f'version\t1.8.0\nchecked\t{time.time() - 5:.0f}\nlast_search\tfile names (2): 2 photos\n'
                 f'last_error\tsearch by capture date: unsupported\nerror_at\t{time.time() - 60:.0f}\n')

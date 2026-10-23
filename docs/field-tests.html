@@ -66,14 +66,14 @@ textarea{min-height:64px;resize:vertical}
 
 <div class="wrap">
   <section class="intro">
-    <div class="eyebrow">PhotoSelect 1.11.0 · on your own Mac</div>
+    <div class="eyebrow">PhotoSelect 1.12.0 · on your own Mac</div>
     <h1>Field tests for your M2</h1>
     <p>Run these on your Mac with your own Nikon and Olympus files. Nothing needs uploading: fill in the boxes as you go, attach the diagnostic report the app creates, then press <b>Copy results</b> and paste the text into our chat. Your answers are kept in this browser as you type, so you can stop and come back.</p>
     <section class="todo" aria-labelledby="todoTitle">
       <h2 id="todoTitle">Start here: your to-do list</h2>
       <p class="muted">Everything waiting on you, in order. The numbered tests are further down this page.</p>
       <ol>
-        <li><b>Install the latest app.</b> Download <a href="https://github.com/aandlee-lgtm/Project1/releases/download/v1.11.0/PhotoSelect-AppleSilicon.dmg">PhotoSelect-AppleSilicon.dmg (1.11.0)</a> (or see <a href="https://github.com/aandlee-lgtm/Project1/releases" target="_blank" rel="noopener">all releases</a>, newest at the top), open it and drag PhotoSelect to Applications, replacing the old one. If macOS blocks it: System Settings → Privacy &amp; Security → Open Anyway.</li>
+        <li><b>Install the latest app.</b> Download <a href="https://github.com/aandlee-lgtm/Project1/releases/download/v1.12.0/PhotoSelect-AppleSilicon.dmg">PhotoSelect-AppleSilicon.dmg (1.12.0)</a> (or see <a href="https://github.com/aandlee-lgtm/Project1/releases" target="_blank" rel="noopener">all releases</a>, newest at the top), open it and drag PhotoSelect to Applications, replacing the old one. If macOS blocks it: System Settings → Privacy &amp; Security → Open Anyway.</li>
         <li><b>Set up Lightroom once, without the plug-in.</b>
           <ol>
             <li>In PhotoSelect: <b>3 Send to Lightroom…</b>: <b>XMP sidecars · no plug-in</b> is selected (the default).</li>
@@ -85,6 +85,7 @@ textarea{min-height:64px;resize:vertical}
           <ol>
             <li><a class="t" href="#T21">T21</a> Stars arrive with an ordinary import through the XMP sidecars, no plug-in.</li>
             <li><a class="t" href="#T22">T22</a> The subject is found automatically: is the solid grey outline on your boats and sailors?</li>
+            <li><a class="t" href="#T23">T23</a> Suggested crops: good framing, at least 3,000 px, and do they arrive in Lightroom the right way round?</li>
             <li><a class="t" href="#T19">T19</a> Best of each series: one Keep per series, and is it the frame you would pick?</li>
             <li><a class="t" href="#T18">T18</a> The PhotoSelect Smart Collections in Lightroom, and star changes coming back to PhotoSelect.</li>
             <li><a class="t" href="#T17">T17</a> Speed on your M2 with a large shoot (re-analysed once in 1.11).</li>
@@ -99,7 +100,7 @@ textarea{min-height:64px;resize:vertical}
       </ol>
     </section>
     <div class="how">
-      <div><b>1 · Get the app</b><span id="dmgLine">Download <a href="https://github.com/aandlee-lgtm/Project1/releases/tag/v1.11.0" target="_blank" rel="noopener">PhotoSelect 1.11.0</a> and download PhotoSelect-AppleSilicon.dmg. Open the DMG and drag PhotoSelect to Applications.</span></div>
+      <div><b>1 · Get the app</b><span id="dmgLine">Download <a href="https://github.com/aandlee-lgtm/Project1/releases/tag/v1.12.0" target="_blank" rel="noopener">PhotoSelect 1.12.0</a> and download PhotoSelect-AppleSilicon.dmg. Open the DMG and drag PhotoSelect to Applications.</span></div>
       <div><b>2 · Run the tests</b>Do them in order; T4 and T5 matter most. Mark each one Pass, Issue or Skipped. Skipping is fine, just say why.</div>
       <div><b>3 · Report back</b>Help → <i>Create Diagnostic Report…</i> after T2 and T8. Copy the results below and paste them in chat, with the report files attached or pasted.</div>
     </div>
@@ -271,6 +272,15 @@ const TESTS=[
     ['better22','Keep suggestions compared with 1.10','select',['','Better','About the same','Worse']]],
   expect:'Most photos get a solid outline around the boat or sailors; focus scores follow the subject.',
   react:'If it often picks water or sky, I will tune how the found areas are combined (or prefer people), using the examples you name.'},
+ {id:'T23',title:'Suggested crops',why:'1.12 suggests a crop around the subject that keeps at least 3,000 px on the long edge, and sends it to Lightroom.',
+  steps:['Analyse a sailing shoot with subjects small in the frame (it is re-analysed once).','Look for amber corners on the thumbnails and in the viewer; read the "Composition … → … with the suggested crop" line.','Try No crop on one photo, and Minimum long edge after crop 3,500 or 4,000 px.','Send to Lightroom with Send suggested crops ticked, import, and check the crop in the Develop module, including a portrait (vertical) shot.'],
+  fields:[['good23','Suggested crops: good framing?','select',['','Usually','Sometimes','Rarely']],
+    ['size23','Crops at least the minimum size (see the reason line)?','select',YN],
+    ['lr23','Crop arrived in Lightroom on the right part of the photo?','select',['','Yes','Wrong place','No crop','Not tried']],
+    ['portrait23','Portrait (vertical) shot cropped correctly in Lightroom?','select',['','Yes','No','Not tried']],
+    ['edge23','Minimum long edge you prefer','select',['','2,000 px','2,500 px','3,000 px','3,500 px','4,000 px']]],
+  expect:'Amber corners around a tighter frame with the subject on a thirds line; the same crop, adjustable, in Lightroom.',
+  react:'A crop in the wrong place in Lightroom (especially portrait shots) means the rotation mapping needs fixing: tell me the camera and orientation. Poor framing: tell me what you would have done instead.'},
  {id:'T18',title:'Review passes in Lightroom, changes back to PhotoSelect',why:'1.6 makes Smart Collections for your three passes and brings your star changes back into PhotoSelect.',
   steps:['Reinstall the plug-in from Send to Lightroom… and restart Lightroom Classic (once, for plug-in 1.6).','Send all four groups to Lightroom and import them; wait for the stars.','In Lightroom, open Collections → PhotoSelect: work through 1 Rescue, 2 Confirm and 3 Decide, changing stars where you disagree (edit first if you like).','Switch back to PhotoSelect: within about 30 s the message line should read "From Lightroom: …" and the decisions should match your new stars.','Scroll down a long grid: Choose folder, Analyse photos and Send to Lightroom… (numbered 1, 2, 3) stay at the top.'],
   fields:[['coll18','PhotoSelect collection set with 1 Rescue, 2 Confirm, 3 Decide, Liked, Borderline?','select',YN],
@@ -315,7 +325,7 @@ function update(){
   document.getElementById('output').value=report();
 }
 function report(){
-  const lines=['PhotoSelect 1.11.0 field test results',''];
+  const lines=['PhotoSelect 1.12.0 field test results',''];
   TESTS.forEach(t=>{const s=state[t.id]||{};lines.push(`${t.id} ${t.title}: ${s.status||'not done'}`);
     t.fields.forEach(([k,label])=>{if(s[k])lines.push(`  ${label}: ${s[k]}`)});
     if(s.notes)lines.push(`  Notes: ${s.notes.replace(/\n/g,' / ')}`);lines.push('')});

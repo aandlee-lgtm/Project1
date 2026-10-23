@@ -28,6 +28,7 @@ NS = {
     'xmp': 'http://ns.adobe.com/xap/1.0/',
     'dc': 'http://purl.org/dc/elements/1.1/',
     'lr': 'http://ns.adobe.com/lightroom/1.0/',
+    'crs': 'http://ns.adobe.com/camera-raw-settings/1.0/',
 }
 TOOLKIT = 'PhotoSelect'          # x:xmptk of sidecars PhotoSelect created (Lightroom replaces it when it rewrites one)
 PARENT = 'PhotoSelect'           # keywords go under PhotoSelect › ...
@@ -177,6 +178,55 @@ def _write(path, text):
     os.replace(tmp, path)
 
 
+# ---------------------------------------------------------------------------------- crops (1.12)
+CROP_KEYS = ('CropTop', 'CropLeft', 'CropBottom', 'CropRight', 'CropAngle', 'HasCrop')
+
+
+def stored_crop(box, orientation=1):
+    """Lightroom crop edges (left, top, right, bottom) for a crop box (x, y, w, h) of the upright photo.
+
+    Lightroom keeps crops relative to the photo as the camera stored it, before the EXIF rotation, so a
+    portrait frame's box is turned back first (orientation 6: stored image turned 90° clockwise to display;
+    8: 90° anticlockwise; 3: 180°). Mirrored orientations (2, 4, 5, 7) are not used by cameras: no crop."""
+    x, y, w, h = box
+    if orientation == 1:
+        l, t, r, b = x, y, x + w, y + h
+    elif orientation == 3:
+        l, t, r, b = 1 - x - w, 1 - y - h, 1 - x, 1 - y
+    elif orientation == 6:
+        l, t, r, b = y, 1 - x - w, y + h, 1 - x
+    elif orientation == 8:
+        l, t, r, b = 1 - y - h, x, 1 - y, x + w
+    else:
+        return None
+    return tuple(round(min(1.0, max(0.0, v)), 4) for v in (l, t, r, b))
+
+
+def crop_of(root):
+    """The crop in an XMP document as (left, top, right, bottom), or None when it has none."""
+    for d in _descriptions(root):
+        if (d.get(_q('crs', 'HasCrop')) or '').lower() == 'true':
+            try:
+                return tuple(float(d.get(_q('crs', k))) for k in ('CropLeft', 'CropTop', 'CropRight', 'CropBottom'))
+            except (TypeError, ValueError):
+                return None
+    return None
+
+
+def _set_crop(root, edges):
+    """Write (or with None remove) an ordinary, adjustable Lightroom crop."""
+    d = _descriptions(root)[0]
+    for k in CROP_KEYS:
+        for desc in _descriptions(root):
+            desc.attrib.pop(_q('crs', k), None)
+    if edges:
+        l, t, r, b = edges
+        for k, v in (('CropTop', t), ('CropLeft', l), ('CropBottom', b), ('CropRight', r), ('CropAngle', 0)):
+            d.set(_q('crs', k), f'{v:.6f}' if k != 'CropAngle' else '0')
+        d.set(_q('crs', 'HasCrop'), 'True')
+        d.set(_q('crs', 'HasSettings'), 'True')
+
+
 # ---------------------------------------------------------------------------------- ledger
 def _ledger_path(folder):
     return Path(folder) / 'sidecars.json'
@@ -200,9 +250,12 @@ def save_ledger(folder, ledger):
 
 
 # ---------------------------------------------------------------------------------- operations
-def write_one(photo, rating, keywords, ledger):
+def write_one(photo, rating, keywords, ledger, crop=None):
     """Write or merge the sidecar of one RAW photo. Returns 'created', 'updated' or 'unchanged',
-    and whether the rating was kept because stars were already set elsewhere."""
+    and whether the rating was kept because stars were already set elsewhere.
+
+    crop: Lightroom crop edges (left, top, right, bottom) from stored_crop, or None. A crop set elsewhere
+    (by you in Lightroom, or another app) is never replaced; PhotoSelect's own crop is updated or removed."""
     photo = Path(photo)
     side = sidecar_for(photo)
     entry = ledger.get(str(photo), {})
@@ -219,19 +272,25 @@ def write_one(photo, rating, keywords, ledger):
     if not kept:
         _set_rating(root, rating)
     _set_keywords(root, keywords)
+    existing = crop_of(root)
+    ours = entry.get('crop')
+    crop_kept = existing is not None and (ours is None or [round(v, 4) for v in existing] != [round(v, 4) for v in ours])
+    if not crop_kept:
+        _set_crop(root, crop)
     text = serialise(root)
     status = 'unchanged'
     if text != before:
         _write(side, text)
         status = 'created' if before is None else 'updated'
     ledger[str(photo)] = {'sidecar': str(side), 'created': created, 'rating': rating_of(root) or 0,
-                          'ours': entry.get('ours') if kept else rating, 'mtime': side.stat().st_mtime, 'at': time.time()}
+                          'ours': entry.get('ours') if kept else rating, 'mtime': side.stat().st_mtime, 'at': time.time(),
+                          'crop': entry.get('crop') if crop_kept else (list(crop) if crop else None)}
     return status, kept
 
 
 def write_all(folder, rows):
     """Sidecars for rows [{path, name, rating, keywords}]. Returns a summary for the Lightroom window."""
-    out = {'created': 0, 'updated': 0, 'unchanged': 0, 'kept': 0, 'skipped': [], 'failed': []}
+    out = {'created': 0, 'updated': 0, 'unchanged': 0, 'kept': 0, 'cropped': 0, 'skipped': [], 'failed': []}
     with _lock:
         ledger = load_ledger(folder)
         try:
@@ -242,8 +301,10 @@ def write_all(folder, rows):
                 if not os.path.isfile(r['path']):
                     out['failed'].append([r['name'], 'the photo was not found (is the card or drive connected?)'])
                     continue
+                crop = stored_crop(r['crop'], int(r.get('orientation') or 1)) if r.get('crop') else None
                 try:
-                    status, kept = write_one(r['path'], int(r['rating']), r.get('keywords') or [], ledger)
+                    status, kept = write_one(r['path'], int(r['rating']), r.get('keywords') or [], ledger, crop)
+                    out['cropped'] += bool(crop)
                     out[status] += 1
                     out['kept'] += kept
                 except PermissionError:
@@ -277,6 +338,9 @@ def remove_all(folder):
                         out['deleted'] += 1
                     else:
                         _set_keywords(root, [])
+                        if entry.get('crop') and crop_of(root) and [round(v, 4) for v in crop_of(root)] == \
+                                [round(v, 4) for v in entry['crop']]:
+                            _set_crop(root, None)    # PhotoSelect's own crop, unchanged since
                         _write(side, serialise(root))
                         out['cleaned'] += 1
                 del ledger[photo]

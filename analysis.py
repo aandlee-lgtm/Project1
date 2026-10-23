@@ -18,7 +18,8 @@ None of these measures is a trained model. They are relative cues:
 import numpy as np
 from PIL import Image
 
-ANALYSIS_VERSION = 5   # 5: subject found automatically, focus measured there too (1.11.0)
+ANALYSIS_VERSION = 6   # 6: better subject finding, suggested crops (1.12.0)
+                       # 5: subject found automatically, focus measured there too (1.11.0)
                        # 4: analysis decodes RAW at the size the scores need (1.5.0)
 PREVIEW_EDGE = 1600
 FOCUS_SCALE = 4000
@@ -121,9 +122,9 @@ def preview_of(full):
                         Image.Resampling.LANCZOS)
 
 
-def frame_metrics(preview):
-    """Whole-frame metrics measured on the <=1,600 px analysis preview."""
-    rgb, gray = _gray(preview)
+def _composition(gray):
+    """Composition heuristic: detail centre near a rule-of-thirds point, minus clutter at the edges.
+    Returns (score 0-100, (centre x, centre y))."""
     h, w = gray.shape
     gy, gx = np.gradient(gray)
     energy = np.hypot(gx, gy)
@@ -134,7 +135,13 @@ def frame_metrics(preview):
     distance = min(np.hypot(cx - a, cy - b) for a in (1 / 3, 2 / 3) for b in (1 / 3, 2 / 3))
     bh, bw = max(1, h // 20), max(1, w // 20)
     framing = float(energy[:bh].sum() + energy[-bh:].sum() + energy[:, :bw].sum() + energy[:, -bw:].sum()) / total
-    composition = float(np.clip(100 - distance * 130 - framing * 60, 0, 100))
+    return float(np.clip(100 - distance * 130 - framing * 60, 0, 100)), (cx, cy)
+
+
+def frame_metrics(preview):
+    """Whole-frame metrics measured on the <=1,600 px analysis preview."""
+    rgb, gray = _gray(preview)
+    composition, (cx, cy) = _composition(gray)
     low = float((gray < .015).mean())
     high = float((gray > .985).mean())
     small = np.asarray(preview.resize((9, 8)).convert('L'))
@@ -155,6 +162,60 @@ def frame_metrics(preview):
     }
 
 
+# ---------------------------------------------------------------------------------- suggested crops (1.12)
+CROP_EDGES = (2000, 2500, 3000, 3500, 4000)   # "minimum long edge after crop" choices; default 3000
+CROP_FILL = 0.6        # the subject takes up at most 60 % of the crop's width and height
+CROP_MAX = 0.9         # a crop keeping more than 90 % of the frame's width is not worth suggesting
+CROP_MIN_GAIN = 3.0    # composition points a crop must gain over the full frame
+
+
+def _place(centre, start, size, crop, big):
+    """Left (or top) edge of a crop of `crop` (fraction of the frame) putting the subject on a thirds line
+    (centred when it is big), kept inside the frame and around the subject [start, start + size]."""
+    third = .5 if big else (1 / 3 if centre < .5 else 2 / 3)
+    edge = centre - crop * third
+    edge = min(edge, start)                    # the whole subject stays in the crop
+    edge = max(edge, start + size - crop)
+    return min(max(edge, 0.0), 1.0 - crop)
+
+
+def crop_options(preview, subject, native_size):
+    """The best crop around `subject` (x, y, w, h) for each minimum long edge in CROP_EDGES.
+
+    A crop keeps the photo's aspect ratio (equal fractions of width and height), places the subject on a
+    thirds line with room around it, and is only suggested when its composition beats the full frame by
+    CROP_MIN_GAIN points. Returns {str(min_edge): {'box': [x, y, w, h], 'px': [w, h], 'composition': c}}."""
+    if not subject or not native_size:
+        return {}
+    W, H = native_size
+    sx, sy, sw, sh = subject
+    need = max(sw, sh) / CROP_FILL
+    gray = _gray(preview)[1]
+    gh, gw = gray.shape
+    full, _ = _composition(gray)
+    cache, out = {}, {}
+    for edge in CROP_EDGES:
+        smallest = max(need, edge / max(W, H))
+        if smallest > CROP_MAX:
+            continue
+        best = None
+        for scale in np.linspace(smallest, CROP_MAX, 4):
+            scale = min(1.0, np.ceil(float(scale) * 1000) / 1000)   # round up: never below the minimum edge
+            if scale not in cache:
+                big = max(sw, sh) / scale > .45
+                x = _place(sx + sw / 2, sx, sw, scale, big)
+                y = _place(sy + sh / 2, sy, sh, scale, big)
+                part = gray[int(y * gh):int((y + scale) * gh), int(x * gw):int((x + scale) * gw)]
+                cache[scale] = (_composition(part)[0] if min(part.shape) >= 16 else 0.0, [x, y, scale, scale])
+            value, box = cache[scale]
+            if best is None or value > best[0]:
+                best = (value, box)
+        if best and best[0] >= full + CROP_MIN_GAIN:
+            out[str(edge)] = {'box': [round(v, 4) for v in best[1]], 'px': [int(np.ceil(best[1][2] * W)), int(np.ceil(best[1][3] * H))],
+                              'composition': round(best[0], 1)}
+    return out
+
+
 def analyse(full, region=None, finder=None, auto_subject=True):
     """Return (preview image, metrics) for a fully decoded image.
 
@@ -171,6 +232,8 @@ def analyse(full, region=None, finder=None, auto_subject=True):
     m['focus_subject'] = focus_detail(full, m['subject']) if m['subject'] else m['focus_centre']
     m['focus_default'] = m['focus_subject'] if auto_subject else m['focus_centre']
     m['focus'] = focus_detail(full, region) if region else m['focus_default']
+    # suggested crops around your region, else the subject found (1.12)
+    m['crops'] = crop_options(preview, region or m['subject'], full.info.get('native_size', full.size))
     return preview, m
 
 

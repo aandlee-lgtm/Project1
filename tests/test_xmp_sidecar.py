@@ -123,6 +123,43 @@ class SidecarTests(unittest.TestCase):
             self.photos.chmod(0o755)
         self.assertIn('read-only', out['failed'][0][1])
 
+    def test_crop_mapped_to_the_stored_orientation(self):
+        box = (.1, .2, .3, .4)                                      # upright photo: x, y, w, h
+        self.assertEqual(xs.stored_crop(box, 1), (.1, .2, .4, .6))
+        self.assertEqual(xs.stored_crop(box, 3), (.6, .4, .9, .8))
+        # a portrait frame stored landscape and turned 90° clockwise to display (EXIF 6)
+        self.assertEqual(xs.stored_crop(box, 6), (.2, .6, .6, .9))
+        self.assertEqual(xs.stored_crop(box, 8), (.4, .1, .8, .4))
+        self.assertIsNone(xs.stored_crop(box, 5))
+        # check orientation 6 with a real rotation: a marked block in the upright image
+        import numpy as np
+        up = np.zeros((40, 30), bool)                                # upright: 30 wide, 40 high
+        up[8:24, 3:12] = True                                        # x .1-.4, y .2-.6
+        stored = np.rot90(up, 1)                                     # what the camera stored (turned back)
+        ys, xs_ = np.nonzero(stored)
+        h, w = stored.shape
+        self.assertEqual((xs_.min() / w, ys.min() / h, (xs_.max() + 1) / w, (ys.max() + 1) / h),
+                         xs.stored_crop((3 / 30, 8 / 40, 9 / 30, 16 / 40), 6))
+
+    def test_crop_written_kept_when_set_elsewhere_and_removed(self):
+        row = dict(self.row('DSC_0001.NEF', 3), crop=[.1, .2, .5, .5], orientation=1)
+        out = xs.write_all(self.support, [row])
+        self.assertEqual(out['cropped'], 1)
+        text = (self.photos / 'DSC_0001.xmp').read_text()
+        self.assertIn('crs:HasCrop="True"', text)
+        self.assertEqual(xs.crop_of(xs.parse(text)), (.1, .2, .6, .7))
+        # a new suggestion replaces PhotoSelect's own crop
+        xs.write_all(self.support, [dict(row, crop=[.2, .2, .5, .5])])
+        self.assertEqual(xs.crop_of(self.doc('DSC_0001.xmp')), (.2, .2, .7, .7))
+        # no crop any more: PhotoSelect's crop is removed
+        xs.write_all(self.support, [dict(row, crop=None)])
+        self.assertIsNone(xs.crop_of(self.doc('DSC_0001.xmp')))
+        # a crop set in Lightroom (sidecar from elsewhere) is never replaced
+        (self.photos / 'DSC_0002.xmp').write_text(ADOBE.replace('crs:Shadows2012="+40"', 'crs:Shadows2012="+40" crs:HasCrop="True" '
+            'crs:CropLeft="0.05" crs:CropTop="0.05" crs:CropRight="0.95" crs:CropBottom="0.95" crs:CropAngle="0"'))
+        xs.write_all(self.support, [dict(self.row('DSC_0002.NEF', 3), crop=[.1, .1, .5, .5], orientation=1)])
+        self.assertEqual(xs.crop_of(self.doc('DSC_0002.xmp')), (.05, .05, .95, .95))
+
     def test_smart_collection_files(self):
         folder = xs.smart_collection_files(self.support)
         names = sorted(p.name for p in folder.iterdir())

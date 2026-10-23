@@ -47,6 +47,13 @@ dialog{width:min(1180px,96vw);max-height:94vh;background:var(--bg);color:var(--t
 .focusbox{position:absolute;pointer-events:none;box-sizing:border-box;z-index:1}
 .focusbox.default{border:1.5px dashed #eef2f4;box-shadow:0 0 0 1px #000b,inset 0 0 0 1px #000b}
 .focusbox.mine{border:2px solid var(--teal);box-shadow:0 0 0 1px #000c,inset 0 0 0 1px #000c}
+/* 1.12: suggested crop, amber corner marks with a thin line between them */
+.cropmarks{position:absolute;pointer-events:none;z-index:1;--a:#ffc24d;border:1px solid #ffc24d80;filter:drop-shadow(0 0 1px #000);
+  background:linear-gradient(var(--a),var(--a)) 0 0/16px 3px,linear-gradient(var(--a),var(--a)) 0 0/3px 16px,
+  linear-gradient(var(--a),var(--a)) 100% 0/16px 3px,linear-gradient(var(--a),var(--a)) 100% 0/3px 16px,
+  linear-gradient(var(--a),var(--a)) 0 100%/16px 3px,linear-gradient(var(--a),var(--a)) 0 100%/3px 16px,
+  linear-gradient(var(--a),var(--a)) 100% 100%/16px 3px,linear-gradient(var(--a),var(--a)) 100% 100%/3px 16px;background-repeat:no-repeat}
+body.nocrop .cropmarks{display:none}
 .focusbox.subject{border:1.5px solid #eef2f4;box-shadow:0 0 0 1px #000b,inset 0 0 0 1px #000b}
 body.nofocus .focusbox{display:none}
 .pic{position:relative;display:inline-block;max-width:100%;max-height:100%;line-height:0}
@@ -77,7 +84,10 @@ a{color:var(--teal)}kbd{border:1px solid var(--line);border-radius:4px;padding:0
 <label class="weight"><span class="row">Keep from <output id="keepValue">75</output></span><input id="keep" type="range" min="50" max="95" value="75"></label>
 <label class="weight"><span class="row">Consider from <output id="considerValue">45</output></span><input id="consider" type="range" min="10" max="49" value="45"></label>
 <label class="weight"><span class="row">Best of each series</span><select id="best_of" aria-describedby="bestOfHint"><option value="1">Keep the best frame</option><option value="2">Keep the best 2</option><option value="3">Keep the best 3</option><option value="0">Keep all that reach the threshold</option></select></label>
-<p id="bestOfHint" class="hint">In a burst or series of near-identical frames, only the best frame (or best 2 or 3) reaching Keep is suggested Keep. Frames within 3 points of it are suggested Consider so you can compare; the rest of the series is suggested Drop. Suggestions only: nothing is deleted or moved.</p></div>
+<p id="bestOfHint" class="hint">In a burst or series of near-identical frames, only the best frame (or best 2 or 3) reaching Keep is suggested Keep. Frames within 3 points of it are suggested Consider so you can compare; the rest of the series is suggested Drop. Suggestions only: nothing is deleted or moved.</p>
+<label class="hint"><input id="considerCrop" type="checkbox" checked> Consider cropping</label>
+<label class="weight"><span class="row">Minimum long edge after crop</span><select id="crop_min_edge"><option value="2000">2,000 px</option><option value="2500">2,500 px</option><option value="3000">3,000 px</option><option value="3500">3,500 px</option><option value="4000">4,000 px</option></select></label>
+<p class="hint">PhotoSelect suggests a crop around the subject (amber corners): same shape as the photo, subject on a thirds line, never smaller than this on the long edge. With <i>Consider cropping</i> on, composition counts the crop when it scores better.</p></div>
 <div class="section"><h2>Learn from my decisions</h2>
 <p id="learnStatus" class="hint"></p><button id="learn">Suggest settings from my decisions</button>
 <div id="proposal" hidden><ul id="proposalText" class="reasons hint"></ul><button id="applyLearn" class="primary">Apply</button> <button id="dismissLearn">Dismiss</button></div>
@@ -110,7 +120,7 @@ a{color:var(--teal)}kbd{border:1px solid var(--line);border-radius:4px;padding:0
 <select id="filter" aria-label="Filter photos"><option value="all">All photos</option><option>Keep</option><option>Consider</option><option>Drop</option><option value="liked">Liked photos</option><option value="manual">Decided manually</option><option value="close">Close burst contenders</option><option value="pending">Not yet analysed</option></select>
 <select id="formatFilter" aria-label="Filter camera formats"><option value="all">All file formats</option><option value="nikon">Nikon NEF / NRW</option><option value="olympus">Olympus / OM System ORF</option><option value="sony">Sony ARW</option><option value="raw">All RAW files</option><option value="other">JPEG / PNG / TIFF</option></select>
 <select id="sort" aria-label="Sort photos"><option value="score">Best score first</option><option value="name">Filename</option><option value="group">Burst order</option><option value="time">Capture time</option></select>
-<label class="hint"><input id="winners" type="checkbox"> Burst winners only</label><label class="hint" title="Outline where subject focus is measured: dashed grey = default area (central half), solid teal = your region"><input id="showFocus" type="checkbox" checked> Show focus area</label><span class="spacer"></span>
+<label class="hint"><input id="winners" type="checkbox"> Burst winners only</label><label class="hint" title="Amber corners: the crop PhotoSelect suggests around the subject"><input id="showCrop" type="checkbox" checked> Show suggested crop</label><label class="hint" title="Outline where subject focus is measured: dashed grey = default area (central half), solid teal = your region"><input id="showFocus" type="checkbox" checked> Show focus area</label><span class="spacer"></span>
 <button id="compareLikes">Compare liked photos</button><button id="export">Export decisions</button></div>
 <div id="pagerTop" class="pager"></div><div id="grid" class="grid"></div><div id="pagerBottom" class="pager"></div>
 <div id="empty" class="empty"><div class="icon">▧</div><h2>Your next shortlist starts here.</h2><p class="muted">Choose a photo folder on this Mac or an external drive (Choose folder, at the top).<br>Your files stay where they are. You make the final call.</p><p class="hint">Nikon NEF / NRW · Olympus &amp; OM System ORF · Sony ARW · other RAW · JPEG / PNG / TIFF</p></div>
@@ -119,15 +129,15 @@ a{color:var(--teal)}kbd{border:1px solid var(--line);border-radius:4px;padding:0
 
 <dialog id="viewer"><div class="dialoghead"><div><strong id="viewTitle"></strong><div id="viewScores" class="hint"></div></div><button data-close="viewer">Close</button></div>
 <p class="hint">Drag a rectangle over the sailors, boat or other subject to measure focus there (measured on the full-resolution decode). Keys: <kbd>←</kbd><kbd>→</kbd> move · <kbd>K</kbd> keep · <kbd>C</kbd> consider · <kbd>D</kbd> drop · <kbd>L</kbd> like · <kbd>F</kbd> full resolution.</p>
-<div class="stage" id="stage"><img id="viewImage" draggable="false" alt="Selected photo"><div id="region" class="region" hidden></div></div>
+<div class="stage" id="stage"><img id="viewImage" draggable="false" alt="Selected photo"><div id="region" class="region" hidden></div><div id="viewCrop" class="cropmarks" hidden></div></div>
 <div class="detailtools"><button id="vLike">♡ Like</button><button data-vdec="Keep">Keep</button><button data-vdec="Consider">Consider</button><button data-vdec="Drop">Drop</button><button id="vAuto" title="Clear manual decision">↺ Auto</button>
-<span style="flex:1"></span><button id="resetROI">Reset focus region</button><button id="full" class="primary">Inspect full resolution</button><button id="burstCompare">Compare this burst</button><button id="reveal" hidden>Show in Finder</button><button id="prev">←</button><button id="next">→</button></div>
+<span style="flex:1"></span><button id="vNoCrop" hidden>No crop</button><button id="resetROI">Reset focus region</button><button id="full" class="primary">Inspect full resolution</button><button id="burstCompare">Compare this burst</button><button id="reveal" hidden>Show in Finder</button><button id="prev">←</button><button id="next">→</button></div>
 <ul id="reasons" class="reasons hint"></ul><p id="viewMessage" class="hint"></p></dialog>
 
 <dialog id="inspector"><div class="dialoghead"><div><strong id="inspectTitle"></strong><div id="inspectInfo" class="hint"></div></div>
 <div class="detailtools"><button data-zoom="fit">Fit</button><button data-zoom="1">100% (1:1 pixels)</button><button data-zoom="2">200%</button><button data-close="inspector">Close</button></div></div>
 <p class="hint">Full-resolution decode of the original file (camera white balance, standard LibRaw rendering — not your Lightroom edits). Click the image to switch between fit and 1:1 at that point. <kbd>←</kbd><kbd>→</kbd> previous / next photo at the same zoom.</p>
-<div id="inspectBox"><div id="inspectFrame"><img id="inspectImage" alt="Full-resolution image"><div id="inspectFocus" class="focusbox default" hidden></div></div></div></dialog>
+<div id="inspectBox"><div id="inspectFrame"><img id="inspectImage" alt="Full-resolution image"><div id="inspectFocus" class="focusbox default" hidden></div><div id="inspectCrop" class="cropmarks" hidden></div></div></div></dialog>
 
 <dialog id="comparison"><div class="dialoghead"><strong id="compareTitle">Comparison</strong><div class="detailtools"><label class="hint"><input id="cropMode" type="checkbox"> 100% crops of the focus region</label><button data-close="comparison">Close</button></div></div>
 <p class="hint">Ranked by your current weights. Close scores are a prompt to look, not a verdict: check the subject and moment before deciding.</p><div id="compare"></div></dialog>
@@ -142,6 +152,7 @@ a{color:var(--teal)}kbd{border:1px solid var(--line);border-radius:4px;padding:0
 <div id="lrSidecarBox" hidden><div class="detailtools"><button id="lrCollections">Smart Collection files…</button><button id="lrRemoveSidecars">Remove PhotoSelect sidecars</button></div></div>
 <h2>Which photos should Lightroom import?</h2>
 <div id="lrGroups" class="lrgroups"></div>
+<label class="hint"><input id="lrCrops" type="checkbox" checked> Send suggested crops (an ordinary crop you can adjust or reset in Lightroom; crops you set there are never replaced)</label>
 <label class="hint" id="lrAutoLabel"><input id="lrAuto" type="checkbox" checked> Add the stars and keywords automatically once these photos are in Lightroom, however you import them</label>
 <div class="detailtools" style="margin-top:14px"><button id="lrOpen" class="primary">Open in Lightroom Import</button><button id="lrSave">Only save selections</button></div>
 <div id="lrError" role="alert" style="color:#ffb0aa;margin-top:10px;white-space:pre-wrap"></div><div id="lrResult" class="hint" role="status" style="margin-top:10px"></div>
@@ -163,6 +174,12 @@ function focusArea(r){const k=focusKind(r);return k==='mine'?r.roi:k==='subject'
 const FOCUS_TITLE={mine:'Your focus region',subject:'Subject found automatically',default:'Default focus area (central half)'};
 function placeFocus(el,r){const [x,y,w,h]=focusArea(r),k=focusKind(r);el.className='focusbox '+k;
   Object.assign(el.style,{left:x*100+'%',top:y*100+'%',width:w*100+'%',height:h*100+'%'});el.title=FOCUS_TITLE[k]}
+// 1.12: the suggested crop (shown unless you chose No crop for the photo)
+function shownCrop(r){return r.status==='analysed'&&r.crop&&!r.no_crop?r.crop:null}
+function placeCrop(el,r){const c=shownCrop(r);el.hidden=!c;if(!c)return;const [x,y,w,h]=c.box;
+  Object.assign(el.style,{left:x*100+'%',top:y*100+'%',width:w*100+'%',height:h*100+'%'});el.title=`Suggested crop: ${c.px[0]} × ${c.px[1]} px`}
+function cropBox(r){const c=shownCrop(r);if(!c)return '';const [x,y,w,h]=c.box;
+  return `<div class="cropmarks" style="left:${x*100}%;top:${y*100}%;width:${w*100}%;height:${h*100}%" title="Suggested crop: ${c.px[0]} × ${c.px[1]} px"></div>`}
 function focusBox(r){if(r.status!=='analysed')return '';const [x,y,w,h]=focusArea(r),k=focusKind(r);
   return `<div class="focusbox ${k}" style="left:${x*100}%;top:${y*100}%;width:${w*100}%;height:${h*100}%" title="${FOCUS_TITLE[k]}"></div>`}
 let rows=[],errors=[],byId=new Map(),prefs={weights:{sharpness:30,focus:50,composition:15,exposure:5},keep:75,consider:45,gap:2,likeness:70,near_identical:90,near_window:10,recursive:false,folder:'',page_size:120,profiles:{},folder_settings:{},undo_settings:null};
@@ -210,6 +227,10 @@ function reasons(r){
   else out.push(`${d}: weighted score ${s.toFixed(1)} ${d==='Keep'?'≥ Keep threshold '+prefs.keep:d==='Consider'?'≥ Consider threshold '+prefs.consider+' and < '+prefs.keep:'< Consider threshold '+prefs.consider}.`+(d==='Keep'&&i&&i.size>1&&+prefs.best_of?` Best frame${+prefs.best_of>1?'s':''} of its series.`:''));
   if(sum){const parts=KEYS.filter(k=>prefs.weights[k]>0).map(k=>({k,c:prefs.weights[k]*(r.scores[k]||0)/sum})).sort((a,b)=>b.c-a.c);
     out.push('Contributions: '+parts.map(p=>`${LABEL[p.k]} ${r.scores[p.k]} × ${Math.round(prefs.weights[p.k]/sum*100)}%`).join(' · ')+'.')}
+  if(r.crop){const c=r.crop,full=(r.metrics.composition_full??r.scores.composition),size=`${c.px[0].toLocaleString()} × ${c.px[1].toLocaleString()} px`;
+    out.push(r.no_crop?`Suggested crop not used for this photo (No crop): composition ${(+full).toFixed(0)} for the full frame.`
+      :prefs.consider_crop===false?`A suggested crop (${size}) would score composition ${c.composition.toFixed(0)} instead of ${(+full).toFixed(0)}; Consider cropping is off.`
+      :`Composition ${(+full).toFixed(0)} → ${c.composition.toFixed(0)} with the suggested crop (${size}).`)}
   if(!r.roi)out.push(focusKind(r)==='subject'?'Subject focus measured on the subject found automatically (solid grey outline).':'Subject focus measured in the central half (no subject found, or automatic finding is off). Drag a rectangle over the subject to measure there.');
   if(r.roi)out.push(r.roi_state==='full'?'Subject focus measured in your region on the full-resolution decode.':r.roi_state==='error'?'Your region could not be measured; the central region is used.':'Measuring your region at full resolution…');
   else out.push('Subject focus measured in the central half of the frame. Draw a region over the subject to target it.');
@@ -228,7 +249,9 @@ function savePrefs(){rememberFolderSettings();clearTimeout(saveTimer);saveTimer=
 function buildWeights(){const sum=weightSum();
   $('weights').innerHTML=KEYS.map(k=>`<label class="weight"><span class="row">${LABEL[k]}<output id="value-${k}">${sum?Math.round(prefs.weights[k]/sum*100)+'%':'Off'}</output></span><input id="weight-${k}" type="range" min="0" max="100" value="${prefs.weights[k]}"><small>${DESCRIPTION[k]}</small></label>`).join('');
   KEYS.forEach(k=>$('weight-'+k).oninput=e=>{prefs.weights[k]=+e.target.value;const s=weightSum();KEYS.forEach(t=>$('value-'+t).textContent=s?Math.round(prefs.weights[t]/s*100)+'%':'Off');savePrefs();scheduleRender()})}
-function applyPrefs(){buildWeights();for(const id of ['keep','consider']){$(id).value=prefs[id];$(id+'Value').textContent=prefs[id]}for(const id of ['likeness','near_identical']){$(id).value=prefs[id];$(id+'Value').textContent=prefs[id]+' %'}$('gap').value=prefs.gap;$('near_window').value=prefs.near_window;$('best_of').value=String(+prefs.best_of);$('showFocus').checked=prefs.show_focus!==false;$('autoSubject').checked=prefs.auto_subject!==false;document.body.classList.toggle('nofocus',prefs.show_focus===false);showFolder();renderLearn();$('recursive').checked=!!prefs.recursive;if(!$('folder').value)$('folder').value=prefs.folder||''}
+function applyPrefs(){buildWeights();for(const id of ['keep','consider']){$(id).value=prefs[id];$(id+'Value').textContent=prefs[id]}for(const id of ['likeness','near_identical']){$(id).value=prefs[id];$(id+'Value').textContent=prefs[id]+' %'}$('gap').value=prefs.gap;$('near_window').value=prefs.near_window;$('best_of').value=String(+prefs.best_of);$('showFocus').checked=prefs.show_focus!==false;$('autoSubject').checked=prefs.auto_subject!==false;
+  $('showCrop').checked=prefs.show_crop!==false;document.body.classList.toggle('nocrop',prefs.show_crop===false);$('considerCrop').checked=prefs.consider_crop!==false;
+  $('crop_min_edge').value=String(prefs.crop_min_edge||3000);$('lrCrops').checked=prefs.send_crops!==false;document.body.classList.toggle('nofocus',prefs.show_focus===false);showFolder();renderLearn();$('recursive').checked=!!prefs.recursive;if(!$('folder').value)$('folder').value=prefs.folder||''}
 async function mark(r,fields){Object.assign(r,fields);render();renderLearn();if(current&&current.id===r.id)updateViewer();try{await api('mark',{id:r.id,...fields})}catch(e){showError(e)}}
 
 // ---------- learn from my decisions, profiles ----------
@@ -313,7 +336,7 @@ function render(){derive();const analysed=rows.filter(r=>r.status==='analysed');
   $('pagerTop').innerHTML=$('pagerBottom').innerHTML=pager(pages);$('empty').hidden=rows.length>0;
   $('grid').innerHTML=visible.slice(page*size,(page+1)*size).map(r=>{const s=score(r),d=decision(r),i=derived.info.get(r.id),why=reasons(r);
     const badges=[i&&i.size>1&&i.rank===1?`<span class="badge">BURST ${r.group} · TOP OF ${i.size}</span>`:'',isClose(r)?`<span class="badge warn">CLOSE TO BURST TOP · COMPARE</span>`:'',r.status==='preview'?'<span class="badge dim">EMBEDDED PREVIEW · NOT YET SCORED</span>':'',r.basis==='camera_preview'?'<span class="badge warn">CAMERA PREVIEW</span>':'',r.near_identical?'<span class="badge">NEAR-IDENTICAL</span>':'',r.noise_flag?'<span class="badge warn">HIGH NOISE</span>':''].join('');
-    return `<article class="card"><div class="photo" data-open="${r.id}" tabindex="0" role="button" aria-label="Inspect ${esc(r.name)}">${r.status==='pending'?'':`<span class="pic"><img loading="lazy" src="${img('thumb',r)}" alt="${esc(r.name)}">${focusBox(r)}</span>`}<div class="badges">${badges}</div></div>
+    return `<article class="card"><div class="photo" data-open="${r.id}" tabindex="0" role="button" aria-label="Inspect ${esc(r.name)}">${r.status==='pending'?'':`<span class="pic"><img loading="lazy" src="${img('thumb',r)}" alt="${esc(r.name)}">${focusBox(r)}${cropBox(r)}</span>`}<div class="badges">${badges}</div></div>
 <div class="cardbody"><div class="filename" title="${esc(r.path)}">${esc(r.name)}</div><div class="hint" style="font-size:10px;margin-top:4px">${esc(r.format)} · ${sourceLabel(r)}</div>
 <div class="topline"><span class="score">${s===null?'—':s.toFixed(0)}<small style="font-size:12px;color:var(--muted)"> / 100</small></span><span class="pill ${d}">${d}${r.decision?' · manual':''}</span></div>
 <div class="bars">${KEYS.map(k=>`<div>${k==='focus'&&r.roi?'Region focus':LABEL[k]} ${r.scores[k]??'—'}<div class="bar"><i style="width:${r.scores[k]||0}%"></i></div></div>`).join('')}</div>
@@ -357,6 +380,11 @@ function showFolder(){const f=$('folder');f.title=f.value;if(document.activeElem
 $('folder').oninput=()=>{renderLearn();$('folder').title=$('folder').value};$('folder').onblur=showFolder;
 for(const id of ['filter','formatFilter','sort','winners'])$(id).onchange=()=>{page=0;render()};
 $('autoSubject').onchange=()=>{prefs.auto_subject=$('autoSubject').checked;savePrefs();render();if(current&&$('viewer').open)updateViewer()};   // the server updates focus scores; rows reload
+$('showCrop').onchange=()=>{prefs.show_crop=$('showCrop').checked;document.body.classList.toggle('nocrop',!prefs.show_crop);savePrefs()};
+$('considerCrop').onchange=()=>{prefs.consider_crop=$('considerCrop').checked;savePrefs()};   // scores update on the server
+$('crop_min_edge').onchange=()=>{prefs.crop_min_edge=+$('crop_min_edge').value;savePrefs()};
+$('vNoCrop').onclick=()=>{if(current)mark(current,{no_crop:!current.no_crop})};
+$('lrCrops').onchange=()=>{prefs.send_crops=$('lrCrops').checked;savePrefs()};
 $('showFocus').onchange=()=>{prefs.show_focus=$('showFocus').checked;document.body.classList.toggle('nofocus',!prefs.show_focus);savePrefs()};
 document.querySelectorAll('[data-bucket]').forEach(b=>b.onclick=()=>{const f=$('filter');f.value=b.dataset.bucket!=='all'&&f.value===b.dataset.bucket?'all':b.dataset.bucket;page=0;render();$('grid').scrollIntoView({behavior:'smooth',block:'start'})});
 for(const id of ['likeness','near_identical'])$(id).oninput=()=>$(id+'Value').textContent=$(id).value+' %';
@@ -371,6 +399,8 @@ function updateViewer(){const r=current;if(!r)return;const s=score(r);$('viewTit
   $('reasons').innerHTML=reasons(r).map(x=>`<li>${esc(x)}</li>`).join('');
   placeFocus($('region'),r);$('region').classList.add('region');$('region').hidden=r.status!=='analysed';
   placeFocus($('inspectFocus'),r);$('inspectFocus').hidden=r.status!=='analysed';
+  placeCrop($('viewCrop'),r);placeCrop($('inspectCrop'),r);
+  $('vNoCrop').hidden=!r.crop;$('vNoCrop').textContent=r.no_crop?'Use suggested crop':'No crop';$('vNoCrop').classList.toggle('active',!!r.no_crop);
   $('full').disabled=$('burstCompare').disabled=r.status==='pending';
   $('full').textContent=r.basis==='camera_preview'?'Inspect full-size camera preview':'Inspect full resolution'}
 let inspectorUsed=false;
@@ -418,7 +448,7 @@ function cropRegion(r,ref){const area=r.roi||(ref&&ref.roi);if(area)return area;
 function renderCompare(){const crops=$('cropMode').checked,ref=current,dpr=window.devicePixelRatio||1;compareList.sort((a,b)=>(score(b)??-1)-(score(a)??-1));
   const top=score(compareList[0]);$('compareTitle').textContent=compareTitle;
   $('compare').innerHTML=compareList.map((r,i)=>{const s=score(r),gap=top-s;return `<div class="comparephoto ${i===0?'top':''}"><strong>#${i+1} · ${s===null?'—':s.toFixed(1)}/100</strong> <span class="hint">${i===0?'top of this set':gap<=CLOSE?gap.toFixed(1)+' behind · close':gap.toFixed(1)+' behind'}${i>0&&r.likeness&&r.likeness[compareList[0].id]!==undefined?' · '+pct(r.likeness[compareList[0].id])+' alike #1':''}${r.near_identical?' · near-identical':''}</span>
-${crops?`<div class="cropbox"><img data-crop="${r.id}" src="${img('crop',r,'&roi='+cropRegion(r,ref).join(','))}" alt="100% crop of ${esc(r.name)}"></div>`:`<div class="fitbox"><span class="pic"><img src="${img('preview',r)}" alt="${esc(r.name)}">${focusBox(r)}</span></div>`}
+${crops?`<div class="cropbox"><img data-crop="${r.id}" src="${img('crop',r,'&roi='+cropRegion(r,ref).join(','))}" alt="100% crop of ${esc(r.name)}"></div>`:`<div class="fitbox"><span class="pic"><img src="${img('preview',r)}" alt="${esc(r.name)}">${focusBox(r)}${cropBox(r)}</span></div>`}
 <div class="filename" title="${esc(r.path)}">${esc(r.name)}</div><p class="hint">${r.basis==='camera_preview'?'<b>Camera preview</b> · ':''}${KEYS.map(k=>LABEL[k]+' '+(r.scores[k]??'—')).join(' · ')}<br>${esc(decision(r))}${r.decision?' (manual)':''}</p>
 <div class="actions"><button data-like="${r.id}" class="${r.liked?'active':''}">${r.liked?'♥':'♡'}</button>${['Keep','Consider','Drop'].map(v=>`<button data-decision="${r.id}" data-value="${v}" class="${r.decision===v?'active':''}">${v}</button>`).join('')}<button data-inspect="${r.id}">Inspect</button></div></div>`}).join('');
   document.querySelectorAll('[data-crop]').forEach(el=>el.onload=()=>{el.style.width=el.naturalWidth/dpr+'px'});
@@ -444,7 +474,8 @@ function localTime(t){const d=new Date(t*1000),p=n=>String(n).padStart(2,'0');re
 function lightroomRows(){derive();const out=[];
   for(const r of rows){if(r.status!=='analysed'&&!r.decision&&!r.liked)continue;const d=r.decision||(r.status==='analysed'?autoDecision(r):null);if(!d&&!r.liked)continue;
     const i=derived.info.get(r.id)||{},kw=[];if(d)kw.push(d);if(r.liked)kw.push('Liked');if(i.size>1)kw.push('Burst '+String(r.group).padStart(3,'0'));if(r.near_identical)kw.push('Near-identical');if(r.basis==='camera_preview')kw.push('Camera preview');if(isBorderline(r))kw.push('Borderline');
-    out.push({path:r.path,name:r.name.split('/').pop(),capture:r.timestamp?localTime(r.timestamp):'',rating:r.liked?5:STARS[d],keywords:kw,decision:r.decision||'',suggestion:r.status==='analysed'?autoDecision(r):''})}
+    out.push({path:r.path,name:r.name.split('/').pop(),capture:r.timestamp?localTime(r.timestamp):'',rating:r.liked?5:STARS[d],keywords:kw,decision:r.decision||'',suggestion:r.status==='analysed'?autoDecision(r):'',
+      crop:prefs.send_crops!==false&&shownCrop(r)?shownCrop(r).box:null,orientation:r.orientation||1})}
   return out}
 // a suggestion within BORDER points of the Keep or Consider threshold: worth a second look in Lightroom
 const BORDER=5;
@@ -494,7 +525,7 @@ async function sendToLightroom(open){$('lrError').textContent='';$('lrResult').t
   const all=lightroomRows(),body={folder:prefs.folder||$('folder').value,rows:all};
   body.auto_apply=$('lrAuto').checked;body.route=lrRoute();if(open)body.open=all.filter(x=>lrChoice[x.rating]).map(x=>x.path);
   try{const r=await api('lightroom',body);
-    if(r.sidecars){const x=r.sidecars,parts=[`Sidecars written for ${x.written} RAW photo${x.written===1?'':'s'} (${x.created} new, ${x.updated} updated)`+(x.kept?`; ${x.kept} already had stars from elsewhere, which were kept`:'')+'.'];
+    if(r.sidecars){const x=r.sidecars,parts=[`Sidecars written for ${x.written} RAW photo${x.written===1?'':'s'} (${x.created} new, ${x.updated} updated)`+(x.cropped?`, ${x.cropped} with a suggested crop`:'')+(x.kept?`; ${x.kept} already had stars from elsewhere, which were kept`:'')+'.'];
       if(x.skipped.length)parts.push(`${x.skipped.length} photo${x.skipped.length===1?' has':'s have'} no sidecar (JPEG, HEIC, TIFF or DNG): ${x.skipped.slice(0,5).join(', ')}${x.skipped.length>5?', …':''}.`);
       if(x.failed.length)$('lrError').textContent=`${x.failed.length} sidecar${x.failed.length===1?'':'s'} could not be written: `+x.failed.slice(0,5).map(f=>`${f[0]} (${f[1]})`).join('; ');
       const msg=parts.join(' ')+(open&&!r.lightroom_missing&&r.opened?` Lightroom Classic is opening its Import window with ${r.opened} photos.`:open?'':' Import the folder in Lightroom as usual (Add or Copy).');

@@ -66,6 +66,8 @@ DEFAULT_PREFS = {
     'show_focus': True,
     # 1.11: find the subject automatically; 'sidecar' (XMP files, no plug-in) or 'plugin' for Lightroom
     'auto_subject': True, 'lr_route': 'sidecar',
+    # 1.12: suggested crops: count the cropped composition, minimum long edge after a crop, send crops to Lightroom
+    'consider_crop': True, 'crop_min_edge': 3000, 'send_crops': True, 'show_crop': True,
     # 1.3: named settings profiles, settings remembered per folder, and the settings before the last
     # "learn from my decisions" change (for Undo).
     'profiles': {}, 'folder_settings': {}, 'undo_settings': None,
@@ -87,6 +89,12 @@ class Store:
                 roi TEXT, roi_key TEXT, roi_focus REAL, updated REAL);
             CREATE TABLE IF NOT EXISTS prefs(key TEXT PRIMARY KEY, value TEXT);
         ''')
+        # 1.12: "No crop" per photo, and the suggested crops around a region you drew
+        for column in ('no_crop INTEGER DEFAULT 0', 'roi_crops TEXT'):
+            try:
+                self.db.execute(f'ALTER TABLE marks ADD COLUMN {column}')
+            except sqlite3.OperationalError:
+                pass   # already there
         # 1.2: the Skip bucket was renamed Drop; carry over decisions saved by earlier versions.
         self.db.execute("UPDATE marks SET decision='Drop' WHERE decision='Skip'")
 
@@ -119,16 +127,20 @@ class Store:
     # decisions, likes and focus regions, keyed by original path ------------
     def marks(self, paths=None):
         with self.lock:
-            rows = self.db.execute('SELECT path,decision,liked,roi,roi_key,roi_focus FROM marks').fetchall()
+            rows = self.db.execute('SELECT path,decision,liked,roi,roi_key,roi_focus,no_crop,roi_crops FROM marks').fetchall()
         wanted = set(map(str, paths)) if paths is not None else None
-        return {p: {'decision': d, 'liked': bool(l), 'roi': json.loads(r) if r else None, 'roi_key': k, 'roi_focus': f}
-                for p, d, l, r, k, f in rows if wanted is None or p in wanted}
+        return {p: {'decision': d, 'liked': bool(l), 'roi': json.loads(r) if r else None, 'roi_key': k, 'roi_focus': f,
+                    'no_crop': bool(n), 'roi_crops': json.loads(c) if c else None}
+                for p, d, l, r, k, f, n, c in rows if wanted is None or p in wanted}
 
     def set_mark(self, path, **fields):
-        allowed = {'decision', 'liked', 'roi', 'roi_key', 'roi_focus'}
+        allowed = {'decision', 'liked', 'roi', 'roi_key', 'roi_focus', 'no_crop', 'roi_crops'}
         fields = {k: v for k, v in fields.items() if k in allowed}
-        if 'roi' in fields:
-            fields['roi'] = json.dumps(fields['roi']) if fields['roi'] is not None else None
+        for key in ('roi', 'roi_crops'):
+            if key in fields:
+                fields[key] = json.dumps(fields[key]) if fields[key] is not None else None
+        if 'no_crop' in fields:
+            fields['no_crop'] = int(bool(fields['no_crop']))
         if 'liked' in fields:
             fields['liked'] = int(bool(fields['liked']))
         with self.lock:

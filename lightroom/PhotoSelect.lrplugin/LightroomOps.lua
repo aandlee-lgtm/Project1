@@ -93,6 +93,17 @@ function Ops.apply(catalog, plan)
       if item.setRating then
         photo:setRawMetadata('rating', item.setRating)
       end
+      -- 1.12: the suggested crop, as an ordinary adjustable crop, only on photos not cropped yet
+      local crop = item.entry.crop
+      if crop and Ops.sendCrops ~= false then
+        local dev = photo:getDevelopSettings() or {}
+        local cropped = (tonumber(dev.CropLeft) or 0) > 0 or (tonumber(dev.CropTop) or 0) > 0
+          or (tonumber(dev.CropRight) or 1) < 1 or (tonumber(dev.CropBottom) or 1) < 1
+        if not cropped then
+          photo:applyDevelopSettings({ CropLeft = crop.left, CropTop = crop.top, CropRight = crop.right,
+                                       CropBottom = crop.bottom, CropAngle = 0 })
+        end
+      end
     end
   end, { timeout = 60 })
   LrTasks.pcall(Ops.ensureCollections, catalog)
@@ -125,7 +136,7 @@ local function unixNow()
 end
 Ops.unixNow = unixNow
 
-Ops.VERSION = '1.8.0'
+Ops.VERSION = '1.12.0'
 Ops.STATUS = 'plugin-status.txt'          -- read by PhotoSelect: is the plug-in running, and what did it do
 Ops.APPLIED = 'applied.txt'               -- photos already rated automatically (never twice)
 Ops.TRACKED = 'tracked.txt'               -- photos PhotoSelect rated: Lightroom id, last stars seen, PhotoSelect path

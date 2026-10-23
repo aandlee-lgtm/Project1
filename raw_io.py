@@ -315,6 +315,23 @@ class _PatchedHeader(io.RawIOBase):
         return len(data)
 
 
+def exif_orientation(path):
+    """EXIF orientation (1-8) of a photo as stored, 1 when unknown. Lightroom places crops relative to the
+    photo as stored, before this rotation (1.12)."""
+    try:
+        import exifread
+        with open(path, 'rb') as f:
+            head = f.read(4)
+            f.seek(0)
+            source = _PatchedHeader(f, b'II*\x00' if head.startswith(b'II') else b'MM\x00*') \
+                if head in (b'IIRO', b'IIRS', b'MMOR') else f
+            tags = exifread.process_file(source, details=False, stop_tag='Orientation')
+        value = getattr(tags.get('Image Orientation'), 'values', [1])[0]
+        return int(value) if 1 <= int(value) <= 8 else 1
+    except Exception:
+        return 1
+
+
 def exif_info(path):
     """(capture time in seconds with sub-seconds when recorded, 'Make Model'), each None if unknown.
 

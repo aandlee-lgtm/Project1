@@ -33,7 +33,7 @@ from store import file_key, path_id, clear_cache_files, directory_size
 log = logging.getLogger('photoselect.engine')
 
 THUMB_EDGE = 512
-METRIC_KEYS = ('sharpness', 'focus', 'focus_default', 'focus_centre', 'focus_subject', 'composition', 'exposure',
+METRIC_KEYS = ('sharpness', 'focus', 'focus_default', 'focus_centre', 'focus_subject', 'composition', 'composition_full', 'exposure',
                'clip_low', 'clip_high', 'noise')
 
 
@@ -154,7 +154,11 @@ class Library:
         self.closed = False
         # 1.11: find the subject automatically and measure focus there (unless you drew a region)
         self.find_subject = subject.find_subject
-        self.auto_subject = store.prefs().get('auto_subject', True) is not False
+        prefs = store.prefs()
+        self.auto_subject = prefs.get('auto_subject', True) is not False
+        # 1.12: suggested crops (see analysis.crop_options)
+        self.consider_crop = prefs.get('consider_crop', True) is not False
+        self.crop_min_edge = int(prefs.get('crop_min_edge') or 3000)
 
     # ------------------------------------------------------------------ helpers
     def _bump(self):
@@ -189,8 +193,13 @@ class Library:
         roi = mark.get('roi') if mark else None
         row['roi'] = roi if analysis.valid_region(roi) else None
         row['roi_state'] = None
+        row['no_crop'] = bool(mark and mark.get('no_crop'))
         if row['raw'] is None:
             return
+        # crops around a region you drew were worked out when it was measured
+        row['crops'] = (mark['roi_crops'] if row['roi'] and mark.get('roi_key') == row['key'] and mark.get('roi_crops')
+                        is not None else row.get('subject_crops') or {})
+        self._apply_crop(row)
         row['raw']['focus'] = row['raw']['focus_default']
         if row['roi']:
             if mark.get('roi_key') == row['key'] and mark.get('roi_focus') is not None:
@@ -308,7 +317,12 @@ class Library:
         row['raw']['colour'] = data['colour']
         row['raw']['look'] = data.get('look')
         row['subject'] = data.get('subject')
+        row['raw'].setdefault('composition_full', data['composition'])
+        row['subject_crops'] = data.get('crops') or {}
+        row['crops'] = row['subject_crops']
+        row['orientation'] = data.get('orientation', 1)
         self._set_default_focus(row)
+        self._apply_crop(row)
         row['size'] = data.get('size')
         row['timestamp'] = data.get('timestamp')
         row['camera'] = data.get('camera')
@@ -324,6 +338,34 @@ class Library:
         raw = row['raw']
         if 'focus_centre' in raw:
             raw['focus_default'] = raw['focus_subject'] if self.auto_subject else raw['focus_centre']
+
+    def _apply_crop(self, row):
+        """The suggested crop for the chosen minimum long edge, and the composition that counts."""
+        raw = row['raw']
+        crop = (row.get('crops') or {}).get(str(self.crop_min_edge))
+        row['crop'] = crop
+        use = crop and self.consider_crop and not row.get('no_crop')
+        raw['composition'] = crop['composition'] if use else raw.get('composition_full', raw.get('composition'))
+
+    def set_crop_settings(self, consider=None, min_edge=None):
+        """Consider cropping on/off and the minimum long edge after a crop; no re-analysis needed."""
+        with self.lock:
+            if consider is not None:
+                self.consider_crop = bool(consider)
+            if min_edge is not None and int(min_edge) in analysis.CROP_EDGES:
+                self.crop_min_edge = int(min_edge)
+            for row in self.rows:
+                if row['status'] == 'analysed' and row['raw']:
+                    self._apply_crop(row)
+            self._bump()
+
+    def set_no_crop(self, row, on):
+        self.store.set_mark(row['path'], no_crop=bool(on))
+        with self.lock:
+            row['no_crop'] = bool(on)
+            if row['raw']:
+                self._apply_crop(row)
+            self._bump()
 
     def set_auto_subject(self, on):
         """Switch automatic subject finding on or off; scores update without re-analysis."""
@@ -367,6 +409,7 @@ class Library:
             t1 = time.perf_counter()
             region = row['roi']
             preview, m = analysis.analyse(full, region, finder=self.find_subject, auto_subject=self.auto_subject)
+            m['orientation'] = raw_io.exif_orientation(path)
             data = {k: v for k, v in m.items() if k != 'focus'}
             data['focus'] = m['focus_default']
             if row.get('camera') is None and row.get('timestamp') is None:
@@ -447,6 +490,7 @@ class Library:
                     'id': r['id'], 'name': r['name'], 'path': r['path'], 'format': r['format'], 'is_raw': r['is_raw'],
                     'status': r['status'], 'source': r['source'], 'timestamp': r['timestamp'], 'camera': r['camera'],
                     'size': r['size'], 'scores': r['scores'], 'group': r['group'], 'roi': r['roi'], 'subject': r.get('subject'),
+                    'crop': r.get('crop'), 'no_crop': bool(r.get('no_crop')), 'orientation': r.get('orientation', 1),
                     'roi_state': r['roi_state'], 'noise_flag': r['noise_flag'],
                     'near_identical': bool(r.get('near_identical')), 'likeness': r.get('likeness') or {},
                     'basis': r.get('basis'), 'notice': r.get('notice', ''),
@@ -547,11 +591,14 @@ class Library:
             raise KeyError(id)
         if region is not None and not analysis.valid_region(region):
             raise ValueError('Draw a larger region inside the photo.')
-        self.store.set_mark(row['path'], roi=region, roi_key=None, roi_focus=None)
+        self.store.set_mark(row['path'], roi=region, roi_key=None, roi_focus=None, roi_crops=None)
         with self.lock:
             row['roi'] = region
             if row['raw'] is not None:
                 row['raw']['focus'] = row['raw']['focus_default']
+                if region is None:
+                    row['crops'] = row.get('subject_crops') or {}
+                    self._apply_crop(row)
             row['roi_state'] = 'measuring' if region and row['status'] == 'analysed' else (
                 'pending' if region else None)
             self._bump()
@@ -564,7 +611,10 @@ class Library:
             with self.lock:
                 row['roi_state'] = 'measuring'
                 self._bump()
-            value = analysis.focus_detail(raw_io.decode_photo(row['path'], min_edge=analysis.FOCUS_SCALE)[0], region)
+            full = raw_io.decode_photo(row['path'], min_edge=analysis.FOCUS_SCALE)[0]
+            value = analysis.focus_detail(full, region)
+            crops = analysis.crop_options(analysis.preview_of(full), region, full.info.get('native_size', full.size))
+            del full
         except Exception as error:
             log.warning('region measurement failed: %s', error)
             with self.lock:
@@ -574,9 +624,11 @@ class Library:
         with self.lock:
             if row['roi'] != region:   # superseded by a newer region
                 return
-            self.store.set_mark(row['path'], roi_key=row['key'], roi_focus=value)
+            self.store.set_mark(row['path'], roi_key=row['key'], roi_focus=value, roi_crops=crops)
             row['raw']['focus'] = value
             row['roi_state'] = 'full'
+            row['crops'] = crops
+            self._apply_crop(row)
             self._bump()
 
     # ------------------------------------------------------------------ maintenance

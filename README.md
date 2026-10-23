@@ -1,4 +1,4 @@
-# PhotoSelect 1.11 — Apple silicon Mac app
+# PhotoSelect 1.12 — Apple silicon Mac app
 
 PhotoSelect helps you cull bursts of sailing and sports photos. Point it at a folder of Nikon
 (NEF/NRW), Olympus / OM System (ORF), Sony (ARW), other RAW, JPEG, PNG or TIFF files. It decodes each photo
@@ -27,12 +27,20 @@ folders are XMP sidecars for Lightroom, when you send to Lightroom that way (and
 4. Open a frame. **Drag a rectangle over the sailors or boat** so focus is measured there rather
    than on textured water. The region is measured on the full-resolution decode and is
    remembered for that file. Without a region, PhotoSelect **finds the subject automatically**
-   (macOS's built-in, on-device Vision analysis) and measures focus there, or in the central half
+   (macOS's built-in, on-device Vision analysis: subject isolation as in Photos' "lift subject",
+   then people detection, then what stands out) and measures focus there, or in the central half
    when no subject stands out. Every photo shows where focus is measured: a solid grey outline for
    a subject found automatically, a dashed grey outline for the central half, a solid teal outline
    for your own region, on the thumbnail, in the viewer, the inspector and the burst comparison.
    *Show focus area* in the toolbar hides the outlines; *Find the subject automatically* (under the
    sliders) switches subject finding off.
+   **Suggested crop** (since 1.12): around the subject (or your region) PhotoSelect suggests a crop
+   with the photo's shape, the subject on a thirds line, never smaller than 3,000 px on the long
+   edge (*Minimum long edge after crop*: 2,000–4,000 px). It is drawn with amber corners. With
+   *Consider cropping* on, composition counts the crop when it scores better ("Composition 48 → 76
+   with the suggested crop (4,410 × 2,940 px)"). **No crop** in the viewer turns it off for one photo.
+   With *Send suggested crops* ticked in the Lightroom window, the crop arrives in Lightroom as an
+   ordinary crop you can adjust or reset; a crop you already set there is never replaced.
 5. **Inspect full resolution** shows the decoded original inside the app at fit, 100%
    (one image pixel per screen pixel) or 200%. Click to zoom to a point.
 6. **Compare this burst** ranks the burst side by side. Tick *100% crops of the focus region* to
