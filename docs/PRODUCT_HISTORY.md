@@ -570,6 +570,24 @@ Built when the owner sent **build_new** after asking for items 21 and 26.
   - 100% crops in the burst comparison centre on the subject;
   - existing folders are re-analysed once (analysis version 5).
 
+### After 1.11.0 (planned for the next version: waiting for build_new)
+27. **Derive the subject; consider cropping.** The owner asked whether the subject can be derived in
+    each photo and, if so, to let PhotoSelect consider cropping as long as the long edge stays above
+    3,000 px after the crop.
+    - Explained:
+      - 1.11 already finds a subject, using macOS Vision saliency ("what stands out"). On the test
+        machines' 6 genuine sample photos it found a clear subject on 2; areas covering over half
+        the frame are rejected.
+      - macOS also offers subject isolation (as in Photos' "lift subject from background", macOS 14+)
+        and people detection, which outline the subject more tightly. Planned as the first methods,
+        with saliency as the fallback.
+    - Planned (backlog 27):
+      - a suggested crop with the original's aspect ratio, the subject on a thirds line, never below
+        3,000 px on the long edge (adjustable);
+      - composition scored on the crop when that is better (setting *Consider cropping*);
+      - the crop shown as amber corner marks, with a per-photo *No crop*;
+      - the crop sent to Lightroom as a normal, adjustable crop (sidecar or plug-in), switchable off.
+
 ---
 
 ## 2. Definitions (draft glossary for the user instructions)
@@ -594,6 +612,7 @@ Built when the owner sent **build_new** after asking for items 21 and 26.
 | **Close to burst top** | A frame within 3 points of its burst's best frame. Worth comparing by eye. |
 | **Subject found automatically** | Since 1.11: where macOS's on-device image analysis finds the subject of a photo (what stands out). Subject focus is measured there, unless you drew a region. Solid grey outline. |
 | **XMP sidecar** | A small `.xmp` file next to a RAW photo (e.g. `DSC_1234.xmp`) holding its stars and keywords. Lightroom reads it on import. Since 1.11 PhotoSelect can write them instead of using the plug-in. |
+| **Suggested crop** *(planned)* | A crop PhotoSelect proposes around the subject: same aspect ratio, subject on a thirds line, at least 3,000 px on the long edge. Used for the composition score and sent to Lightroom as an adjustable crop. |
 | **Show focus area** | Toolbar switch (since 1.10) that shows or hides the focus-area outlines on the photos. |
 | **Best of each series** | How many frames of each burst or near-identical series are suggested Keep (default 1). The others are suggested Drop, or Consider when within 3 points of the best. |
 | **Likeness %** | How alike two frames look, from 0 % (unrelated) to 100 % (identical). It compares a 16 × 12 grey-level version of each frame and its average colour. |
