@@ -1,5 +1,29 @@
 # PhotoSelect releases
 
+## 1.12.0
+- **Better subject finding.** PhotoSelect now first uses macOS's subject isolation, the same analysis
+  as "lift subject from background" in Photos (macOS 14 and later), then people detection, and only
+  then the 1.11 method. On a test photo the subject was outlined about half as wide as before.
+- **Suggested crops.** Around the subject (or a region you draw), PhotoSelect suggests a crop:
+  - the same shape as the photo, the subject on a thirds line;
+  - never smaller than **3,000 px** on the long edge (*Minimum long edge after crop*: 2,000–4,000 px);
+  - only when it improves the composition. Photos where a good crop would go below the limit, or
+    the full frame is already better, get none.
+- **Seeing and using crops:**
+  - the crop is shown with amber corners on the thumbnails, in the viewer, the inspector and the
+    burst comparison (*Show suggested crop* in the toolbar);
+  - with *Consider cropping* on, composition counts the crop when it scores better, e.g.
+    "Composition 48 → 76 with the suggested crop (4,410 × 2,940 px)";
+  - **No crop** in the viewer turns it off for one photo.
+- **Crops in Lightroom.** With *Send suggested crops* ticked (the default), the crop arrives in
+  Lightroom as an ordinary crop you can adjust or reset. A crop you already set in Lightroom is never
+  replaced. Portrait shots are turned the right way for Lightroom. Your photo files are never changed.
+- If you use the plug-in route, reinstall the plug-in once (1.12.0). The XMP sidecar route needs
+  nothing. Folders are re-analysed once with this version.
+- Tested: the installed DMG passed all 138 acceptance checks on macOS 14.8 and 15.7 (run 39974363148).
+  Analysis took longer on the test machines again (see the validation report); please report your
+  M2's time.
+
 ## 1.11.0
 - **No plug-in needed for Lightroom (XMP sidecars).** *Send to Lightroom…* now writes the stars and
   PhotoSelect keywords into a small `.xmp` file next to each RAW photo, e.g. `DSC_1234.xmp`.

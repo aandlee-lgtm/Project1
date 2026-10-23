@@ -1,4 +1,50 @@
-# PhotoSelect validation report (1.0.0, updated for 1.11.0)
+# PhotoSelect validation report (1.0.0, updated for 1.12.0)
+
+## 1.12.0 results
+Build and acceptance run: https://github.com/aandlee-lgtm/Project1/actions/runs/39974363148. The installed
+DMG passed on clean macOS 14.8 and 15.7 runners: 138 passed or informational, 0 failed, on each.
+
+**Subject finding (macOS Vision, inside the installed app, 15 photos):**
+- macOS 15: subject isolation found 1, objectness saliency 1 and attention saliency 8. Five
+  whole-frame areas were rejected.
+  - On the D7200 sample, isolation outlined the subject at 35 % × 87 % of the frame, against 70 % ×
+    98 % with saliency in 1.11.
+  - People detection found nobody (there are no people in the samples).
+- macOS 14 (virtual Mac): subject isolation could not run ("Could not create inference context",
+  also not on the CPU), so the other methods were used as designed. A real Apple silicon Mac runs
+  it on the Neural Engine.
+
+**Suggested crops:**
+- Unit tests:
+  - the crop keeps the photo's shape, the subject inside and the frame inside;
+  - it never goes below the minimum long edge (rounded up);
+  - larger minimums give larger crops or none, and 3,680 px or smaller frames are not cropped
+    at 3,500 / 4,000 px;
+  - the settings and *No crop* change the composition that counts;
+  - the EXIF orientation mapping (1, 3, 6, 8), checked against a real 90° rotation;
+  - sidecar crops: written, replaced while still PhotoSelect's own, removed; a crop set elsewhere is
+    kept;
+  - plug-in crops: applied only to uncropped photos.
+- Locally, in the page with 6,000 × 4,000 photos:
+  - amber corners on the cards and in the viewer, 3,000 × 2,000 px crops with the subject on a
+    thirds line, composition 86 → 100;
+  - *No crop* and back; the 4,000 px setting gives 4,002 × 2,668 px.
+- **Not covered by the macOS runs:** none of the genuine samples got a suggested crop. The small
+  subject on the Z6III frame gained less than 3 composition points; the others were too large. So a
+  crop written into the sidecar of a genuine RAW file, and Lightroom applying it, especially to a
+  portrait shot, are verified only by the unit tests. Field test T23 covers this.
+
+**Speed, 250-RAW-file folder:**
+
+| | 1.10.0 | 1.11.0 | 1.12.0 |
+|---|---|---|---|
+| macOS 14 | 169 s | 308 s | 324 s |
+| macOS 15 | 237 s | 395 s | 434 s |
+
+CPU time per file was 2.1–3.5 s. Each Vision method tried adds time on these virtual Macs. Subject
+isolation runs first on every photo, and on macOS 14 it fails before the others run. Real Apple
+silicon should be much faster (Neural Engine), but this is unmeasured; field tests T17 and T22 ask
+for it.
 
 ## 1.11.0 results
 Build and acceptance run: https://github.com/aandlee-lgtm/Project1/actions/runs/39742908792. The installed
